@@ -1,0 +1,15 @@
+[package]
+name = "wmf-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+encoding_rs = { workspace = true }
+paste = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+unicode-segmentation = { workspace = true }
+
+[lints]
+workspace = true

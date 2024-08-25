@@ -1,0 +1,17 @@
+[package]
+name = "wmf-converter"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["svg"]
+svg = ["dep:svg"]
+
+[dependencies]
+svg = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+wmf-core = { workspace = true }
+
+[lints]
+workspace = true

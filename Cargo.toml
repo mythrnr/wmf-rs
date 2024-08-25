@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = ["cli", "converter", "core"]
+
+[workspace.dependencies]
+clap = { version = "4.5.16", features = ["derive", "env"] }
+encoding_rs = "0.8.34"
+paste = "1.0.15"
+strum = { version = "0.26.3", features = ["derive"] }
+svg = "0.17.0"
+thiserror = "1.0.63"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time"] }
+unicode-segmentation = "1.11.0"
+
+# workspace
+wmf-cli = { path = "./cli" }
+wmf-converter = { path = "./converter" }
+wmf-core = { path = "./core" }
+
+[workspace.lints.clippy]
+pedantic = "warn"
+
+# allowed rules
+doc_markdown = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"

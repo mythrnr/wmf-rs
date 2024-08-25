@@ -1,0 +1,16 @@
+{
+  "caseSensitive": false,
+  "dictionaries": [
+    "bash",
+    "rust"
+  ],
+  "enableGlobDot": true,
+  "ignorePaths": [
+    ".git",
+    "*.lock",
+    "target"
+  ],
+  "language": "en",
+  "minWordLength": 4,
+  "words": []
+}
