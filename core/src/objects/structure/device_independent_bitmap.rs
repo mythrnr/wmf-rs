@@ -8,7 +8,7 @@ pub struct DeviceIndependentBitmap {
     /// The first 32 bits of this field is the HeaderSize value. If it is
     /// 0x0000000C, then this is a BitmapCoreHeader; otherwise, this is a
     /// BitmapInfoHeader.
-    pub dib_header_info: DIBHeaderInfo,
+    pub dib_header_info: crate::BitmapInfoHeader,
     /// Colors (variable): An optional array of either RGBQuad Objects or
     /// 16-bit unsigned integers that define a color table.
     ///
@@ -33,56 +33,10 @@ impl DeviceIndependentBitmap {
         buf: &mut R,
         color_usage: crate::ColorUsage,
     ) -> Result<(Self, usize), crate::ParseError> {
-        let (dib_header_info, mut consumed_bytes) = DIBHeaderInfo::parse(buf)?;
-        let bit_count = dib_header_info.bit_count();
-        let colors_length = match bit_count {
-            crate::BitCount::BI_BITCOUNT_0 => 0,
-            crate::BitCount::BI_BITCOUNT_1 => 2,
-            crate::BitCount::BI_BITCOUNT_2 => 2_usize.pow(4),
-            crate::BitCount::BI_BITCOUNT_3 => 2_usize.pow(8),
-            crate::BitCount::BI_BITCOUNT_4 => match &dib_header_info {
-                DIBHeaderInfo::Core(_) => 2_usize.pow(16),
-                DIBHeaderInfo::Info(v) => match v.compression {
-                    crate::Compression::BI_RGB => 0,
-                    _ => 2_usize.pow(16),
-                },
-            },
-            crate::BitCount::BI_BITCOUNT_5 => 0,
-            crate::BitCount::BI_BITCOUNT_6 => match &dib_header_info {
-                DIBHeaderInfo::Core(_) => 2_usize.pow(24),
-                DIBHeaderInfo::Info(v) => match v.compression {
-                    crate::Compression::BI_RGB => 0,
-                    _ => 2_usize.pow(24),
-                },
-            },
-        };
-        let colors = match color_usage {
-            crate::ColorUsage::DIB_RGB_COLORS => {
-                let mut rgb = vec![];
-
-                for _ in 0..colors_length {
-                    let (v, c) = crate::RGBQuad::parse(buf)?;
-
-                    consumed_bytes += c;
-                    rgb.push(v);
-                }
-
-                Colors::RGBQuad(rgb)
-            }
-            crate::ColorUsage::DIB_PAL_COLORS => {
-                let mut table = vec![];
-
-                for _ in 0..colors_length {
-                    let (v, c) = crate::read_u16_from_le_bytes(buf)?;
-
-                    consumed_bytes += c;
-                    table.push(v);
-                }
-
-                Colors::ColorTable(table)
-            }
-            crate::ColorUsage::DIB_PAL_INDICES => Colors::Null,
-        };
+        let (dib_header_info, mut consumed_bytes) =
+            crate::BitmapInfoHeader::parse(buf)?;
+        let (colors, c) = Colors::parse(buf, color_usage, &dib_header_info)?;
+        consumed_bytes += c;
 
         //  TODO: Not written in [MS-WMF] how to parse this field.
         let undefined_space = vec![];
@@ -102,75 +56,116 @@ impl DeviceIndependentBitmap {
 
 #[derive(Clone, Debug)]
 pub enum Colors {
-    ColorTable(Vec<u16>),
+    PaletteIndices(Vec<u16>),
     RGBQuad(Vec<crate::RGBQuad>),
+    RGBColorMask(Vec<(u32, u32, u32)>),
     Null,
 }
 
-#[derive(Clone, Debug)]
-pub enum DIBHeaderInfo {
-    Core(crate::BitmapCoreHeader),
-    Info(crate::BitmapInfoHeader),
-}
-
-impl DIBHeaderInfo {
-    pub fn parse<R: std::io::Read>(
+impl Colors {
+    fn parse<R: std::io::Read>(
         buf: &mut R,
+        color_usage: crate::ColorUsage,
+        dib_header_info: &crate::BitmapInfoHeader,
     ) -> Result<(Self, usize), crate::ParseError> {
-        let (header_size, mut consumed_bytes) =
-            crate::read_u32_from_le_bytes(buf)?;
+        match dib_header_info.bit_count() {
+            crate::BitCount::BI_BITCOUNT_0 | crate::BitCount::BI_BITCOUNT_5 => {
+                Ok((Colors::Null, 0))
+            }
+            crate::BitCount::BI_BITCOUNT_1 => {
+                Self::parse_from_color_usage(buf, color_usage, 2)
+            }
+            crate::BitCount::BI_BITCOUNT_2 => {
+                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(4))
+            }
+            crate::BitCount::BI_BITCOUNT_3 => {
+                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(8))
+            }
+            crate::BitCount::BI_BITCOUNT_4 | crate::BitCount::BI_BITCOUNT_6 => {
+                match &dib_header_info {
+                    crate::BitmapInfoHeader::Core { .. } => {
+                        Ok((Colors::Null, 0))
+                    }
+                    crate::BitmapInfoHeader::Info {
+                        compression,
+                        color_used,
+                        ..
+                    }
+                    | crate::BitmapInfoHeader::V4 {
+                        compression,
+                        color_used,
+                        ..
+                    }
+                    | crate::BitmapInfoHeader::V5 {
+                        compression,
+                        color_used,
+                        ..
+                    } => match compression {
+                        crate::Compression::BI_RGB => Ok((Colors::Null, 0)),
+                        crate::Compression::BI_BITFIELDS => {
+                            let mut consumed_bytes = 0;
+                            let mut table = vec![];
 
-        if header_size == 0x0000000C {
-            let (header, c) = crate::BitmapCoreHeader::parse_with_header_size(
-                buf,
-                header_size,
-            )?;
-            consumed_bytes += c;
+                            for _ in 0..*color_used {
+                                let (
+                                    (r, r_bytes),
+                                    (g, g_bytes),
+                                    (b, b_bytes),
+                                )= (
+                                    crate::read_u32_from_le_bytes(buf)?,
+                                    crate::read_u32_from_le_bytes(buf)?,
+                                    crate::read_u32_from_le_bytes(buf)?,
+                                );
 
-            Ok((Self::Core(header), consumed_bytes))
-        } else {
-            let (header, c) = crate::BitmapInfoHeader::parse_with_header_size(
-                buf,
-                header_size,
-            )?;
-            consumed_bytes += c;
+                                consumed_bytes += r_bytes+g_bytes+b_bytes;
+                                table.push((r,g,b));
+                            }
 
-            Ok((Self::Info(header), consumed_bytes))
+                            Ok((Colors::RGBColorMask(table), consumed_bytes))
+                        }
+                        _ => Ok((Colors::Null, 0)),
+                    },
+                }
+            }
         }
     }
-}
 
-impl DIBHeaderInfo {
-    fn bit_count(&self) -> crate::BitCount {
-        match &self {
-            DIBHeaderInfo::Core(v) => v.bit_count,
-            DIBHeaderInfo::Info(v) => v.bit_count,
+    fn parse_from_color_usage<R: std::io::Read>(
+        buf: &mut R,
+        color_usage: crate::ColorUsage,
+        colors_length: usize,
+    ) -> Result<(Self, usize), crate::ParseError> {
+        let mut consumed_bytes: usize = 0;
+
+        match color_usage {
+            crate::ColorUsage::DIB_RGB_COLORS => {
+                let mut table = vec![];
+
+                for _ in 0..colors_length {
+                    let (v, c) = crate::RGBQuad::parse(buf)?;
+
+                    consumed_bytes += c;
+                    table.push(v);
+                }
+
+                Ok((Colors::RGBQuad(table), consumed_bytes))
+            }
+            crate::ColorUsage::DIB_PAL_COLORS => {
+                let mut table = vec![];
+
+                for _ in 0..colors_length {
+                    let (v, c) = crate::read_u16_from_le_bytes(buf)?;
+
+                    consumed_bytes += c;
+                    table.push(v);
+                }
+
+                Ok((Colors::PaletteIndices(table), consumed_bytes))
+            }
+            crate::ColorUsage::DIB_PAL_INDICES => {
+                Ok((Colors::Null, consumed_bytes))
+            }
         }
-    }
-
-    fn size(&self) -> usize {
-        let size = match self {
-            DIBHeaderInfo::Core(v) => u32::from(
-                (((v.width * v.planes * (v.bit_count as u16) + 31) & !31) / 8)
-                    * v.height,
-            ),
-            DIBHeaderInfo::Info(v) => match v.compression {
-                crate::Compression::BI_RGB
-                | crate::Compression::BI_BITFIELDS
-                | crate::Compression::BI_CMYK => u32::from(
-                    ((((v.width as u32)
-                        * u32::from(v.planes)
-                        * (v.bit_count as u32)
-                        + 31)
-                        & !31)
-                        / 8)
-                        * v.height.abs() as u32,
-                ),
-                _ => v.image_size,
-            },
-        };
-
-        size as usize
     }
 }
 

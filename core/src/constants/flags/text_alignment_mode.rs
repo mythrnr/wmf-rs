@@ -6,7 +6,15 @@
 /// Horizontal text alignment is performed when the font has a horizontal
 /// default baseline.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum TextAlignmentMode {
@@ -15,9 +23,9 @@ pub enum TextAlignmentMode {
     /// text output function.
     // TA_NOUPDATECP = 0x0000,
     /// The reference point MUST be on the left edge of the bounding rectangle.
-    // TA_LEFT = 0x0000,
+    TA_LEFT = 0x0000,
     /// The reference point MUST be on the top edge of the bounding rectangle.
-    TA_TOP = 0x0000,
+    // TA_TOP = 0x0000,
     /// The drawing position in the playback device context MUST be updated
     /// after each text output call. It MUST be used as the reference point.
     TA_UPDATECP = 0x0001,

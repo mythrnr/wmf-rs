@@ -78,17 +78,51 @@ impl META_DIBCREATEPATTERNBRUSH {
     pub fn create_brush(&self) -> crate::Brush {
         match self.style {
             crate::BrushStyle::BS_PATTERN => {
-                // TODO:
-                todo!()
+                todo!();
+                let dib = self.target.clone();
+                let (width, height, planes) = match dib.dib_header_info {
+                    crate::BitmapInfoHeader::Core {
+                        width,
+                        height,
+                        planes,
+                        ..
+                    } => (width as i16, height as i16, planes as u8),
+                    crate::BitmapInfoHeader::Info {
+                        width,
+                        height,
+                        planes,
+                        ..
+                    }
+                    | crate::BitmapInfoHeader::V4 {
+                        width,
+                        height,
+                        planes,
+                        ..
+                    }
+                    | crate::BitmapInfoHeader::V5 {
+                        width,
+                        height,
+                        planes,
+                        ..
+                    } => (width as i16, height as i16, planes as u8),
+                };
+
+                crate::Brush::Pattern {
+                    brush_hatch: crate::Bitmap16 {
+                        typ: i16::from_be_bytes([b'B', b'M']),
+                        width,
+                        height,
+                        width_bytes: 0,
+                        planes,
+                        bits_pixel: 16,
+                        bits: dib.bitmap_buffer.a_data,
+                    },
+                }
             }
-            crate::BrushStyle::BS_DIBPATTERNPT
-            | crate::BrushStyle::BS_HATCHED
-            | crate::BrushStyle::BS_NULL
-            | crate::BrushStyle::BS_SOLID => crate::Brush::DIBPatternPT {
+            _ => crate::Brush::DIBPatternPT {
                 color_usage: self.color_usage,
                 brush_hatch: self.target.clone(),
             },
-            _ => crate::Brush::Solid { color_ref: crate::ColorRef::black() },
         }
     }
 }

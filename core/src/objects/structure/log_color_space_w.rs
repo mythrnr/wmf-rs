@@ -31,15 +31,15 @@ pub struct LogColorSpaceW {
     /// GammaRed (4 bytes): A 32-bit fixed point value that defines the toned
     /// response curve for red. If the ColorSpaceType field does not specify
     /// LCS_CALIBRATED_RGB, this field MUST be ignored.
-    pub gamma_red: f32,
+    pub gamma_red: u32,
     /// A 32-bit fixed point value that defines the toned response curve for
     /// green. If the ColorSpaceType field does not specify LCS_CALIBRATED_RGB,
     /// this field MUST be ignored.
-    pub gamma_green: f32,
+    pub gamma_green: u32,
     /// GammaBlue (4 bytes): A 32-bit fixed point value that defines the toned
     /// response curve for blue. If the ColorSpaceType field does not specify
     /// LCS_CALIBRATED_RGB, this field MUST be ignored.
-    pub gamma_blue: f32,
+    pub gamma_blue: u32,
     /// Filename (520 bytes): An optional, null-terminated Unicode UTF16-LE
     /// character string, which specifies the name of a file that contains a
     /// color profile. If a file name is specified, and the ColorSpaceType
@@ -74,18 +74,9 @@ impl LogColorSpaceW {
             crate::LogicalColorSpace::parse(buf)?,
             crate::GamutMappingIntent::parse(buf)?,
             crate::CIEXYZTriple::parse(buf)?,
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_8_8(v), c)
-            },
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_8_8(v), c)
-            },
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_8_8(v), c)
-            },
+            crate::read_u32_from_le_bytes(buf)?,
+            crate::read_u32_from_le_bytes(buf)?,
+            crate::read_u32_from_le_bytes(buf)?,
         );
         let mut consumed_bytes = signature_bytes
             + version_bytes

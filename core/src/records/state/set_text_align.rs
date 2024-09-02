@@ -14,7 +14,7 @@ pub struct META_SETTEXTALIGN {
     /// text alignment. This value MUST be a combination of one or more
     /// TextAlignmentMode Flags for text with a horizontal baseline, and
     /// VerticalTextAlignmentMode Flags for text with a vertical baseline.
-    pub text_alignment_mode: [u8; 2],
+    pub text_alignment_mode: u16,
     /// Reserved (2 bytes): An optional 16-bit field that MUST be ignored.
     /// (Windows NT 3.1, Windows NT 3.5, and Windows NT 3.51 implementations do
     /// not write this field to WMF metafiles.)
@@ -42,7 +42,7 @@ impl META_SETTEXTALIGN {
         )?;
 
         let (text_alignment_mode, text_alignment_mode_bytes) =
-            crate::read::<R, 2>(buf)?;
+            crate::read_u16_from_le_bytes(buf)?;
         record_size.consume(text_alignment_mode_bytes);
 
         let reserved = if record_size.byte_count() > 8 {

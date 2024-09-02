@@ -22,6 +22,10 @@ pub struct Bitmap16 {
     /// Bits (variable): A variable length array of bytes that defines the
     /// bitmap pixel data. The length of this field in bytes can be computed as
     /// follows.
+    ///
+    /// ```
+    /// (((Width * BitsPixel + 15) >> 4) << 1) * Height
+    /// ```
     pub bits: Vec<u8>,
 }
 

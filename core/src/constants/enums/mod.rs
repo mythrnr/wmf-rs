@@ -14,7 +14,6 @@ mod gamut_mapping_intent;
 mod hatch_style;
 mod layout;
 mod logical_color_space;
-mod logical_color_space_v5;
 mod map_mode;
 mod metafile_escapes;
 mod metafile_type;
@@ -37,10 +36,10 @@ pub use self::{
     binary_raster_operation::*, bit_count::*, brush_style::*, character_set::*,
     color_usage::*, compression::*, family_font::*, flood_fill::*,
     font_quality::*, gamut_mapping_intent::*, hatch_style::*, layout::*,
-    logical_color_space::*, logical_color_space_v5::*, map_mode::*,
-    metafile_escapes::*, metafile_type::*, metafile_version::*, mix_mode::*,
-    out_precision::*, palette_entry_flag::*, pen_style::*, pitch_font::*,
-    poly_fill_mode::*, post_script_cap::*, post_script_clipping::*,
-    post_script_feature_setting::*, post_script_join::*, record_type::*,
-    stretch_mode::*, ternary_raster_operation::*,
+    logical_color_space::*, map_mode::*, metafile_escapes::*, metafile_type::*,
+    metafile_version::*, mix_mode::*, out_precision::*, palette_entry_flag::*,
+    pen_style::*, pitch_font::*, poly_fill_mode::*, post_script_cap::*,
+    post_script_clipping::*, post_script_feature_setting::*,
+    post_script_join::*, record_type::*, stretch_mode::*,
+    ternary_raster_operation::*,
 };

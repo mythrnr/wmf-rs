@@ -42,4 +42,17 @@ impl Rect {
             left_bytes + top_bytes + right_bytes + bottom_bytes,
         ))
     }
+
+    pub fn overlap(&self, other: &Rect) -> Option<Rect> {
+        let left = self.left.max(other.left);
+        let top = self.top.min(other.top);
+        let right = self.right.min(other.right);
+        let bottom = self.bottom.max(other.bottom);
+
+        if left < right && bottom < top {
+            Some(Rect { left, top, right, bottom })
+        } else {
+            None
+        }
+    }
 }

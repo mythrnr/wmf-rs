@@ -17,7 +17,8 @@ struct Cli {
 
 fn main() {
     tracing_subscriber::fmt::fmt()
-        .pretty()
+        // .pretty()
+        .with_ansi(false)
         .with_file(true)
         .with_line_number(true)
         .with_span_events(FmtSpan::CLOSE)
@@ -66,9 +67,8 @@ fn main() {
     //     .join("\n");
     // println!("{bytes}");
 
-    let generator = wmf_converter::SVGGenerator::new(output);
-    let converter =
-        wmf_converter::WMFConverter::new(buffer.as_slice(), generator);
+    let player = wmf_converter::SVGPlayer::new(output);
+    let converter = wmf_converter::WMFConverter::new(buffer.as_slice(), player);
 
     if let Err(err) = converter.run() {
         tracing::error!(%err);

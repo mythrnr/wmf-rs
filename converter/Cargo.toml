@@ -5,9 +5,12 @@ edition = "2021"
 
 [features]
 default = ["svg"]
-svg = ["dep:svg"]
+svg = ["dep:base64", "dep:rand", "dep:strum", "dep:svg"]
 
 [dependencies]
+base64 = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+strum = { workspace = true, optional = true }
 svg = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

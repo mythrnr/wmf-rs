@@ -3,13 +3,13 @@
 pub struct CIEXYZ {
     /// ciexyzX (4 bytes): A 32-bit 2.30 fixed point type that defines the x
     /// chromaticity value.
-    pub x: f32,
+    pub x: u32,
     /// ciexyzY (4 bytes): A 32-bit 2.30 fixed point type that defines the y
     /// chromaticity value.
-    pub y: f32,
+    pub y: u32,
     /// ciexyzZ (4 bytes): A 32-bit 2.30 fixed point type that defines the z
     /// chromaticity value.
-    pub z: f32,
+    pub z: u32,
 }
 
 impl CIEXYZ {
@@ -22,18 +22,9 @@ impl CIEXYZ {
         buf: &mut R,
     ) -> Result<(Self, usize), crate::ParseError> {
         let ((x, x_bytes), (y, y_bytes), (z, z_bytes)) = (
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_2_30(v), c)
-            },
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_2_30(v), c)
-            },
-            {
-                let (v, c) = crate::read::<R, 4>(buf)?;
-                (crate::objects::structure::f32_from_fixed_point_q_2_30(v), c)
-            },
+            crate::read_u32_from_le_bytes(buf)?,
+            crate::read_u32_from_le_bytes(buf)?,
+            crate::read_u32_from_le_bytes(buf)?,
         );
 
         Ok((Self { x, y, z }, x_bytes + y_bytes + z_bytes))
