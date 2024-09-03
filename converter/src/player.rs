@@ -21,7 +21,7 @@ pub trait Player {
     // Functions to support parsing Records
     // .
     // .
-    fn selected_font(&self) -> Result<Font, PlayError>;
+    fn selected_font(&self) -> Result<&Font, PlayError>;
 
     // .
     // .

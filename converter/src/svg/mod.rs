@@ -1,21 +1,22 @@
 mod device_context;
-mod graphics_object;
+mod util;
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 
 use svg::{
-    node::element::{path::Data, Image, Path, Polygon, Rectangle, Text},
+    node::element::{
+        path::Data, Ellipse, Image, Path, Polygon, Rectangle, Text,
+    },
     Document,
 };
 use wmf_core::*;
 
-use self::{device_context::*, graphics_object::*};
+use self::{device_context::*, util::*};
 
 pub struct SVGPlayer<W> {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
     document: Document,
-    objects: crate::GraphicsObjects,
     object_selected: crate::SelectedGraphicsObject,
     output: W,
 }
@@ -26,40 +27,27 @@ impl<W> SVGPlayer<W> {
             context_stack: Vec::with_capacity(0),
             context_current: Default::default(),
             document: Document::new(),
-            objects: crate::GraphicsObjects::new(0),
             object_selected: crate::SelectedGraphicsObject::default(),
             output,
         }
     }
 
     #[inline]
-    fn current_context(&self) -> DeviceContext {
-        self.context_current.clone()
+    fn current_context(&self) -> &DeviceContext {
+        &self.context_current
     }
 
     #[inline]
     fn set_current_context(&mut self, context: DeviceContext) {
-        self.context_current = context.into();
+        self.context_current = context;
     }
 
-    fn selected_brush(&self) -> Result<Brush, crate::PlayError> {
-        let Some(ref brush) = self.object_selected.brush else {
-            return Err(crate::PlayError::UnexpectedGraphicsObject {
-                cause: format!("{:?}", self.object_selected),
-            });
-        };
-
-        Ok(brush.clone())
+    fn selected_brush(&self) -> Result<&Brush, crate::PlayError> {
+        Ok(&self.object_selected.brush)
     }
 
-    fn selected_pen(&self) -> Result<Pen, crate::PlayError> {
-        let Some(ref pen) = self.object_selected.pen else {
-            return Err(crate::PlayError::UnexpectedGraphicsObject {
-                cause: format!("{:?}", self.object_selected),
-            });
-        };
-
-        Ok(pen.clone())
+    fn selected_pen(&self) -> Result<&Pen, crate::PlayError> {
+        Ok(&self.object_selected.pen)
     }
 }
 
@@ -90,14 +78,8 @@ where
         skip_all,
         err(level = tracing::Level::DEBUG, Display),
     )]
-    fn selected_font(&self) -> Result<Font, crate::PlayError> {
-        let Some(ref font) = self.object_selected.font else {
-            return Err(crate::PlayError::UnexpectedGraphicsObject {
-                cause: format!("{:?}", self.object_selected),
-            });
-        };
-
-        Ok(font.clone())
+    fn selected_font(&self) -> Result<&Font, crate::PlayError> {
+        Ok(&self.object_selected.font)
     }
 
     // .
@@ -221,6 +203,7 @@ where
         &mut self,
         header: MetafileHeader,
     ) -> Result<(), crate::PlayError> {
+        let context = self.current_context().clone();
         let (_placeable, header) = match header {
             MetafileHeader::StartsWithHeader(header) => (None, header),
             MetafileHeader::StartsWithPlaceable(placeable, header) => {
@@ -228,8 +211,9 @@ where
             }
         };
 
-        self.objects =
-            crate::GraphicsObjects::new(header.number_of_objects as usize);
+        self.set_current_context(
+            context.create_object_table(header.number_of_objects),
+        );
 
         Ok(())
     }
@@ -246,7 +230,7 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn arc(&mut self, _record: META_ARC) -> Result<(), crate::PlayError> {
-        tracing::info!("META_ARC: not implemented");
+        tracing::info!("META_CHORD: not implemented");
         Ok(())
     }
 
@@ -267,9 +251,58 @@ where
     )]
     fn ellipse(
         &mut self,
-        _record: META_ELLIPSE,
+        record: META_ELLIPSE,
     ) -> Result<(), crate::PlayError> {
-        tracing::info!("META_ELLIPSE: not implemented");
+        let (rx, ry) = (
+            (record.right_rect - record.left_rect) / 2,
+            (record.bottom_rect - record.top_rect) / 2,
+        );
+
+        if rx == 0 || ry == 0 {
+            tracing::info!(
+                %rx, %ry,
+                "META_ELLIPSE is skipped because rx or ry is zero.",
+            );
+
+            return Ok(());
+        }
+
+        let mut document = self.document.clone();
+        let context = self.current_context();
+        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
+            Fill::Pattern { mut pattern } => {
+                let id = random_string();
+
+                pattern = pattern.set("id", id.clone());
+                document = document.add(pattern);
+
+                url_string(format!("#{id}"))
+            }
+            Fill::Value { value } => value,
+        };
+        let fill_rule = context.poly_fill_rule();
+        let point = context.point_s_to_absolute_point(&PointS {
+            x: record.left_rect + rx,
+            y: record.top_rect + ry,
+        });
+
+        let ellipse = Ellipse::new()
+            .set("fill", fill.as_str())
+            .set("fill-rule", fill_rule.as_str())
+            .set("stroke", stroke.color())
+            .set("stroke-width", stroke.width())
+            .set("stroke-opacity", stroke.opacity())
+            .set("stroke-linecap", stroke.line_cap())
+            .set("stroke-dasharray", stroke.dash_array())
+            .set("stroke-linejoin", stroke.line_join())
+            .set("cx", point.x)
+            .set("cy", point.y)
+            .set("rx", rx)
+            .set("ry", ry);
+
+        self.document = document.add(ellipse);
+
         Ok(())
     }
 
@@ -310,29 +343,88 @@ where
 
             v
         };
-        let point = PointS { x: record.x, y: record.y };
-        let update_cp = context
-            .text_align
-            .contains(&(TextAlignmentMode::TA_UPDATECP as u16));
-        let c = if update_cp {
+        let point = PointS {
+            x: record.x,
+            y: record.y
+                + (if context.text_align_vertical
+                    == VerticalTextAlignmentMode::VTA_TOP
+                    && font.height > 0
+                {
+                    font.height
+                } else if matches!(
+                    context.text_align_vertical,
+                    VerticalTextAlignmentMode::VTA_BASELINE
+                        | VerticalTextAlignmentMode::VTA_BOTTOM
+                ) && font.height < 0
+                {
+                    -1 * font.height
+                } else {
+                    0
+                }),
+        };
+        let c = if context.text_align_update_cp {
             context.point_s_to_relative_point(&point)
         } else {
             context.point_s_to_absolute_point(&point)
         };
-        let text_align = context.text_horizon_align();
+        let text_align = context.as_css_text_align();
+        let shape_inside = if let (true, Some(rect)) = (
+            record.fw_opts.contains(&ExtTextOutOptions::ETO_CLIPPED),
+            record.rectangle,
+        ) {
+            let tl = {
+                let point = PointS { x: rect.left, y: rect.top };
+                if context.text_align_update_cp {
+                    context.point_s_to_relative_point(&point)
+                } else {
+                    context.point_s_to_absolute_point(&point)
+                }
+            };
+            let tr = {
+                let point = PointS { x: rect.right, y: rect.top };
+                if context.text_align_update_cp {
+                    context.point_s_to_relative_point(&point)
+                } else {
+                    context.point_s_to_absolute_point(&point)
+                }
+            };
+            let bl = {
+                let point = PointS { x: rect.left, y: rect.bottom };
+                if context.text_align_update_cp {
+                    context.point_s_to_relative_point(&point)
+                } else {
+                    context.point_s_to_absolute_point(&point)
+                }
+            };
+            let br = {
+                let point = PointS { x: rect.right, y: rect.bottom };
+                if context.text_align_update_cp {
+                    context.point_s_to_relative_point(&point)
+                } else {
+                    context.point_s_to_absolute_point(&point)
+                }
+            };
+
+            format!(
+                "shape-inside: polygon({},{} {},{} {},{} {},{});",
+                tl.x, tl.y, bl.x, bl.y, tr.x, tr.y, br.x, br.y,
+            )
+        } else {
+            "".to_owned()
+        };
         let text = Text::new(record.string)
             .set("x", c.x)
             .set("y", c.y)
             .set("text-anchor", text_align)
             .set("fill", context.text_color_as_css_color())
-            .set("font-family", font.facename)
+            .set("font-family", font.facename.clone())
             .set("font-size", font.height.abs())
             .set("font-weight", font.weight)
             .set("rotate", font.orientation)
             .set(
                 "style",
                 format!(
-                    "{}{}",
+                    "{}{}{}",
                     if decoration.is_empty() {
                         "".to_owned()
                     } else {
@@ -343,11 +435,12 @@ where
                     } else {
                         "font-style: normal;"
                     },
+                    shape_inside,
                 ),
             );
 
-        if update_cp {
-            self.set_current_context(context.current_coordinate(c));
+        if context.text_align_update_cp {
+            self.set_current_context(context.clone().drawing_position(c));
         }
 
         self.document = self.document.clone().add(text);
@@ -414,15 +507,12 @@ where
     )]
     fn line_to(&mut self, record: META_LINETO) -> Result<(), crate::PlayError> {
         let context = self.current_context();
-        let stroke = Stroke::from(self.selected_pen()?);
+        let stroke = Stroke::from(self.selected_pen()?.clone());
         let point = PointS { x: record.x, y: record.y };
         let c = context.point_s_to_absolute_point(&point);
 
         let data = Data::new()
-            .move_to((
-                context.current_coordinate.x,
-                context.current_coordinate.y,
-            ))
+            .move_to((context.drawing_position.x, context.drawing_position.y))
             .line_to((c.x, c.y));
         let path = Path::new()
             .set("fill", "none")
@@ -434,7 +524,7 @@ where
             .set("stroke-linejoin", stroke.line_join())
             .set("d", data);
 
-        self.set_current_context(context.current_coordinate(c));
+        self.set_current_context(context.clone().drawing_position(c));
         self.document = self.document.clone().add(path);
 
         Ok(())
@@ -471,10 +561,9 @@ where
 
         let mut document = self.document.clone();
         let context = self.current_context();
-        let pen = self.selected_pen()?;
-        let stroke = Stroke::from(pen);
         let brush = self.selected_brush()?;
-        let fill = match Fill::from(brush) {
+        let stroke = Stroke::from(brush.clone());
+        let fill = match Fill::from(brush.clone()) {
             Fill::Pattern { mut pattern } => {
                 let id = random_string();
 
@@ -526,7 +615,7 @@ where
         record: META_POLYLINE,
     ) -> Result<(), crate::PlayError> {
         let context = self.current_context();
-        let stroke = Stroke::from(self.selected_pen()?);
+        let stroke = Stroke::from(self.selected_pen()?.clone());
 
         let Some(point) = record.a_points.get(0) else {
             return Err(crate::PlayError::InvalidRecord {
@@ -543,8 +632,8 @@ where
                     cause: format!("aPoints[{i}] is not defined"),
                 });
             };
-            coordinate = context.point_s_to_absolute_point(&point);
 
+            coordinate = context.point_s_to_absolute_point(&point);
             data = data.line_to((coordinate.x, coordinate.y));
         }
 
@@ -558,7 +647,7 @@ where
             .set("stroke-linejoin", stroke.line_join())
             .set("d", data);
 
-        self.set_current_context(context.current_coordinate(coordinate));
+        self.set_current_context(context.clone().drawing_position(coordinate));
         self.document = self.document.clone().add(path);
 
         Ok(())
@@ -575,10 +664,8 @@ where
     ) -> Result<(), crate::PlayError> {
         let mut document = self.document.clone();
         let context = self.current_context();
-        let pen = self.selected_pen()?;
-        let stroke = Stroke::from(pen);
-        let brush = self.selected_brush()?;
-        let fill = match Fill::from(brush) {
+        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
                 let id = random_string();
 
@@ -600,8 +687,8 @@ where
                 });
             };
 
-            let c = context.point_s_to_absolute_point(point);
-            points.push(c.as_point_string());
+            let p = context.point_s_to_absolute_point(point);
+            points.push(as_point_string(&p));
         }
 
         let polygon = Polygon::new()
@@ -631,10 +718,8 @@ where
     ) -> Result<(), crate::PlayError> {
         let mut document = self.document.clone();
         let context = self.current_context();
-        let pen = self.selected_pen()?;
-        let stroke = Stroke::from(pen);
-        let brush = self.selected_brush()?;
-        let fill = match Fill::from(brush) {
+        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
                 let id = random_string();
 
@@ -669,9 +754,9 @@ where
                         ),
                     });
                 };
-                let c = context.point_s_to_absolute_point(&point);
+                let p = context.point_s_to_absolute_point(&point);
 
-                points.push(c.as_point_string());
+                points.push(as_point_string(&p));
                 current_point_index += 1;
             }
 
@@ -705,10 +790,8 @@ where
     ) -> Result<(), crate::PlayError> {
         let mut document = self.document.clone();
         let context = self.current_context();
-        let pen = self.selected_pen()?;
-        let stroke = Stroke::from(pen);
-        let brush = self.selected_brush()?;
-        let fill = match Fill::from(brush) {
+        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
                 let id = random_string();
 
@@ -720,6 +803,15 @@ where
             Fill::Value { value } => value,
         };
         let fill_rule = context.poly_fill_rule();
+        let tl = {
+            let point = PointS { x: record.left_rect, y: record.top_rect };
+            context.point_s_to_absolute_point(&point)
+        };
+        let br = {
+            let point = PointS { x: record.right_rect, y: record.bottom_rect };
+            context.point_s_to_absolute_point(&point)
+        };
+
         let rect = Rectangle::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
@@ -729,10 +821,10 @@ where
             .set("stroke-linecap", stroke.line_cap())
             .set("stroke-dasharray", stroke.dash_array())
             .set("stroke-linejoin", stroke.line_join())
-            .set("x", record.left_rect)
-            .set("y", record.top_rect)
-            .set("height", record.right_rect - record.left_rect)
-            .set("width", record.bottom_rect - record.top_rect);
+            .set("x", tl.x)
+            .set("y", tl.y)
+            .set("height", br.y - tl.y)
+            .set("width", br.x - tl.x);
 
         self.document = document.add(rect);
 
@@ -746,9 +838,60 @@ where
     )]
     fn round_rect(
         &mut self,
-        _record: META_ROUNDRECT,
+        record: META_ROUNDRECT,
     ) -> Result<(), crate::PlayError> {
-        tracing::info!("META_ROUNDRECT: not implemented");
+        let (width, height) = (
+            record.right_rect - record.left_rect,
+            record.bottom_rect - record.top_rect,
+        );
+
+        if width == 0 || height == 0 {
+            tracing::info!(
+                %width, %height,
+                "META_ROUNDRECT is skipped because width or height is zero.",
+            );
+
+            return Ok(());
+        }
+
+        let mut document = self.document.clone();
+        let context = self.current_context();
+        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
+            Fill::Pattern { mut pattern } => {
+                let id = random_string();
+
+                pattern = pattern.set("id", id.clone());
+                document = document.add(pattern);
+
+                url_string(format!("#{id}"))
+            }
+            Fill::Value { value } => value,
+        };
+        let fill_rule = context.poly_fill_rule();
+        let point = context.point_s_to_absolute_point(&PointS {
+            x: record.left_rect,
+            y: record.top_rect,
+        });
+
+        let rect = Rectangle::new()
+            .set("fill", fill.as_str())
+            .set("fill-rule", fill_rule.as_str())
+            .set("stroke", stroke.color())
+            .set("stroke-width", stroke.width())
+            .set("stroke-opacity", stroke.opacity())
+            .set("stroke-linecap", stroke.line_cap())
+            .set("stroke-dasharray", stroke.dash_array())
+            .set("stroke-linejoin", stroke.line_join())
+            .set("x", point.x)
+            .set("y", point.y)
+            .set("height", height)
+            .set("width", width)
+            .set("rx", record.width)
+            .set("ry", record.height);
+
+        self.document = document.add(rect);
+
         Ok(())
     }
 
@@ -796,7 +939,7 @@ where
             .set("x", c.x)
             .set("y", font.height.abs() + c.y)
             .set("fill", context.text_color_as_css_color())
-            .set("font-family", font.facename)
+            .set("font-family", font.facename.clone())
             .set("font-size", font.height.abs())
             .set("font-weight", font.weight)
             .set("rotate", font.orientation)
@@ -836,7 +979,12 @@ where
         &mut self,
         record: META_CREATEBRUSHINDIRECT,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Brush(record.create_brush()));
+        let mut context = self.current_context().clone();
+
+        context
+            .object_table
+            .push(crate::GraphicsObject::Brush(record.create_brush()));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -850,7 +998,10 @@ where
         &mut self,
         record: META_CREATEFONTINDIRECT,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Font(record.font));
+        let mut context = self.current_context().clone();
+
+        context.object_table.push(crate::GraphicsObject::Font(record.font));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -864,7 +1015,12 @@ where
         &mut self,
         record: META_CREATEPALETTE,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Palette(record.palette));
+        let mut context = self.current_context().clone();
+
+        context
+            .object_table
+            .push(crate::GraphicsObject::Palette(record.palette));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -879,6 +1035,13 @@ where
         _record: META_CREATEPATTERNBRUSH,
     ) -> Result<(), crate::PlayError> {
         tracing::info!("META_CREATEPATTERNBRUSH: not implemented");
+        // let mut context = self.current_context().clone();
+
+        // context
+        //     .object_table
+        //     .push(crate::GraphicsObject::Brush(record.create_brush()));
+        // self.set_current_context(context);
+
         Ok(())
     }
 
@@ -891,7 +1054,10 @@ where
         &mut self,
         record: META_CREATEPENINDIRECT,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Pen(record.pen));
+        let mut context = self.current_context().clone();
+
+        context.object_table.push(crate::GraphicsObject::Pen(record.pen));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -905,7 +1071,10 @@ where
         &mut self,
         record: META_CREATEREGION,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Region(record.region));
+        let mut context = self.current_context().clone();
+
+        context.object_table.push(crate::GraphicsObject::Region(record.region));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -919,7 +1088,10 @@ where
         &mut self,
         record: META_DELETEOBJECT,
     ) -> Result<(), crate::PlayError> {
-        self.objects.delete(record.object_index as usize);
+        let mut context = self.current_context().clone();
+
+        context.object_table.delete(record.object_index as usize);
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -933,7 +1105,12 @@ where
         &mut self,
         record: META_DIBCREATEPATTERNBRUSH,
     ) -> Result<(), crate::PlayError> {
-        self.objects.push(crate::GraphicsObject::Brush(record.create_brush()));
+        let mut context = self.current_context().clone();
+
+        context
+            .object_table
+            .push(crate::GraphicsObject::Brush(record.create_brush()));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -960,7 +1137,11 @@ where
         &mut self,
         record: META_SELECTOBJECT,
     ) -> Result<(), crate::PlayError> {
-        let object = self.objects.get(record.object_index as usize).clone();
+        let object = self
+            .current_context()
+            .object_table
+            .get(record.object_index as usize)
+            .clone();
         let selected = self.object_selected.clone();
 
         self.object_selected = match object {
@@ -1034,7 +1215,7 @@ where
     ) -> Result<(), crate::PlayError> {
         let META_INTERSECTCLIPRECT { bottom, right, top, left, .. } = record;
         self.set_current_context(
-            self.current_context().clipping_region(Rect {
+            self.current_context().clone().clipping_region(Rect {
                 left,
                 top,
                 right,
@@ -1051,12 +1232,14 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn move_to(&mut self, record: META_MOVETO) -> Result<(), crate::PlayError> {
-        let context = self.current_context();
+        // TODO:
         // let point = PointS { x: record.x, y: record.y };
         // let c = context.point_s_to_absolute_point(&point);
-        let c = Coordinate { x: record.x, y: record.y };
+        let p = PointS { x: record.x, y: record.y };
 
-        self.set_current_context(context.current_coordinate(c));
+        self.set_current_context(
+            self.current_context().clone().drawing_position(p),
+        );
 
         Ok(())
     }
@@ -1133,10 +1316,19 @@ where
     )]
     fn restore_device_context(
         &mut self,
-        _record: META_RESTOREDC,
+        record: META_RESTOREDC,
     ) -> Result<(), crate::PlayError> {
-        let context = self.context_stack.pop().unwrap_or_default();
-        self.set_current_context(context);
+        let context = if record.n_saved_dc < 0 {
+            self.current_context().clone().into()
+        } else if (record.n_saved_dc as usize) < self.context_stack.len() {
+            self.context_stack.remove(record.n_saved_dc as usize).into()
+        } else {
+            None
+        };
+
+        self.set_current_context(
+            context.unwrap_or_else(|| self.current_context().clone()),
+        );
 
         Ok(())
     }
@@ -1150,7 +1342,7 @@ where
         &mut self,
         _record: META_SAVEDC,
     ) -> Result<(), crate::PlayError> {
-        self.context_stack.push(self.current_context());
+        self.context_stack.push(self.current_context().clone());
 
         Ok(())
     }
@@ -1183,7 +1375,9 @@ where
         let scale_y = (context.window.scale_y * record.y_num as f32)
             / record.y_denom as f32;
 
-        self.set_current_context(context.window_scale(scale_x, scale_y));
+        self.set_current_context(
+            context.clone().window_scale(scale_x, scale_y),
+        );
 
         Ok(())
     }
@@ -1198,7 +1392,7 @@ where
         record: META_SETBKCOLOR,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().bk_color(record.color_ref),
+            self.current_context().clone().text_bk_color(record.color_ref),
         );
 
         Ok(())
@@ -1214,7 +1408,7 @@ where
         record: META_SETBKMODE,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().bk_mode(record.bk_mode),
+            self.current_context().clone().bk_mode(record.bk_mode),
         );
 
         Ok(())
@@ -1243,7 +1437,7 @@ where
         record: META_SETMAPMODE,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().map_mode(record.map_mode),
+            self.current_context().clone().map_mode(record.map_mode),
         );
 
         Ok(())
@@ -1285,7 +1479,9 @@ where
         record: META_SETPOLYFILLMODE,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().poly_fill_mode(record.poly_fill_mode),
+            self.current_context()
+                .clone()
+                .poly_fill_mode(record.poly_fill_mode),
         );
 
         Ok(())
@@ -1314,7 +1510,7 @@ where
         record: META_SETROP2,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().draw_mode(record.draw_mode),
+            self.current_context().clone().draw_mode(record.draw_mode),
         );
 
         Ok(())
@@ -1342,29 +1538,30 @@ where
         &mut self,
         record: META_SETTEXTALIGN,
     ) -> Result<(), crate::PlayError> {
-        use strum::IntoEnumIterator;
+        let update_cp = record.text_alignment_mode
+            & (TextAlignmentMode::TA_UPDATECP as u16)
+            == TextAlignmentMode::TA_UPDATECP as u16;
+        let align_horizontal =
+            [TextAlignmentMode::TA_CENTER, TextAlignmentMode::TA_RIGHT]
+                .into_iter()
+                .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
+                .unwrap_or_else(|| TextAlignmentMode::TA_LEFT);
+        let align_vertical = [
+            VerticalTextAlignmentMode::VTA_BOTTOM,
+            VerticalTextAlignmentMode::VTA_TOP,
+        ]
+        .into_iter()
+        .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
+        .unwrap_or_else(|| VerticalTextAlignmentMode::VTA_BASELINE);
 
-        let mut align = BTreeSet::new();
-        let mut aligns = TextAlignmentMode::iter();
-        let mut v_aligns = VerticalTextAlignmentMode::iter();
+        let context = self
+            .current_context()
+            .clone()
+            .text_align_update_cp(update_cp)
+            .text_align_horizontal(align_horizontal)
+            .text_align_vertical(align_vertical);
 
-        while let Some(v) = aligns.next() {
-            if record.text_alignment_mode & (v as u16) == v as u16 {
-                align.insert(v as u16);
-            }
-        }
-
-        while let Some(v) = v_aligns.next() {
-            if record.text_alignment_mode & (v as u16) == v as u16 {
-                align.insert(v as u16);
-            }
-        }
-
-        if align.is_empty() {
-            align.insert(0x0000);
-        }
-
-        self.set_current_context(self.current_context().text_align(align));
+        self.set_current_context(context);
 
         Ok(())
     }
@@ -1392,7 +1589,7 @@ where
         record: META_SETTEXTCOLOR,
     ) -> Result<(), crate::PlayError> {
         self.set_current_context(
-            self.current_context().text_color(record.color_ref),
+            self.current_context().clone().text_color(record.color_ref),
         );
 
         Ok(())
@@ -1446,9 +1643,9 @@ where
         &mut self,
         record: META_SETWINDOWEXT,
     ) -> Result<(), crate::PlayError> {
-        let context = self.current_context().window_ext(record.x, record.y);
-
-        self.set_current_context(context);
+        self.set_current_context(
+            self.current_context().clone().window_ext(record.x, record.y),
+        );
 
         Ok(())
     }
@@ -1462,9 +1659,9 @@ where
         &mut self,
         record: META_SETWINDOWORG,
     ) -> Result<(), crate::PlayError> {
-        let context = self.current_context().window_origin(record.x, record.y);
-
-        self.set_current_context(context);
+        self.set_current_context(
+            self.current_context().clone().window_origin(record.x, record.y),
+        );
 
         Ok(())
     }

@@ -75,4 +75,8 @@ impl META_CREATEPATTERNBRUSH {
 
         Ok(Self { record_size, record_function, bitmap16, reserved, pattern })
     }
+
+    pub fn create_brush(&self) -> crate::Brush {
+        todo!("TODO: ")
+    }
 }

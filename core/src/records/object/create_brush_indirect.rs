@@ -44,9 +44,7 @@ impl META_CREATEBRUSHINDIRECT {
 
         Ok(Self { record_size, record_function, log_brush })
     }
-}
 
-impl META_CREATEBRUSHINDIRECT {
     pub fn create_brush(&self) -> crate::Brush {
         match self.log_brush.clone() {
             crate::LogBrush::DIBPatternPT => {

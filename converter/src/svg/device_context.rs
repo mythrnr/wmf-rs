@@ -1,63 +1,44 @@
-use std::collections::BTreeSet;
-
 use wmf_core::*;
 
 use crate::svg::css_color_from_color_ref;
 
 #[derive(Clone, Debug)]
 pub struct DeviceContext {
-    pub bk_color: ColorRef,
-    pub bk_mode: Option<MixMode>,
-    pub brush: Brush,
-    pub clipping_region: Option<Rect>,
-    pub current_coordinate: Coordinate,
-    pub draw_mode: Option<BinaryRasterOperation>,
-    pub font: Font,
-    pub map_mode: MapMode,
-    pub pen: Pen,
-    pub poly_fill_mode: PolyFillMode,
-    // TextAlignmentMode or VerticalTextAlignmentMode
-    pub text_align: BTreeSet<u16>,
+    // graphics object
+    pub object_table: crate::GraphicsObjects,
+
+    // structures
+    pub drawing_position: PointS,
+    pub text_bk_color: ColorRef,
     pub text_color: ColorRef,
     pub window: Window,
+
+    // graphics props
+    pub bk_mode: MixMode,
+    pub clipping_region: Option<Rect>,
+    pub poly_fill_mode: PolyFillMode,
+    pub text_align_horizontal: TextAlignmentMode,
+    pub text_align_vertical: VerticalTextAlignmentMode,
+    pub text_align_update_cp: bool,
+
+    pub draw_mode: Option<BinaryRasterOperation>,
+    pub map_mode: MapMode,
 }
 
 impl Default for DeviceContext {
     fn default() -> Self {
         Self {
-            bk_color: ColorRef::white(),
-            bk_mode: None,
-            brush: Brush::Null,
+            object_table: crate::GraphicsObjects::new(0),
+            bk_mode: MixMode::TRANSPARENT,
             clipping_region: None,
-            current_coordinate: Coordinate::new(0, 0),
+            drawing_position: PointS { x: 0, y: 0 },
             draw_mode: None,
-            font: Font {
-                height: 12,
-                width: 12,
-                escapement: 0,
-                orientation: 0,
-                weight: 0,
-                italic: false,
-                underline: false,
-                strike_out: false,
-                charset: CharacterSet::ANSI_CHARSET,
-                out_precision: OutPrecision::OUT_DEFAULT_PRECIS,
-                clip_precision: ClipPrecision::CLIP_DEFAULT_PRECIS,
-                quality: FontQuality::DEFAULT_QUALITY,
-                pitch_and_family: PitchAndFamily {
-                    family: FamilyFont::FF_DONTCARE,
-                    pitch: PitchFont::DEFAULT_PITCH,
-                },
-                facename: "System".to_owned(),
-            },
             map_mode: MapMode::MM_TEXT,
-            pen: Pen {
-                style: PenStyle::PS_SOLID,
-                width: PointS { x: 1, y: 1 },
-                color_ref: ColorRef::black(),
-            },
             poly_fill_mode: PolyFillMode::ALTERNATE,
-            text_align: BTreeSet::new(),
+            text_align_horizontal: TextAlignmentMode::TA_LEFT,
+            text_align_vertical: VerticalTextAlignmentMode::VTA_BASELINE,
+            text_align_update_cp: false,
+            text_bk_color: ColorRef::white(),
             text_color: ColorRef::black(),
             window: Window::new(),
         }
@@ -65,12 +46,11 @@ impl Default for DeviceContext {
 }
 
 impl DeviceContext {
-    pub fn bk_color(self, bk_color: ColorRef) -> Self {
-        Self { bk_color, ..self }
-    }
-
-    pub fn bk_color_as_css_color(&self) -> String {
-        css_color_from_color_ref(&self.bk_color)
+    pub fn create_object_table(self, length: u16) -> Self {
+        Self {
+            object_table: crate::GraphicsObjects::new(length as usize),
+            ..self
+        }
     }
 
     pub fn bk_mode(self, bk_mode: MixMode) -> Self {
@@ -91,8 +71,8 @@ impl DeviceContext {
         Self { clipping_region: clipping_region.into(), ..self }
     }
 
-    pub fn current_coordinate(self, current_coordinate: Coordinate) -> Self {
-        Self { current_coordinate, ..self }
+    pub fn drawing_position(self, drawing_position: PointS) -> Self {
+        Self { drawing_position, ..self }
     }
 
     pub fn draw_mode(self, draw_mode: BinaryRasterOperation) -> Self {
@@ -115,20 +95,46 @@ impl DeviceContext {
         .to_owned()
     }
 
-    pub fn text_align(self, text_align: BTreeSet<u16>) -> Self {
-        Self { text_align, ..self }
+    pub fn text_align_horizontal(
+        self,
+        text_align_horizontal: TextAlignmentMode,
+    ) -> Self {
+        Self { text_align_horizontal, ..self }
     }
 
-    pub fn text_horizon_align(&self) -> String {
-        if self.text_align.contains(&(TextAlignmentMode::TA_CENTER as u16)) {
-            return "middle".to_owned();
-        }
+    pub fn text_align_vertical(
+        self,
+        text_align_vertical: VerticalTextAlignmentMode,
+    ) -> Self {
+        Self { text_align_vertical, ..self }
+    }
 
-        if self.text_align.contains(&(TextAlignmentMode::TA_RIGHT as u16)) {
-            return "end".to_owned();
-        }
+    pub fn text_align_update_cp(self, text_align_update_cp: bool) -> Self {
+        Self { text_align_update_cp, ..self }
+    }
 
-        "start".to_owned()
+    pub fn as_css_text_align(&self) -> String {
+        match self.text_align_horizontal {
+            TextAlignmentMode::TA_CENTER => "middle".to_owned(),
+            TextAlignmentMode::TA_RIGHT => "end".to_owned(),
+            _ => "start".to_owned(),
+        }
+    }
+
+    pub fn as_css_text_align_vertical(&self) -> String {
+        match self.text_align_vertical {
+            VerticalTextAlignmentMode::VTA_BOTTOM => "bottom".to_owned(),
+            VerticalTextAlignmentMode::VTA_TOP => "top".to_owned(),
+            _ => "baseline".to_owned(),
+        }
+    }
+
+    pub fn text_bk_color(self, text_bk_color: ColorRef) -> Self {
+        Self { text_bk_color, ..self }
+    }
+
+    pub fn text_bk_color_as_css_color(&self) -> String {
+        css_color_from_color_ref(&self.text_bk_color)
     }
 
     pub fn text_color(self, text_color: ColorRef) -> Self {
@@ -151,40 +157,24 @@ impl DeviceContext {
         Self { window: self.window.scale(x, y), ..self }
     }
 
-    pub fn point_s_to_absolute_point(&self, point: &PointS) -> Coordinate {
+    pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
         let x = ((point.x - self.window.origin_x).abs() as f32
             / self.window.scale_x) as i16;
         let y = ((point.y - self.window.origin_y).abs() as f32
             / self.window.scale_y) as i16;
 
-        Coordinate { x, y }
+        PointS { x, y }
     }
 
-    pub fn point_s_to_relative_point(&self, point: &PointS) -> Coordinate {
+    pub fn point_s_to_relative_point(&self, point: &PointS) -> PointS {
         let x = ((point.x - self.window.origin_x).abs() as f32
             / self.window.scale_x) as i16
-            + self.current_coordinate.x;
+            + self.drawing_position.x;
         let y = ((point.y - self.window.origin_y).abs() as f32
             / self.window.scale_y) as i16
-            + self.current_coordinate.y;
+            + self.drawing_position.y;
 
-        Coordinate { x, y }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Coordinate {
-    pub x: i16,
-    pub y: i16,
-}
-
-impl Coordinate {
-    pub fn new(x: i16, y: i16) -> Self {
-        Self { x, y }
-    }
-
-    pub fn as_point_string(&self) -> String {
-        format!("{},{}", self.x, self.y)
+        PointS { x, y }
     }
 }
 

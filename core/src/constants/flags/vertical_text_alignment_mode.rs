@@ -7,23 +7,15 @@
 /// Vertical text alignment is performed when the font has a vertical default
 /// baseline, such as Kanji.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    strum::FromRepr,
-    strum::EnumIter,
+    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
 )]
 #[repr(u16)]
 pub enum VerticalTextAlignmentMode {
     /// The reference point MUST be on the top edge of the bounding rectangle.
-    // VTA_TOP = 0x0000,
+    VTA_TOP = 0x0000,
     /// The reference point MUST be on the right edge of the bounding
     /// rectangle.
-    VTA_RIGHT = 0x0000,
+    // VTA_RIGHT = 0x0000,
     /// The reference point MUST be on the bottom edge of the bounding
     /// rectangle.
     VTA_BOTTOM = 0x0002,

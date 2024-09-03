@@ -41,19 +41,19 @@ fn main() {
     let Ok(mut input) = File::open(cli.input.clone()).inspect_err(|err| {
         tracing::error!(%err);
     }) else {
-        return;
+        std::process::exit(1);
     };
 
     let Ok(output) = File::create(cli.output.clone()).inspect_err(|err| {
         tracing::error!(%err);
     }) else {
-        return;
+        std::process::exit(1);
     };
 
     let mut buffer = vec![];
     if let Err(err) = input.read_to_end(&mut buffer) {
         tracing::error!(%err);
-        return;
+        std::process::exit(1);
     }
 
     // let bytes = buffer
@@ -77,7 +77,7 @@ fn main() {
         let _ = std::fs::remove_file(cli.output)
             .inspect_err(|err| tracing::error!(%err));
 
-        return;
+        std::process::exit(1);
     };
 
     tracing::info!("Converted successfully.");

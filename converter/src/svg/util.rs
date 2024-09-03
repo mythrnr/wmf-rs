@@ -17,6 +17,10 @@ pub fn url_string(link: String) -> String {
     format!("url({link})")
 }
 
+pub fn as_point_string(point: &PointS) -> String {
+    format!("{},{}", point.x, point.y)
+}
+
 #[derive(Clone, Debug)]
 pub enum Fill {
     Pattern { pattern: Pattern },
@@ -146,50 +150,61 @@ impl Default for Stroke {
 
 impl From<Pen> for Stroke {
     fn from(v: Pen) -> Self {
-        match v.style {
-            PenStyle::PS_DASH => Self {
-                color: v.color_ref,
-                dash_array: "6,2".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_DOT => Self {
-                color: v.color_ref,
-                dash_array: "2,2".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_DASHDOT => Self {
-                color: v.color_ref,
-                dash_array: "6,2,2,2".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_DASHDOTDOT => Self {
-                color: v.color_ref,
-                dash_array: "6,2,2,2,2,2".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_NULL => Self { opacity: 0_f32, ..Default::default() },
-            PenStyle::PS_ENDCAP_SQUARE => Self {
-                color: v.color_ref,
-                line_cap: "square".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_JOIN_BEVEL => Self {
-                color: v.color_ref,
-                line_join: "bevel".to_owned(),
-                ..Default::default()
-            },
-            PenStyle::PS_JOIN_MITER => Self {
-                color: v.color_ref,
-                line_join: "miter".to_owned(),
-                ..Default::default()
-            },
-            // not supported or solid
-            PenStyle::PS_INSIDEFRAME
-            | PenStyle::PS_USERSTYLE
-            | PenStyle::PS_ALTERNATE
-            | PenStyle::PS_ENDCAP_FLAT
-            | PenStyle::PS_SOLID => {
-                Self { color: v.color_ref, ..Default::default() }
+        let mut stroke =
+            Self { color: v.color_ref, width: v.width.x, ..Default::default() };
+
+        for s in v.style {
+            stroke = match s {
+                PenStyle::PS_DASH => {
+                    Self { dash_array: "6,2".to_owned(), ..stroke }
+                }
+                PenStyle::PS_DOT => {
+                    Self { dash_array: "2,2".to_owned(), ..stroke }
+                }
+                PenStyle::PS_DASHDOT => {
+                    Self { dash_array: "6,2,2,2".to_owned(), ..stroke }
+                }
+                PenStyle::PS_DASHDOTDOT => {
+                    Self { dash_array: "6,2,2,2,2,2".to_owned(), ..stroke }
+                }
+                PenStyle::PS_NULL => Self { opacity: 0_f32, ..stroke },
+                PenStyle::PS_ENDCAP_SQUARE => {
+                    Self { line_cap: "square".to_owned(), ..stroke }
+                }
+                PenStyle::PS_JOIN_BEVEL => {
+                    Self { line_join: "bevel".to_owned(), ..stroke }
+                }
+                PenStyle::PS_JOIN_MITER => {
+                    Self { line_join: "miter".to_owned(), ..stroke }
+                }
+                // not supported or solid
+                PenStyle::PS_INSIDEFRAME
+                | PenStyle::PS_USERSTYLE
+                | PenStyle::PS_ALTERNATE
+                | PenStyle::PS_ENDCAP_FLAT
+                | PenStyle::PS_SOLID => stroke,
+            };
+        }
+
+        stroke
+    }
+}
+
+impl From<Brush> for Stroke {
+    fn from(v: Brush) -> Self {
+        match v {
+            Brush::DIBPatternPT { .. } => {
+                Self { opacity: 0_f32, ..Default::default() }
+            }
+            Brush::Hatched { color_ref, .. } => {
+                Self { color: color_ref, ..Default::default() }
+            }
+            Brush::Pattern { .. } => Self { ..Default::default() },
+            Brush::Solid { color_ref } => {
+                Self { color: color_ref, ..Default::default() }
+            }
+            Brush::Null => {
+                Self { width: 0, opacity: 0_f32, ..Default::default() }
             }
         }
     }
