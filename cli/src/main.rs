@@ -67,8 +67,9 @@ fn main() {
     //     .join("\n");
     // println!("{bytes}");
 
-    let player = wmf_converter::SVGPlayer::new(output);
-    let converter = wmf_converter::WMFConverter::new(buffer.as_slice(), player);
+    let player = wmf_core::converter::SVGPlayer::new(output);
+    let converter =
+        wmf_core::converter::WMFConverter::new(buffer.as_slice(), player);
 
     if let Err(err) = converter.run() {
         tracing::error!(%err);

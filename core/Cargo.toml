@@ -3,10 +3,17 @@ name = "wmf-core"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["svg"]
+svg = ["dep:base64", "dep:rand", "dep:strum", "dep:svg"]
+
 [dependencies]
+base64 = { workspace = true, optional = true }
 encoding_rs = { workspace = true }
 paste = { workspace = true }
-strum = { workspace = true }
+rand = { workspace = true, optional = true }
+strum = { workspace = true, optional = true }
+svg = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 unicode-segmentation = { workspace = true }
