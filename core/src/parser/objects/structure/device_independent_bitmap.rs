@@ -40,7 +40,8 @@ impl DeviceIndependentBitmap {
 
         //  TODO: Not written in [MS-WMF] how to parse this field.
         let undefined_space = vec![];
-        let (a_data, c) = crate::parser::read_variable(buf, dib_header_info.size())?;
+        let (a_data, c) =
+            crate::parser::read_variable(buf, dib_header_info.size())?;
         consumed_bytes += c;
 
         Ok((
@@ -69,9 +70,8 @@ impl Colors {
         dib_header_info: &crate::parser::BitmapInfoHeader,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         match dib_header_info.bit_count() {
-            crate::parser::BitCount::BI_BITCOUNT_0 | crate::parser::BitCount::BI_BITCOUNT_5 => {
-                Ok((Colors::Null, 0))
-            }
+            crate::parser::BitCount::BI_BITCOUNT_0
+            | crate::parser::BitCount::BI_BITCOUNT_5 => Ok((Colors::Null, 0)),
             crate::parser::BitCount::BI_BITCOUNT_1 => {
                 Self::parse_from_color_usage(buf, color_usage, 2)
             }
@@ -81,7 +81,8 @@ impl Colors {
             crate::parser::BitCount::BI_BITCOUNT_3 => {
                 Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(8))
             }
-            crate::parser::BitCount::BI_BITCOUNT_4 | crate::parser::BitCount::BI_BITCOUNT_6 => {
+            crate::parser::BitCount::BI_BITCOUNT_4
+            | crate::parser::BitCount::BI_BITCOUNT_6 => {
                 match &dib_header_info {
                     crate::parser::BitmapInfoHeader::Core { .. } => {
                         Ok((Colors::Null, 0))
@@ -101,24 +102,22 @@ impl Colors {
                         color_used,
                         ..
                     } => match compression {
-                        crate::parser::Compression::BI_RGB => Ok((Colors::Null, 0)),
+                        crate::parser::Compression::BI_RGB => {
+                            Ok((Colors::Null, 0))
+                        }
                         crate::parser::Compression::BI_BITFIELDS => {
                             let mut consumed_bytes = 0;
                             let mut table = vec![];
 
                             for _ in 0..*color_used {
-                                let (
-                                    (r, r_bytes),
-                                    (g, g_bytes),
-                                    (b, b_bytes),
-                                )= (
+                                let ((r, r_bytes), (g, g_bytes), (b, b_bytes)) = (
                                     crate::parser::read_u32_from_le_bytes(buf)?,
                                     crate::parser::read_u32_from_le_bytes(buf)?,
                                     crate::parser::read_u32_from_le_bytes(buf)?,
                                 );
 
-                                consumed_bytes += r_bytes+g_bytes+b_bytes;
-                                table.push((r,g,b));
+                                consumed_bytes += r_bytes + g_bytes + b_bytes;
+                                table.push((r, g, b));
                             }
 
                             Ok((Colors::RGBColorMask(table), consumed_bytes))

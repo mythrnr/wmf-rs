@@ -1,7 +1,7 @@
 mod device_context;
 mod util;
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::Mutex};
 
 use svg::{
     node::element::{
@@ -14,9 +14,10 @@ use crate::{
     converter::{
         svg::{
             device_context::DeviceContext,
-            util::{as_point_string, random_string, url_string, Fill, Stroke},
+            util::{as_point_string, url_string, Fill, Stroke},
         },
-        GraphicsObject, PlayError,
+        GraphicsObject, PlayError, SelectedGraphicsObject,
+        TernaryRasterOperator,
     },
     parser::*,
 };
@@ -24,8 +25,9 @@ use crate::{
 pub struct SVGPlayer<W> {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
+    definition_number: Mutex<usize>,
     document: Document,
-    object_selected: crate::converter::SelectedGraphicsObject,
+    object_selected: SelectedGraphicsObject,
     output: W,
 }
 
@@ -34,9 +36,9 @@ impl<W> SVGPlayer<W> {
         Self {
             context_stack: Vec::with_capacity(0),
             context_current: Default::default(),
+            definition_number: Mutex::new(0),
             document: Document::new(),
-            object_selected: crate::converter::SelectedGraphicsObject::default(
-            ),
+            object_selected: SelectedGraphicsObject::default(),
             output,
         }
     }
@@ -44,6 +46,18 @@ impl<W> SVGPlayer<W> {
     #[inline]
     fn current_context(&self) -> &DeviceContext {
         &self.context_current
+    }
+
+    #[inline]
+    fn issue_id(&self) -> Result<String, PlayError> {
+        let mut definition_number = self
+            .definition_number
+            .lock()
+            .map_err(|err| PlayError::Unknown { cause: err.to_string() })?;
+
+        *definition_number += 1;
+
+        Ok(format!("defs{}", *definition_number))
     }
 
     #[inline]
@@ -101,8 +115,63 @@ where
         skip_all,
         err(level = tracing::Level::DEBUG, Display),
     )]
-    fn bit_blt(&mut self, _record: META_BITBLT) -> Result<(), PlayError> {
-        tracing::info!("META_BITBLT: not implemented");
+    fn bit_blt(&mut self, record: META_BITBLT) -> Result<(), PlayError> {
+        let (x, y, width, height, operator) = match record {
+            META_BITBLT::WithBitmap {
+                raster_operation,
+                height,
+                width,
+                y_dest,
+                x_dest,
+                target,
+                ..
+            } => {
+                let mut operator =
+                    TernaryRasterOperator::new(raster_operation, height, width);
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                if raster_operation.use_source() {
+                    operator = operator.source_bitmap16(target);
+                }
+
+                (x_dest, y_dest, width, height, operator)
+            }
+            META_BITBLT::WithoutBitmap {
+                raster_operation,
+                height,
+                width,
+                y_dest,
+                x_dest,
+                ..
+            } => {
+                let mut operator =
+                    TernaryRasterOperator::new(raster_operation, height, width);
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                (x_dest, y_dest, width, height, operator)
+            }
+        };
+
+        let data = operator
+            .run()
+            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
+            .as_data_url();
+
+        let image = Image::new()
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
+            .set("href", data);
+
+        self.document = self.document.clone().add(image);
+
         Ok(())
     }
 
@@ -115,9 +184,28 @@ where
         &mut self,
         record: META_DIBBITBLT,
     ) -> Result<(), PlayError> {
-        match record {
-            META_DIBBITBLT::WithBitmap { .. } => {
-                tracing::info!("META_DIBBITBLT::WithBitmap: not implemented");
+        let (x, y, width, height, operator) = match record {
+            META_DIBBITBLT::WithBitmap {
+                raster_operation,
+                height,
+                width,
+                y_dest,
+                x_dest,
+                target,
+                ..
+            } => {
+                let mut operator =
+                    TernaryRasterOperator::new(raster_operation, height, width);
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                if raster_operation.use_source() {
+                    operator = operator.source_bitmap(target);
+                }
+
+                (x_dest, y_dest, width, height, operator)
             }
             META_DIBBITBLT::WithoutBitmap {
                 raster_operation,
@@ -126,47 +214,31 @@ where
                 y_dest,
                 x_dest,
                 ..
-            } if raster_operation == TernaryRasterOperation::PATCOPY => {
-                let mut document = self.document.clone();
-                let context = self.current_context();
-                let brush = self.selected_brush()?;
-                let stroke = Stroke::from(brush.clone());
-                let fill = match Fill::from(brush.clone()) {
-                    Fill::Pattern { mut pattern } => {
-                        let id = random_string();
+            } => {
+                let mut operator =
+                    TernaryRasterOperator::new(raster_operation, height, width);
 
-                        pattern = pattern.set("id", id.clone());
-                        document = document.add(pattern);
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
 
-                        url_string(format!("#{id}"))
-                    }
-                    Fill::Value { value } => value,
-                };
-                let fill_rule = context.poly_fill_rule();
-
-                let rect = Rectangle::new()
-                    .set("fill", fill.as_str())
-                    .set("fill-rule", fill_rule.as_str())
-                    .set("stroke", stroke.color())
-                    .set("stroke-width", stroke.width())
-                    .set("stroke-opacity", stroke.opacity())
-                    .set("stroke-linecap", stroke.line_cap())
-                    .set("stroke-dasharray", stroke.dash_array())
-                    .set("stroke-linejoin", stroke.line_join())
-                    .set("x", x_dest)
-                    .set("y", y_dest)
-                    .set("height", height)
-                    .set("width", width);
-
-                self.document = document.add(rect);
-            }
-            META_DIBBITBLT::WithoutBitmap { raster_operation, .. } => {
-                tracing::info!(
-                    ?raster_operation,
-                    "META_DIBBITBLT::WithoutBitmap: not implemented"
-                );
+                (x_dest, y_dest, width, height, operator)
             }
         };
+
+        let data = operator
+            .run()
+            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
+            .as_data_url();
+
+        let image = Image::new()
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
+            .set("href", data);
+
+        self.document = self.document.clone().add(image);
 
         Ok(())
     }
@@ -178,9 +250,70 @@ where
     )]
     fn device_independent_bitmap_stretch_blt(
         &mut self,
-        _record: META_DIBSTRETCHBLT,
+        record: META_DIBSTRETCHBLT,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_DIBSTRETCHBLT: not implemented");
+        let (x, y, width, height, operator) = match record {
+            META_DIBSTRETCHBLT::WithBitmap {
+                raster_operation,
+                dest_height,
+                dest_width,
+                y_dest,
+                x_dest,
+                target,
+                ..
+            } => {
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    dest_height,
+                    dest_width,
+                );
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                if raster_operation.use_source() {
+                    operator = operator.source_bitmap(target);
+                }
+
+                (x_dest, y_dest, dest_width, dest_height, operator)
+            }
+            META_DIBSTRETCHBLT::WithoutBitmap {
+                raster_operation,
+                dest_height,
+                dest_width,
+                y_dest,
+                x_dest,
+                ..
+            } => {
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    dest_height,
+                    dest_width,
+                );
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                (x_dest, y_dest, dest_width, dest_height, operator)
+            }
+        };
+
+        let data = operator
+            .run()
+            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
+            .as_data_url();
+
+        let image = Image::new()
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
+            .set("href", data);
+
+        self.document = self.document.clone().add(image);
+
         Ok(())
     }
 
@@ -204,9 +337,70 @@ where
     )]
     fn stretch_blt(
         &mut self,
-        _record: META_STRETCHBLT,
+        record: META_STRETCHBLT,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_STRETCHBLT: not implemented");
+        let (x, y, width, height, operator) = match record {
+            META_STRETCHBLT::WithBitmap {
+                raster_operation,
+                dest_height,
+                dest_width,
+                y_dest,
+                x_dest,
+                target,
+                ..
+            } => {
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    dest_height,
+                    dest_width,
+                );
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                if raster_operation.use_source() {
+                    operator = operator.source_bitmap16(target);
+                }
+
+                (x_dest, y_dest, dest_width, dest_height, operator)
+            }
+            META_STRETCHBLT::WithoutBitmap {
+                raster_operation,
+                dest_height,
+                dest_width,
+                y_dest,
+                x_dest,
+                ..
+            } => {
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    dest_height,
+                    dest_width,
+                );
+
+                if raster_operation.use_selected_brush() {
+                    operator = operator.brush(self.selected_brush()?.clone());
+                }
+
+                (x_dest, y_dest, dest_width, dest_height, operator)
+            }
+        };
+
+        let data = operator
+            .run()
+            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
+            .as_data_url();
+
+        let image = Image::new()
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
+            .set("href", data);
+
+        self.document = self.document.clone().add(image);
+
         Ok(())
     }
 
@@ -219,14 +413,41 @@ where
         &mut self,
         record: META_STRETCHDIB,
     ) -> Result<(), PlayError> {
-        let data = crate::converter::Bitmap::from(record.dib).as_data_url();
+        let META_STRETCHDIB {
+            raster_operation,
+            dest_height,
+            dest_width,
+            y_dst,
+            x_dst,
+            dib,
+            ..
+        } = record;
+
+        let mut operator = TernaryRasterOperator::new(
+            raster_operation,
+            dest_height,
+            dest_width,
+        );
+
+        if raster_operation.use_selected_brush() {
+            operator = operator.brush(self.selected_brush()?.clone());
+        }
+
+        if raster_operation.use_source() {
+            operator = operator.source_bitmap(dib);
+        }
+
+        let data = operator
+            .run()
+            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
+            .as_data_url();
 
         let image = Image::new()
-            .set("x", record.x_dst)
-            .set("y", record.y_dst)
-            .set("width", record.dest_width)
-            .set("height", record.dest_height)
-            .set("src", data);
+            .set("x", x_dst)
+            .set("y", y_dst)
+            .set("width", dest_width)
+            .set("height", dest_height)
+            .set("href", data);
 
         self.document = self.document.clone().add(image);
 
@@ -285,35 +506,134 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn arc(&mut self, record: META_ARC) -> Result<(), PlayError> {
-        // http://yamatyuu.net/computer/html/svg/arc.html
-        let context = self.current_context();
+        //
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let start = {
-            let point = PointS { x: record.x_start_arc, y: record.y_start_arc };
-            context.point_s_to_absolute_point(&point)
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.x_start_arc,
+                y: record.y_start_arc,
+            });
+            context = context.extend_window(&point);
+            point
         };
         let end = {
-            let point = PointS { x: record.x_end_arc, y: record.y_end_arc };
-            context.point_s_to_absolute_point(&point)
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.x_end_arc,
+                y: record.y_end_arc,
+            });
+            context = context.extend_window(&point);
+
+            point
         };
         let (rx, ry) = (
             (record.right_rect - record.left_rect) / 2,
             (record.bottom_rect - record.top_rect) / 2,
         );
+        let center = context.point_s_to_absolute_point(&PointS {
+            x: record.left_rect + rx,
+            y: record.top_rect + ry,
+        });
+
+        let center_x = if center.x < start.x && center.x < end.x {
+            "left"
+        } else if start.x < center.x && end.x < center.x {
+            "right"
+        } else {
+            "middle"
+        };
+        let center_y = if start.y < center.y && end.y < center.y {
+            "over"
+        } else if center.y < start.y && center.y < end.y {
+            "under"
+        } else {
+            "middle"
+        };
+        // if center_x or center_y is middle,
+        // fix sweep as negative-angle direction.
+        let (large_arc, sweep) = match (center_x, center_y) {
+            ("left", "over") if start.x < end.x && start.y > end.y => (0, 0),
+            ("left", "over") if start.x > end.x && start.y < end.y => (0, 1),
+            ("left", "middle") if start.x < end.x && start.y < end.y => (1, 0),
+            ("left", "middle") if start.x < end.x && start.y > end.y => (0, 0),
+            ("left", "middle") if start.x > end.x && start.y < end.y => (1, 0),
+            ("left", "middle") if start.x > end.x && start.y > end.y => (0, 0),
+            ("left", "under") if start.x < end.x && start.y < end.y => (0, 1),
+            ("left", "under") if start.x > end.x && start.y > end.y => (0, 0),
+            ("right", "over") if start.x < end.x && start.y < end.y => (0, 0),
+            ("right", "over") if start.x > end.x && start.y > end.y => (0, 1),
+            ("right", "middle") if start.x < end.x && start.y < end.y => (0, 0),
+            ("right", "middle") if start.x < end.x && start.y > end.y => (1, 0),
+            ("right", "middle") if start.x > end.x && start.y < end.y => (0, 0),
+            ("right", "middle") if start.x > end.x && start.y > end.y => (1, 0),
+            ("right", "under") if start.x < end.x && start.y > end.y => (0, 1),
+            ("right", "under") if start.x > end.x && start.y < end.y => (0, 0),
+            ("middle", "over") if start.x < end.x && start.y < end.y => (0, 0),
+            ("middle", "over") if start.x > end.x && start.y > end.y => (1, 0),
+            ("middle", "under") if start.x < end.x && start.y < end.y => (1, 0),
+            ("middle", "under") if start.x > end.x && start.y > end.y => (0, 0),
+            ("middle", "middle") if start.x <= end.x && start.y <= end.y => {
+                let antipodal = PointS {
+                    x: start.x + (center.x - start.x) * 2,
+                    y: start.y + (center.y - start.y) * 2,
+                };
+
+                if antipodal.x < end.x {
+                    (1, 0)
+                } else {
+                    (0, 0)
+                }
+            }
+            ("middle", "middle") if start.x <= end.x && start.y >= end.y => {
+                let antipodal = PointS {
+                    x: start.x + (center.x - start.x) * 2,
+                    y: start.y + (center.y - start.y) * 2,
+                };
+
+                if antipodal.x < end.x {
+                    (0, 0)
+                } else {
+                    (1, 0)
+                }
+            }
+            ("middle", "middle") if start.x >= end.x && start.y <= end.y => {
+                let antipodal = PointS {
+                    x: start.x - (center.x - end.x) * 2,
+                    y: start.y - (center.y - end.y) * 2,
+                };
+
+                if antipodal.x < end.x {
+                    (1, 0)
+                } else {
+                    (0, 0)
+                }
+            }
+            ("middle", "middle") if start.x >= end.x && start.y >= end.y => {
+                let antipodal = PointS {
+                    x: start.x - (center.x - end.x) * 2,
+                    y: start.y - (center.y - end.y) * 2,
+                };
+
+                if antipodal.x < end.x {
+                    (0, 0)
+                } else {
+                    (1, 0)
+                }
+            }
+            _ => {
+                return Err(PlayError::InvalidRecord {
+                    cause: "invalid points and bounding rectangle".to_owned(),
+                });
+            }
+        };
+
         let data = Data::new()
             .move_to((start.x, start.y))
-            .elliptical_arc_to((rx, ry, 0, 0, 1, end.x, end.y));
-        let path = Path::new()
-            .set("fill", "none")
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
-            .set("d", data);
+            .elliptical_arc_to((rx, ry, 0, large_arc, sweep, end.x, end.y));
+        let path = Path::new().set("fill", "none").set("d", data);
+        let path = stroke.set_props(path);
 
-        self.set_current_context(context.clone().drawing_position(end));
+        self.set_current_context(context.drawing_position(end));
         self.document = self.document.clone().add(path);
 
         Ok(())
@@ -350,13 +670,13 @@ where
         }
 
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -364,25 +684,26 @@ where
             Fill::Value { value } => value,
         };
         let fill_rule = context.poly_fill_rule();
-        let point = context.point_s_to_absolute_point(&PointS {
-            x: record.left_rect + rx,
-            y: record.top_rect + ry,
-        });
+        let point = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.left_rect + rx,
+                y: record.top_rect + ry,
+            });
+
+            context = context.extend_window(&point);
+            point
+        };
 
         let ellipse = Ellipse::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("cx", point.x)
             .set("cy", point.y)
             .set("rx", rx)
             .set("ry", ry);
+        let ellipse = stroke.set_props(ellipse);
 
+        self.set_current_context(context);
         self.document = document.add(ellipse);
 
         Ok(())
@@ -410,39 +731,32 @@ where
         &mut self,
         record: META_EXTTEXTOUT,
     ) -> Result<(), PlayError> {
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let font = self.selected_font()?;
-        let decoration = {
-            let mut v = vec![];
+        let point = {
+            let point = PointS {
+                x: record.x,
+                y: record.y
+                    + (if matches!(
+                        context.text_align_vertical,
+                        VerticalTextAlignmentMode::VTA_BASELINE
+                            | VerticalTextAlignmentMode::VTA_BOTTOM
+                    ) && font.height < 0
+                    {
+                        -1 * font.height
+                    } else {
+                        0
+                    }),
+            };
 
-            if font.underline {
-                v.push("underline");
-            }
+            let point = if context.text_align_update_cp {
+                context.point_s_to_relative_point(&point)
+            } else {
+                context.point_s_to_absolute_point(&point)
+            };
 
-            if font.strike_out {
-                v.push("line-through");
-            }
-
-            v
-        };
-        let point = PointS {
-            x: record.x,
-            y: record.y
-                + (if matches!(
-                    context.text_align_vertical,
-                    VerticalTextAlignmentMode::VTA_BASELINE
-                        | VerticalTextAlignmentMode::VTA_BOTTOM
-                ) && font.height < 0
-                {
-                    -1 * font.height
-                } else {
-                    0
-                }),
-        };
-        let c = if context.text_align_update_cp {
-            context.point_s_to_relative_point(&point)
-        } else {
-            context.point_s_to_absolute_point(&point)
+            context = context.extend_window(&point);
+            point
         };
         let text_align = context.as_css_text_align();
         let shape_inside = if let (true, Some(rect)) = (
@@ -451,76 +765,79 @@ where
         ) {
             let tl = {
                 let point = PointS { x: rect.left, y: rect.top };
-                if context.text_align_update_cp {
+                let point = if context.text_align_update_cp {
                     context.point_s_to_relative_point(&point)
                 } else {
                     context.point_s_to_absolute_point(&point)
-                }
+                };
+
+                context = context.extend_window(&point);
+                point
             };
             let tr = {
                 let point = PointS { x: rect.right, y: rect.top };
-                if context.text_align_update_cp {
+                let point = if context.text_align_update_cp {
                     context.point_s_to_relative_point(&point)
                 } else {
                     context.point_s_to_absolute_point(&point)
-                }
+                };
+
+                context = context.extend_window(&point);
+                point
             };
             let bl = {
                 let point = PointS { x: rect.left, y: rect.bottom };
-                if context.text_align_update_cp {
+                let point = if context.text_align_update_cp {
                     context.point_s_to_relative_point(&point)
                 } else {
                     context.point_s_to_absolute_point(&point)
-                }
+                };
+
+                context = context.extend_window(&point);
+                point
             };
             let br = {
                 let point = PointS { x: rect.right, y: rect.bottom };
-                if context.text_align_update_cp {
+                let point = if context.text_align_update_cp {
                     context.point_s_to_relative_point(&point)
                 } else {
                     context.point_s_to_absolute_point(&point)
-                }
+                };
+
+                context = context.extend_window(&point);
+                point
             };
 
-            format!(
-                "shape-inside: polygon({},{} {},{} {},{} {},{});",
-                tl.x, tl.y, bl.x, bl.y, br.x, br.y, tr.x, tr.y,
-            )
+            Some(format!(
+                "shape-inside: polygon({} {} {} {});",
+                as_point_string(&tl),
+                as_point_string(&bl),
+                as_point_string(&br),
+                as_point_string(&tr),
+            ))
         } else {
-            "".to_owned()
+            None
         };
+
         let text = Text::new(record.string)
-            .set("x", c.x)
-            .set("y", c.y)
+            .set("x", point.x)
+            .set("y", point.y)
             .set("text-anchor", text_align)
             .set("dominant-baseline", context.as_css_text_align_vertical())
-            .set("fill", context.text_color_as_css_color())
-            .set("font-family", font.facename.clone())
-            .set("font-size", font.height.abs())
-            .set("font-weight", font.weight)
-            .set("rotate", font.orientation)
-            .set(
-                "style",
-                format!(
-                    "{}{}{}",
-                    if decoration.is_empty() {
-                        "".to_owned()
-                    } else {
-                        format!("text-decoration: {};", decoration.join(" "))
-                    },
-                    if font.italic {
-                        "font-style: italic;"
-                    } else {
-                        "font-style: normal;"
-                    },
-                    shape_inside,
-                ),
-            );
+            .set("fill", context.text_color_as_css_color());
+        let (text, mut styles) = font.set_props(text, &point);
 
-        if context.text_align_update_cp {
-            self.set_current_context(context.clone().drawing_position(c));
+        if let Some(shape_inside) = shape_inside {
+            styles.push(shape_inside);
         }
 
+        let text = text.set("style", styles.join(""));
+
+        if context.text_align_update_cp {
+            context = context.drawing_position(point);
+        }
+
+        self.set_current_context(context);
         self.document = self.document.clone().add(text);
 
         Ok(())
@@ -581,25 +898,25 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn line_to(&mut self, record: META_LINETO) -> Result<(), PlayError> {
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
-        let point = PointS { x: record.x, y: record.y };
-        let c = context.point_s_to_absolute_point(&point);
+        let point = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.x,
+                y: record.y,
+            });
+
+            context = context.extend_window(&point);
+            point
+        };
 
         let data = Data::new()
             .move_to((context.drawing_position.x, context.drawing_position.y))
-            .line_to((c.x, c.y));
-        let path = Path::new()
-            .set("fill", "none")
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
-            .set("d", data);
+            .line_to((point.x, point.y));
+        let path = Path::new().set("fill", "none").set("d", data);
+        let path = stroke.set_props(path);
 
-        self.set_current_context(context.clone().drawing_position(c));
+        self.set_current_context(context.drawing_position(point));
         self.document = self.document.clone().add(path);
 
         Ok(())
@@ -640,9 +957,9 @@ where
         let stroke = Stroke::from(brush.clone());
         let fill = match Fill::from(brush.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -654,16 +971,11 @@ where
         let rect = Rectangle::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("x", record.x_left)
             .set("y", record.y_left)
             .set("height", record.height)
             .set("width", record.width);
+        let rect = stroke.set_props(rect);
 
         self.document = document.add(rect);
 
@@ -677,14 +989,14 @@ where
     )]
     fn pie(&mut self, record: META_PIE) -> Result<(), PlayError> {
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let brush = self.selected_brush()?;
         let stroke = Stroke::from(brush.clone());
         let fill = match Fill::from(brush.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -692,54 +1004,58 @@ where
             Fill::Value { value } => value,
         };
         let fill_rule = context.poly_fill_rule();
-
         let (rx, ry) = (
             (record.right_rect - record.left_rect) / 2,
             (record.bottom_rect - record.top_rect) / 2,
         );
         let (center_x, center_y) =
             (record.left_rect + rx, record.top_rect + ry);
+
         let ellipse = Ellipse::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("cx", center_x)
             .set("cy", center_y)
             .set("rx", rx)
             .set("ry", ry);
+        let ellipse = stroke.set_props(ellipse);
 
         let stroke = Stroke::from(self.selected_pen()?.clone());
-        let p1 = context.point_s_to_absolute_point(&PointS {
-            x: record.x_radial1,
-            y: record.y_radial1,
-        });
-        let c = context
-            .point_s_to_absolute_point(&PointS { x: center_x, y: center_y });
-        let p2 = context.point_s_to_absolute_point(&PointS {
-            x: record.x_radial2,
-            y: record.y_radial2,
-        });
+        let p1 = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.x_radial1,
+                y: record.y_radial1,
+            });
+
+            context = context.extend_window(&point);
+            point
+        };
+        let center = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: center_x,
+                y: center_y,
+            });
+            context = context.extend_window(&point);
+            point
+        };
+        let p2 = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.x_radial2,
+                y: record.y_radial2,
+            });
+
+            context = context.extend_window(&point);
+            point
+        };
 
         let data = Data::new()
             .move_to((p1.x, p1.y))
-            .line_to((c.x, c.y))
+            .line_to((center.x, center.y))
             .line_to((p2.x, p2.y));
-        let path = Path::new()
-            .set("fill", "none")
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
-            .set("d", data);
+        let path = Path::new().set("fill", "none").set("d", data);
+        let path = stroke.set_props(path);
 
-        self.set_current_context(context.clone().drawing_position(p2));
+        self.set_current_context(context.drawing_position(p2));
         self.document = document.add(ellipse).add(path);
 
         Ok(())
@@ -751,7 +1067,7 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn polyline(&mut self, record: META_POLYLINE) -> Result<(), PlayError> {
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
 
         let Some(point) = record.a_points.get(0) else {
@@ -760,7 +1076,12 @@ where
             });
         };
 
-        let mut coordinate = context.point_s_to_absolute_point(&point);
+        let mut coordinate = {
+            let point = context.point_s_to_absolute_point(&point);
+            context = context.extend_window(&point);
+            point
+        };
+
         let mut data = Data::new().move_to((coordinate.x, coordinate.y));
 
         for i in 1..record.number_of_points {
@@ -770,21 +1091,19 @@ where
                 });
             };
 
-            coordinate = context.point_s_to_absolute_point(&point);
+            coordinate = {
+                let point = context.point_s_to_absolute_point(&point);
+                context = context.extend_window(&point);
+                point
+            };
+
             data = data.line_to((coordinate.x, coordinate.y));
         }
 
-        let path = Path::new()
-            .set("fill", "none")
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
-            .set("d", data);
+        let path = Path::new().set("fill", "none").set("d", data);
+        let path = stroke.set_props(path);
 
-        self.set_current_context(context.clone().drawing_position(coordinate));
+        self.set_current_context(context.drawing_position(coordinate));
         self.document = self.document.clone().add(path);
 
         Ok(())
@@ -797,17 +1116,18 @@ where
     )]
     fn polygon(&mut self, record: META_POLYGON) -> Result<(), PlayError> {
         if record.number_of_points == 0 {
+            tracing::info!(%record.number_of_points, "polygon has no points");
             return Ok(());
         }
 
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -825,21 +1145,22 @@ where
                 });
             };
 
-            let p = context.point_s_to_absolute_point(point);
-            points.push(as_point_string(&p));
+            let point = {
+                let point = context.point_s_to_absolute_point(point);
+                context = context.extend_window(&point);
+                point
+            };
+
+            points.push(as_point_string(&point));
         }
 
         let polygon = Polygon::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("points", points.join(" "));
+        let polygon = stroke.set_props(polygon);
 
+        self.set_current_context(context);
         self.document = document.clone().add(polygon);
 
         Ok(())
@@ -855,13 +1176,14 @@ where
         record: META_POLYPOLYGON,
     ) -> Result<(), PlayError> {
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
+        tracing::debug!(?stroke, "Stroke from selected Pen");
         let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -892,26 +1214,27 @@ where
                         ),
                     });
                 };
-                let p = context.point_s_to_absolute_point(&point);
 
-                points.push(as_point_string(&p));
+                let point = {
+                    let point = context.point_s_to_absolute_point(&point);
+                    context = context.extend_window(&point);
+                    point
+                };
+
+                points.push(as_point_string(&point));
                 current_point_index += 1;
             }
 
             let polygon = Polygon::new()
                 .set("fill", fill.as_str())
                 .set("fill-rule", fill_rule.as_str())
-                .set("stroke", stroke.color())
-                .set("stroke-width", stroke.width())
-                .set("stroke-opacity", stroke.opacity())
-                .set("stroke-linecap", stroke.line_cap())
-                .set("stroke-dasharray", stroke.dash_array())
-                .set("stroke-linejoin", stroke.line_join())
                 .set("points", points.join(" "));
+            let polygon = stroke.set_props(polygon);
 
             document = document.clone().add(polygon);
         }
 
+        self.set_current_context(context);
         self.document = document;
 
         Ok(())
@@ -924,13 +1247,13 @@ where
     )]
     fn reactangle(&mut self, record: META_RECTANGLE) -> Result<(), PlayError> {
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -939,28 +1262,34 @@ where
         };
         let fill_rule = context.poly_fill_rule();
         let tl = {
-            let point = PointS { x: record.left_rect, y: record.top_rect };
-            context.point_s_to_absolute_point(&point)
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.left_rect,
+                y: record.top_rect,
+            });
+
+            context = context.extend_window(&point);
+            point
         };
         let br = {
-            let point = PointS { x: record.right_rect, y: record.bottom_rect };
-            context.point_s_to_absolute_point(&point)
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.right_rect,
+                y: record.bottom_rect,
+            });
+
+            context = context.extend_window(&point);
+            point
         };
 
         let rect = Rectangle::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("x", tl.x)
             .set("y", tl.y)
             .set("height", br.y - tl.y)
             .set("width", br.x - tl.x);
+        let rect = stroke.set_props(rect);
 
+        self.set_current_context(context);
         self.document = document.add(rect);
 
         Ok(())
@@ -987,13 +1316,13 @@ where
         }
 
         let mut document = self.document.clone();
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
             Fill::Pattern { mut pattern } => {
-                let id = random_string();
+                let id = self.issue_id()?;
 
-                pattern = pattern.set("id", id.clone());
+                pattern = pattern.set("id", id.as_str());
                 document = document.add(pattern);
 
                 url_string(format!("#{id}"))
@@ -1001,27 +1330,28 @@ where
             Fill::Value { value } => value,
         };
         let fill_rule = context.poly_fill_rule();
-        let point = context.point_s_to_absolute_point(&PointS {
-            x: record.left_rect,
-            y: record.top_rect,
-        });
+        let point = {
+            let point = context.point_s_to_absolute_point(&PointS {
+                x: record.left_rect,
+                y: record.top_rect,
+            });
+
+            context = context.extend_window(&point);
+            point
+        };
 
         let rect = Rectangle::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("stroke", stroke.color())
-            .set("stroke-width", stroke.width())
-            .set("stroke-opacity", stroke.opacity())
-            .set("stroke-linecap", stroke.line_cap())
-            .set("stroke-dasharray", stroke.dash_array())
-            .set("stroke-linejoin", stroke.line_join())
             .set("x", point.x)
             .set("y", point.y)
             .set("height", height)
             .set("width", width)
             .set("rx", record.width)
             .set("ry", record.height);
+        let rect = stroke.set_props(rect);
 
+        self.set_current_context(context);
         self.document = document.add(rect);
 
         Ok(())
@@ -1043,49 +1373,42 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn text_out(&mut self, record: META_TEXTOUT) -> Result<(), PlayError> {
-        let context = self.current_context();
+        let mut context = self.current_context().clone();
         let font = self.selected_font()?;
-        let decoration = {
-            let mut v = vec![];
+        let point = {
+            let point = PointS {
+                x: record.x_start,
+                y: record.y_start
+                    + (if matches!(
+                        context.text_align_vertical,
+                        VerticalTextAlignmentMode::VTA_BASELINE
+                            | VerticalTextAlignmentMode::VTA_BOTTOM
+                    ) && font.height < 0
+                    {
+                        -1 * font.height
+                    } else {
+                        0
+                    }),
+            };
 
-            if font.underline {
-                v.push("underline");
-            }
+            let point = if context.text_align_update_cp {
+                context.point_s_to_relative_point(&point)
+            } else {
+                context.point_s_to_absolute_point(&point)
+            };
 
-            if font.strike_out {
-                v.push("line-through");
-            }
-
-            v
+            context = context.extend_window(&point);
+            point
         };
 
-        let point = PointS { x: record.x_start, y: record.y_start };
-        let c = context.point_s_to_relative_point(&point);
         let text = Text::new(record.string)
-            .set("x", c.x)
-            .set("y", font.height.abs() + c.y)
-            .set("fill", context.text_color_as_css_color())
-            .set("font-family", font.facename.clone())
-            .set("font-size", font.height.abs())
-            .set("font-weight", font.weight)
-            .set("rotate", font.orientation)
-            .set(
-                "style",
-                format!(
-                    "{}{}",
-                    if decoration.is_empty() {
-                        "".to_owned()
-                    } else {
-                        format!("text-decoration: {};", decoration.join(" "))
-                    },
-                    if font.italic {
-                        "font-style: italic;"
-                    } else {
-                        "font-style: normal;"
-                    },
-                ),
-            );
+            .set("x", point.x)
+            .set("y", point.y)
+            .set("fill", context.text_color_as_css_color());
+        let (text, styles) = font.set_props(text, &point);
+        let text = text.set("style", styles.join(""));
 
+        self.set_current_context(context);
         self.document = self.document.clone().add(text);
 
         Ok(())
@@ -1365,11 +1688,12 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn move_to(&mut self, record: META_MOVETO) -> Result<(), PlayError> {
-        let context = self.current_context();
-        let p = PointS { x: record.x, y: record.y };
-        let c = context.point_s_to_absolute_point(&p);
+        let mut context = self.current_context().clone();
+        let point = context
+            .point_s_to_absolute_point(&PointS { x: record.x, y: record.y });
+        context = context.extend_window(&point);
 
-        self.set_current_context(context.clone().drawing_position(c));
+        self.set_current_context(context.drawing_position(point));
 
         Ok(())
     }

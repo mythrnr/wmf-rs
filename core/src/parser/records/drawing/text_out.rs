@@ -63,7 +63,8 @@ impl META_TEXTOUT {
             string_length + 1
         };
         let string = {
-            let (bytes, c) = crate::parser::read_variable(buf, string_len as usize)?;
+            let (bytes, c) =
+                crate::parser::read_variable(buf, string_len as usize)?;
             record_size.consume(c);
 
             let encoding: &'static encoding_rs::Encoding = charset.into();
@@ -74,7 +75,7 @@ impl META_TEXTOUT {
                     cause: "cannot decode string".to_owned(),
                 });
             } else {
-                cow.trim_end().to_owned()
+                cow.replace("\0", "").trim_end().to_owned()
             }
         };
         let ((y_start, y_start_bytes), (x_start, x_start_bytes)) = (

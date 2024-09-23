@@ -848,7 +848,8 @@ impl META_ESCAPE {
             crate::parser::RecordType::META_ESCAPE,
         )?;
 
-        let (escape, escape_bytes) = crate::parser::MetafileEscapes::parse(buf)?;
+        let (escape, escape_bytes) =
+            crate::parser::MetafileEscapes::parse(buf)?;
         record_size.consume(escape_bytes);
 
         let record = match escape {

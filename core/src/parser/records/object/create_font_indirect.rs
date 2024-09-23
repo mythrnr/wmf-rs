@@ -33,7 +33,8 @@ impl META_CREATEFONTINDIRECT {
             crate::parser::RecordType::META_CREATEFONTINDIRECT,
         )?;
 
-        let (b, c) = crate::parser::read_variable(buf, record_size.remaining_bytes())?;
+        let (b, c) =
+            crate::parser::read_variable(buf, record_size.remaining_bytes())?;
         record_size.consume(c);
 
         let mut buffer = &b[..];

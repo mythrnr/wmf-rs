@@ -60,16 +60,16 @@ impl META_CREATEPATTERNBRUSH {
             crate::parser::RecordType::META_CREATEPATTERNBRUSH,
         )?;
 
-        let ((bitmap16, bitmap16_bytes), (reserved, reserved_bytes)) =
-            (crate::parser::Bitmap16::parse(buf)?, crate::parser::read::<R, 18>(buf)?);
-        record_size.consume(bitmap16_bytes + reserved_bytes);
+        let (bitmap16, bitmap16_bytes) =
+            crate::parser::Bitmap16::parse_without_bits(buf)?;
+        let (_, ignored_bytes) =
+            crate::parser::read_variable(buf, 14 - bitmap16_bytes)?;
+        let (reserved, reserved_bytes) = crate::parser::read::<R, 18>(buf)?;
+        record_size.consume(bitmap16_bytes + ignored_bytes + reserved_bytes);
 
-        let length = (((bitmap16.width * i16::from(bitmap16.bits_pixel) + 15)
-            >> 4)
-            << 1)
-            * bitmap16.height;
-        let (pattern, c) = crate::parser::read_variable(buf, length as usize)?;
-        record_size.consume(c);
+        let (pattern, pattern_bytes) =
+            crate::parser::read_variable(buf, bitmap16.calc_length())?;
+        record_size.consume(pattern_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
@@ -77,6 +77,9 @@ impl META_CREATEPATTERNBRUSH {
     }
 
     pub fn create_brush(&self) -> crate::parser::Brush {
-        todo!("TODO: ")
+        let mut brush_hatch = self.bitmap16.clone();
+        brush_hatch.bits = self.pattern.clone();
+
+        crate::parser::Brush::Pattern { brush_hatch }
     }
 }

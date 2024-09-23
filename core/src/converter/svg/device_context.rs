@@ -10,36 +10,36 @@ pub struct DeviceContext {
 
     // structures
     pub drawing_position: PointS,
-    pub text_bk_color: ColorRef,
+    pub _text_bk_color: ColorRef,
     pub text_color: ColorRef,
     pub window: Window,
 
     // graphics props
-    pub bk_mode: MixMode,
+    pub _bk_mode: MixMode,
     pub clipping_region: Option<Rect>,
     pub poly_fill_mode: PolyFillMode,
     pub text_align_horizontal: TextAlignmentMode,
     pub text_align_vertical: VerticalTextAlignmentMode,
     pub text_align_update_cp: bool,
 
-    pub draw_mode: Option<BinaryRasterOperation>,
-    pub map_mode: MapMode,
+    pub _draw_mode: Option<BinaryRasterOperation>,
+    pub _map_mode: MapMode,
 }
 
 impl Default for DeviceContext {
     fn default() -> Self {
         Self {
             object_table: GraphicsObjects::new(0),
-            bk_mode: MixMode::TRANSPARENT,
+            _bk_mode: MixMode::TRANSPARENT,
             clipping_region: None,
             drawing_position: PointS { x: 0, y: 0 },
-            draw_mode: None,
-            map_mode: MapMode::MM_TEXT,
+            _draw_mode: None,
+            _map_mode: MapMode::MM_TEXT,
             poly_fill_mode: PolyFillMode::ALTERNATE,
             text_align_horizontal: TextAlignmentMode::TA_LEFT,
             text_align_vertical: VerticalTextAlignmentMode::VTA_BASELINE,
             text_align_update_cp: false,
-            text_bk_color: ColorRef::white(),
+            _text_bk_color: ColorRef::white(),
             text_color: ColorRef::black(),
             window: Window::new(),
         }
@@ -52,7 +52,7 @@ impl DeviceContext {
     }
 
     pub fn bk_mode(self, bk_mode: MixMode) -> Self {
-        Self { bk_mode: bk_mode.into(), ..self }
+        Self { _bk_mode: bk_mode.into(), ..self }
     }
 
     pub fn clipping_region(self, clipping_region: Rect) -> Self {
@@ -74,11 +74,11 @@ impl DeviceContext {
     }
 
     pub fn draw_mode(self, draw_mode: BinaryRasterOperation) -> Self {
-        Self { draw_mode: draw_mode.into(), ..self }
+        Self { _draw_mode: draw_mode.into(), ..self }
     }
 
     pub fn map_mode(self, map_mode: MapMode) -> Self {
-        Self { map_mode, ..self }
+        Self { _map_mode: map_mode, ..self }
     }
 
     pub fn poly_fill_mode(self, poly_fill_mode: PolyFillMode) -> Self {
@@ -129,11 +129,7 @@ impl DeviceContext {
     }
 
     pub fn text_bk_color(self, text_bk_color: ColorRef) -> Self {
-        Self { text_bk_color, ..self }
-    }
-
-    pub fn text_bk_color_as_css_color(&self) -> String {
-        css_color_from_color_ref(&self.text_bk_color)
+        Self { _text_bk_color: text_bk_color, ..self }
     }
 
     pub fn text_color(self, text_color: ColorRef) -> Self {
@@ -174,6 +170,24 @@ impl DeviceContext {
             + self.drawing_position.y;
 
         PointS { x, y }
+    }
+
+    pub fn extend_window(self, p: &PointS) -> Self {
+        let (mut x, mut y) = (0, 0);
+
+        if self.window.x < p.x {
+            x = p.x;
+        }
+
+        if self.window.y < p.y {
+            y = p.y;
+        }
+
+        if x > 0 && y > 0 {
+            self.window_ext(x, y)
+        } else {
+            self
+        }
     }
 }
 

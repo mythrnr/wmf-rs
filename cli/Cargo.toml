@@ -11,3 +11,9 @@ wmf-core = { workspace = true }
 
 [lints]
 workspace = true
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = "symbols"

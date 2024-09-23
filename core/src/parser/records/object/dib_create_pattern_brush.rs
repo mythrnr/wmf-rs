@@ -50,16 +50,19 @@ impl META_DIBCREATEPATTERNBRUSH {
             crate::parser::RecordType::META_DIBCREATEPATTERNBRUSH,
         )?;
 
-        let ((style, style_bytes), (color_usage, color_usage_bytes)) =
-            (crate::parser::BrushStyle::parse(buf)?, crate::parser::read::<R, 2>(buf)?);
+        let ((style, style_bytes), (color_usage, color_usage_bytes)) = (
+            crate::parser::BrushStyle::parse(buf)?,
+            crate::parser::read::<R, 2>(buf)?,
+        );
         record_size.consume(style_bytes + color_usage_bytes);
 
-        let color_usage = if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
-            crate::parser::ColorUsage::DIB_RGB_COLORS
-        } else {
-            let mut buffer = &color_usage[..];
-            crate::parser::ColorUsage::parse(&mut buffer)?.0
-        };
+        let color_usage =
+            if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
+                crate::parser::ColorUsage::DIB_RGB_COLORS
+            } else {
+                let mut buffer = &color_usage[..];
+                crate::parser::ColorUsage::parse(&mut buffer)?.0
+            };
 
         let (target, c) =
             crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
@@ -72,49 +75,61 @@ impl META_DIBCREATEPATTERNBRUSH {
 
         Ok(Self { record_size, record_function, style, color_usage, target })
     }
-}
 
-impl META_DIBCREATEPATTERNBRUSH {
     pub fn create_brush(&self) -> crate::parser::Brush {
         match self.style {
             crate::parser::BrushStyle::BS_PATTERN => {
-                todo!();
                 let dib = self.target.clone();
-                let (width, height, planes) = match dib.dib_header_info {
-                    crate::parser::BitmapInfoHeader::Core {
-                        width,
-                        height,
-                        planes,
-                        ..
-                    } => (width as i16, height as i16, planes as u8),
-                    crate::parser::BitmapInfoHeader::Info {
-                        width,
-                        height,
-                        planes,
-                        ..
-                    }
-                    | crate::parser::BitmapInfoHeader::V4 {
-                        width,
-                        height,
-                        planes,
-                        ..
-                    }
-                    | crate::parser::BitmapInfoHeader::V5 {
-                        width,
-                        height,
-                        planes,
-                        ..
-                    } => (width as i16, height as i16, planes as u8),
-                };
+                let (width, height, planes, bits_pixel) =
+                    match dib.dib_header_info {
+                        crate::parser::BitmapInfoHeader::Core {
+                            width,
+                            height,
+                            planes,
+                            bit_count,
+                            ..
+                        } => (
+                            width as i16,
+                            height as i16,
+                            planes as u8,
+                            bit_count as u8,
+                        ),
+                        crate::parser::BitmapInfoHeader::Info {
+                            width,
+                            height,
+                            planes,
+                            bit_count,
+                            ..
+                        }
+                        | crate::parser::BitmapInfoHeader::V4 {
+                            width,
+                            height,
+                            planes,
+                            bit_count,
+                            ..
+                        }
+                        | crate::parser::BitmapInfoHeader::V5 {
+                            width,
+                            height,
+                            planes,
+                            bit_count,
+                            ..
+                        } => (
+                            width as i16,
+                            height as i16,
+                            planes as u8,
+                            bit_count as u8,
+                        ),
+                    };
 
                 crate::parser::Brush::Pattern {
                     brush_hatch: crate::parser::Bitmap16 {
-                        typ: i16::from_be_bytes([b'B', b'M']),
+                        typ: i16::from_le_bytes(*b"BM"),
                         width,
                         height,
                         width_bytes: 0,
                         planes,
-                        bits_pixel: 16,
+                        bits_pixel,
                         bits: dib.bitmap_buffer.a_data,
                     },
                 }

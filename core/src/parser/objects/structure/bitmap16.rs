@@ -52,6 +52,24 @@ impl Bitmap16 {
     pub fn parse<R: std::io::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
+        let (mut bitmap, mut consumed_bytes) = Self::parse_without_bits(buf)?;
+        let (bits, bits_bytes) =
+            crate::parser::read_variable(buf, bitmap.calc_length())?;
+
+        bitmap.bits = bits;
+        consumed_bytes += bits_bytes;
+
+        Ok((bitmap, consumed_bytes))
+    }
+
+    #[tracing::instrument(
+        level = tracing::Level::TRACE,
+        skip_all,
+        err(level = tracing::Level::DEBUG, Display)
+    )]
+    pub fn parse_without_bits<R: std::io::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (
             (typ, typ_bytes),
             (width, width_consumed_bytes),
@@ -67,7 +85,7 @@ impl Bitmap16 {
             crate::parser::read_u8_from_le_bytes(buf)?,
             crate::parser::read_u8_from_le_bytes(buf)?,
         );
-        let mut consumed_bytes = typ_bytes
+        let consumed_bytes = typ_bytes
             + width_consumed_bytes
             + height_bytes
             + width_bytes_consumed_bytes
@@ -80,15 +98,22 @@ impl Bitmap16 {
             });
         }
 
-        let bits_length =
-            (((width * i16::from(bits_pixel) + 15) >> 4) << 1) * height;
-        let (bits, bits_bytes) =
-            crate::parser::read_variable(buf, bits_length as usize)?;
-        consumed_bytes += bits_bytes;
-
         Ok((
-            Self { typ, width, height, width_bytes, planes, bits_pixel, bits },
+            Self {
+                typ,
+                width,
+                height,
+                width_bytes,
+                planes,
+                bits_pixel,
+                bits: vec![],
+            },
             consumed_bytes,
         ))
+    }
+
+    pub fn calc_length(&self) -> usize {
+        ((((self.width * i16::from(self.bits_pixel) + 15) >> 4) << 1)
+            * self.height) as usize
     }
 }

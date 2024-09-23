@@ -1,5 +1,7 @@
 impl crate::parser::META_ESCAPE {
-    pub(in crate::parser::records::escape) fn parse_as_SETLINEJOIN<R: std::io::Read>(
+    pub(in crate::parser::records::escape) fn parse_as_SETLINEJOIN<
+        R: std::io::Read,
+    >(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

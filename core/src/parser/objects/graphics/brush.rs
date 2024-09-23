@@ -29,7 +29,8 @@ impl Brush {
     pub fn parse<R: std::io::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (style, mut consumed_bytes) = crate::parser::BrushStyle::parse(buf)?;
+        let (style, mut consumed_bytes) =
+            crate::parser::BrushStyle::parse(buf)?;
         let v = match style {
             crate::parser::BrushStyle::BS_DIBPATTERNPT => {
                 let (color_usage, c) = crate::parser::ColorUsage::parse(buf)?;

@@ -48,7 +48,9 @@ impl META_CREATEBRUSHINDIRECT {
     pub fn create_brush(&self) -> crate::parser::Brush {
         match self.log_brush.clone() {
             crate::parser::LogBrush::DIBPatternPT => {
-                crate::parser::Brush::Solid { color_ref: crate::parser::ColorRef::black() }
+                crate::parser::Brush::Solid {
+                    color_ref: crate::parser::ColorRef::black(),
+                }
             }
             crate::parser::LogBrush::Hatched { color_ref, brush_hatch } => {
                 crate::parser::Brush::Hatched { color_ref, brush_hatch }
@@ -57,7 +59,9 @@ impl META_CREATEBRUSHINDIRECT {
                 crate::parser::Brush::Solid { color_ref }
             }
             crate::parser::LogBrush::Null => crate::parser::Brush::Null,
-            _ => crate::parser::Brush::Solid { color_ref: crate::parser::ColorRef::black() },
+            _ => crate::parser::Brush::Solid {
+                color_ref: crate::parser::ColorRef::black(),
+            },
         }
     }
 }

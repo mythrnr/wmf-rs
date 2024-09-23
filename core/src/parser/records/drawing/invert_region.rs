@@ -35,7 +35,8 @@ impl META_INVERTREGION {
             crate::parser::RecordType::META_INVERTREGION,
         )?;
 
-        let (region, region_bytes) = crate::parser::read_u16_from_le_bytes(buf)?;
+        let (region, region_bytes) =
+            crate::parser::read_u16_from_le_bytes(buf)?;
         record_size.consume(region_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

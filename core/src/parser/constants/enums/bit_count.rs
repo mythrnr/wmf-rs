@@ -90,3 +90,17 @@ pub enum BitCount {
 }
 
 crate::parser::constants::impl_parser!(BitCount, u16);
+
+impl BitCount {
+    pub fn colors(&self) -> usize {
+        match self {
+            Self::BI_BITCOUNT_0 => 0,
+            Self::BI_BITCOUNT_1 => 2,
+            Self::BI_BITCOUNT_2 => 2usize.pow(4),
+            Self::BI_BITCOUNT_3 => 2usize.pow(8),
+            Self::BI_BITCOUNT_4 => 2usize.pow(16),
+            Self::BI_BITCOUNT_5 => 2usize.pow(24),
+            Self::BI_BITCOUNT_6 => 2usize.pow(24),
+        }
+    }
+}

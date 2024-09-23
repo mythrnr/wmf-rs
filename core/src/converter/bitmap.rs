@@ -52,7 +52,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
                 info_header.extend((bit_count as u16).to_le_bytes());
-                info_header.extend((compression as u16).to_le_bytes());
+                info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
                 info_header.extend(y_pels_per_meter.to_le_bytes());
@@ -87,7 +87,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
                 info_header.extend((bit_count as u16).to_le_bytes());
-                info_header.extend((compression as u16).to_le_bytes());
+                info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
                 info_header.extend(y_pels_per_meter.to_le_bytes());
@@ -143,7 +143,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
                 info_header.extend((bit_count as u16).to_le_bytes());
-                info_header.extend((compression as u16).to_le_bytes());
+                info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
                 info_header.extend(y_pels_per_meter.to_le_bytes());
@@ -196,9 +196,9 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         file_size += data.len() as u32;
 
         // write file headers
-        file_header.extend(vec![0x42, 0x4d]);
+        file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
-        file_header.extend(vec![0x00, 0x00]);
+        file_header.extend(0u32.to_le_bytes());
         file_header.extend((file_size - data.len() as u32).to_le_bytes());
 
         let data = {
@@ -230,9 +230,9 @@ impl From<Bitmap16> for Bitmap {
         file_size += data.len() as u32;
 
         // write file headers
-        file_header.extend(vec![0x42, 0x4d]);
+        file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
-        file_header.extend(vec![0x00, 0x00]);
+        file_header.extend(0u32.to_le_bytes());
         file_header.extend((file_size - data.len() as u32).to_le_bytes());
 
         let data = {

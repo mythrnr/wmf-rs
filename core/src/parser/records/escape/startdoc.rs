@@ -1,5 +1,7 @@
 impl crate::parser::META_ESCAPE {
-    pub(in crate::parser::records::escape) fn parse_as_STARTDOC<R: std::io::Read>(
+    pub(in crate::parser::records::escape) fn parse_as_STARTDOC<
+        R: std::io::Read,
+    >(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
@@ -17,7 +19,8 @@ impl crate::parser::META_ESCAPE {
             });
         }
 
-        let (doc_name, c) = crate::parser::read_variable(buf, byte_count as usize)?;
+        let (doc_name, c) =
+            crate::parser::read_variable(buf, byte_count as usize)?;
         record_size.consume(c);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

@@ -35,7 +35,8 @@ impl META_SELECTPALETTE {
             crate::parser::RecordType::META_SELECTPALETTE,
         )?;
 
-        let (palette, palette_bytes) = crate::parser::read_u16_from_le_bytes(buf)?;
+        let (palette, palette_bytes) =
+            crate::parser::read_u16_from_le_bytes(buf)?;
         record_size.consume(palette_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

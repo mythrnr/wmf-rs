@@ -8,7 +8,8 @@ impl crate::parser::META_ESCAPE {
     ) -> Result<Self, crate::parser::ParseError> {
         let (byte_count, byte_count_bytes) =
             crate::parser::read_u16_from_le_bytes(buf)?;
-        let (jpeg_buffer, c) = crate::parser::read_variable(buf, byte_count as usize)?;
+        let (jpeg_buffer, c) =
+            crate::parser::read_variable(buf, byte_count as usize)?;
         record_size.consume(byte_count_bytes + c);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

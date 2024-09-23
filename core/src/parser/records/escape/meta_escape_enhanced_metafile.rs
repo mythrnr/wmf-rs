@@ -44,7 +44,9 @@ impl crate::parser::META_ESCAPE {
 
         let expected_byte_count =
             u16::try_from(enhanced_metafile_data_size + 34).map_err(|err| {
-                crate::parser::ParseError::UnexpectedPattern { cause: err.to_string() }
+                crate::parser::ParseError::UnexpectedPattern {
+                    cause: err.to_string(),
+                }
             })?;
 
         if byte_count != expected_byte_count {
@@ -101,8 +103,10 @@ impl crate::parser::META_ESCAPE {
             });
         }
 
-        let (enhanced_metafile_data, c) =
-            crate::parser::read_variable(buf, enhanced_metafile_data_size as usize)?;
+        let (enhanced_metafile_data, c) = crate::parser::read_variable(
+            buf,
+            enhanced_metafile_data_size as usize,
+        )?;
         record_size.consume(c);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

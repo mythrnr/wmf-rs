@@ -40,8 +40,10 @@ impl META_SETLAYOUT {
             crate::parser::RecordType::META_SETLAYOUT,
         )?;
 
-        let ((layout, layout_bytes), (reserved, reserved_bytes)) =
-            (crate::parser::Layout::parse(buf)?, crate::parser::read::<R, 2>(buf)?);
+        let ((layout, layout_bytes), (reserved, reserved_bytes)) = (
+            crate::parser::Layout::parse(buf)?,
+            crate::parser::read::<R, 2>(buf)?,
+        );
         record_size.consume(layout_bytes + reserved_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

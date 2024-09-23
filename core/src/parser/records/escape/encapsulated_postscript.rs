@@ -35,7 +35,8 @@ impl crate::parser::META_ESCAPE {
                 .expect("should be convert u32")
                 + 4
                 + 4);
-        let (data, c) = crate::parser::read_variable(buf, data_length as usize)?;
+        let (data, c) =
+            crate::parser::read_variable(buf, data_length as usize)?;
         record_size.consume(c);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

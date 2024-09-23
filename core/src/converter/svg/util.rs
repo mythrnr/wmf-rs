@@ -2,14 +2,6 @@ use svg::node::element::{path::Data, Path, Pattern};
 
 use crate::parser::*;
 
-pub fn random_string() -> String {
-    use rand::distributions::{Alphanumeric, DistString};
-
-    let mut rng = rand::thread_rng();
-
-    Alphanumeric.sample_string(&mut rng, 16)
-}
-
 pub fn css_color_from_color_ref(c: &ColorRef) -> String {
     format!("#{:02X}{:02X}{:02X}", c.red, c.green, c.blue)
 }
@@ -155,20 +147,42 @@ impl From<Pen> for Stroke {
         let mut stroke =
             Self { color: v.color_ref, width: v.width.x, ..Default::default() };
 
-        for s in v.style {
-            stroke = match s {
-                PenStyle::PS_DASH => {
-                    Self { dash_array: "6,2".to_owned(), ..stroke }
-                }
-                PenStyle::PS_DOT => {
-                    Self { dash_array: "2,2".to_owned(), ..stroke }
-                }
-                PenStyle::PS_DASHDOT => {
-                    Self { dash_array: "6,2,2,2".to_owned(), ..stroke }
-                }
-                PenStyle::PS_DASHDOTDOT => {
-                    Self { dash_array: "6,2,2,2,2,2".to_owned(), ..stroke }
-                }
+        for style in v.style {
+            stroke = match style {
+                PenStyle::PS_DASH => Self {
+                    dash_array: format!("{v} {v}", v = stroke.width * 10),
+                    ..stroke
+                },
+                PenStyle::PS_DOT | PenStyle::PS_ALTERNATE => Self {
+                    dash_array: format!(
+                        "{} {}",
+                        stroke.width,
+                        stroke.width * 10
+                    ),
+                    ..stroke
+                },
+                PenStyle::PS_DASHDOT => Self {
+                    dash_array: format!(
+                        "{} {} {} {}",
+                        stroke.width * 10,
+                        stroke.width * 2,
+                        stroke.width,
+                        stroke.width * 2,
+                    ),
+                    ..stroke
+                },
+                PenStyle::PS_DASHDOTDOT => Self {
+                    dash_array: format!(
+                        "{} {} {} {} {} {}",
+                        stroke.width * 10,
+                        stroke.width * 2,
+                        stroke.width,
+                        stroke.width * 2,
+                        stroke.width,
+                        stroke.width * 2,
+                    ),
+                    ..stroke
+                },
                 PenStyle::PS_NULL => Self { opacity: 0_f32, ..stroke },
                 PenStyle::PS_ENDCAP_SQUARE => {
                     Self { line_cap: "square".to_owned(), ..stroke }
@@ -179,19 +193,12 @@ impl From<Pen> for Stroke {
                 PenStyle::PS_JOIN_MITER => {
                     Self { line_join: "miter".to_owned(), ..stroke }
                 }
-                PenStyle::PS_SOLID => {
-                    if stroke.width == 0 {
-                        Self { width: 1, ..stroke }
-                    } else {
-                        stroke
-                    }
-                }
+                PenStyle::PS_SOLID => stroke,
                 // not implemented
                 PenStyle::PS_INSIDEFRAME
                 | PenStyle::PS_USERSTYLE
-                | PenStyle::PS_ALTERNATE
                 | PenStyle::PS_ENDCAP_FLAT => {
-                    tracing::info!(style = ?s, "pen style is not implemented");
+                    tracing::info!(?style, "pen style is not implemented");
                     stroke
                 }
             };
@@ -226,23 +233,90 @@ impl Stroke {
         css_color_from_color_ref(&self.color)
     }
 
-    pub fn width(&self) -> i16 {
-        self.width
-    }
-
-    pub fn opacity(&self) -> String {
-        format!("{:.02}", self.opacity)
+    pub fn dash_array(&self) -> String {
+        self.dash_array.clone()
     }
 
     pub fn line_cap(&self) -> String {
         self.line_cap.clone()
     }
 
-    pub fn dash_array(&self) -> String {
-        self.dash_array.clone()
-    }
-
     pub fn line_join(&self) -> String {
         self.line_join.clone()
+    }
+
+    pub fn opacity(&self) -> String {
+        format!("{:.02}", self.opacity)
+    }
+
+    pub fn width(&self) -> i16 {
+        self.width
+    }
+
+    pub fn set_props<T: svg::Node>(&self, mut elem: T) -> T {
+        if self.opacity == 0_f32 {
+            elem.assign("stroke", "none");
+            return elem;
+        }
+
+        elem.assign("stroke", self.color());
+        elem.assign("stroke-dasharray", self.dash_array());
+        elem.assign("stroke-linecap", self.line_cap());
+        elem.assign("stroke-linejoin", self.line_join());
+        elem.assign("stroke-opacity", self.opacity());
+        elem.assign("stroke-width", self.width());
+        elem
+    }
+}
+
+impl Font {
+    pub fn set_props<T: svg::Node>(
+        &self,
+        mut elem: T,
+        point: &PointS,
+    ) -> (T, Vec<String>) {
+        let mut styles = vec![];
+
+        if self.italic {
+            styles.push("font-style: italic;".to_owned());
+        }
+
+        {
+            let mut v = vec![];
+
+            if self.underline {
+                v.push("underline");
+            }
+
+            if self.strike_out {
+                v.push("line-through");
+            }
+
+            if !v.is_empty() {
+                styles.push(format!("text-decoration: {};", v.join(" ")));
+            }
+        };
+
+        if self.orientation != 0 {
+            elem.assign("rotate", -1 * self.orientation / 10);
+        }
+
+        if self.escapement != 0 {
+            elem.assign(
+                "transform",
+                format!(
+                    "rotate({}, {} {})",
+                    -1 * self.escapement / 10,
+                    point.x,
+                    point.y
+                ),
+            );
+        }
+
+        elem.assign("font-family", self.facename.as_str());
+        elem.assign("font-size", self.height.abs());
+        elem.assign("font-weight", self.weight);
+
+        (elem, styles)
     }
 }
