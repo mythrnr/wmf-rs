@@ -124,9 +124,7 @@ impl META_EXTTEXTOUT {
                 bytes
                     .into_iter()
                     .map(|v| {
-                        (&*crate::parser::SYMBOL_CHARSET_TABLE)
-                            .get(&v)
-                            .cloned()
+                        (&*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).cloned()
                     })
                     .filter(Option::is_some)
                     .map(Option::unwrap)

@@ -9,13 +9,43 @@ use tracing_subscriber::{
 #[derive(Clone, Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
+    /// The WMF file path to convert to SVG
     #[arg(short, long)]
     input: String,
+    /// The destination file path to save converted SVG
     #[arg(short, long, default_value = "output.svg")]
     output: String,
+    /// Run quiet output
+    #[arg(short, long)]
+    quiet: bool,
+    /// Print debug logs
+    #[arg(long)]
+    verbose: bool,
 }
 
 fn main() {
+    let cli = Cli::parse();
+
+    let env_filter = {
+        let level = if cli.verbose {
+            "debug"
+        } else if cli.quiet {
+            "error"
+        } else {
+            "info"
+        };
+
+        EnvFilter::from_default_env()
+            .add_directive(
+                format!("wmf_core={level}").parse().expect("should be parsed"),
+            )
+            .add_directive(
+                format!("wmf_converter={level}")
+                    .parse()
+                    .expect("should be parsed"),
+            )
+    };
+
     tracing_subscriber::fmt::fmt()
         // .pretty()
         .with_ansi(false)
@@ -25,17 +55,10 @@ fn main() {
         .with_target(true)
         .with_timer(UtcTime::rfc_3339())
         .with_env_filter(
-            EnvFilter::from_default_env()
-                .add_directive(
-                    "wmf_core=debug".parse().expect("should be parsed"),
-                )
-                .add_directive(
-                    "wmf_converter=debug".parse().expect("should be parsed"),
-                ),
+            env_filter
         )
         .init();
 
-    let cli = Cli::parse();
     let _span = tracing::info_span!("main", input = %cli.input).entered();
 
     let Ok(mut input) = File::open(cli.input.clone()).inspect_err(|err| {

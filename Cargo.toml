@@ -9,7 +9,7 @@ encoding_rs = "0.8.34"
 paste = "1.0.15"
 strum = { version = "0.26.3", features = ["derive"] }
 svg = "0.17.0"
-thiserror = "1.0.63"
+thiserror = "1.0.64"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time"] }
 unicode-segmentation = "1.12.0"
