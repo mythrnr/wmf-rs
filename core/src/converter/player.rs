@@ -4,6 +4,8 @@ use crate::parser::*;
 pub enum PlayError {
     #[error("failed to generate: {cause}")]
     FailedGenerate { cause: String },
+    #[error("invalid brush: {cause}")]
+    InvalidBrush { cause: String },
     #[error("invalid record: {cause}")]
     InvalidRecord { cause: String },
     #[error("unexpected graphics object: {cause}")]
@@ -14,7 +16,7 @@ pub enum PlayError {
 
 pub trait Player {
     /// Call after converting to write output.
-    fn generate(&mut self) -> Result<(), PlayError>;
+    fn generate(self) -> Result<(), PlayError>;
 
     // .
     // .

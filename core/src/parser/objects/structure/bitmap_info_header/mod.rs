@@ -536,4 +536,22 @@ impl BitmapInfoHeader {
             }
         }
     }
+
+    pub fn height(&self) -> usize {
+        match self {
+            Self::Core { height, .. } => usize::from(*height),
+            Self::Info { height, .. }
+            | Self::V4 { height, .. }
+            | Self::V5 { height, .. } => *height as usize,
+        }
+    }
+
+    pub fn width(&self) -> usize {
+        match self {
+            Self::Core { width, .. } => usize::from(*width),
+            Self::Info { width, .. }
+            | Self::V4 { width, .. }
+            | Self::V5 { width, .. } => *width as usize,
+        }
+    }
 }

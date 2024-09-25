@@ -1,4 +1,4 @@
-use svg::node::element::{path::Data, Path, Pattern};
+use svg::node::element::{path::Data, Image, Path, Pattern};
 
 use crate::parser::*;
 
@@ -23,11 +23,26 @@ pub enum Fill {
 impl From<Brush> for Fill {
     fn from(v: Brush) -> Self {
         match v {
-            Brush::DIBPatternPT { brush_hatch, .. } => Fill::Value {
-                value: url_string(
-                    crate::converter::Bitmap::from(brush_hatch).as_data_url(),
-                ),
-            },
+            Brush::DIBPatternPT { brush_hatch, .. } => {
+                let data = crate::converter::Bitmap::from(brush_hatch.clone())
+                    .as_data_url();
+                let image = Image::new()
+                    .set("x", 0)
+                    .set("y", 0)
+                    .set("width", brush_hatch.dib_header_info.width())
+                    .set("height", brush_hatch.dib_header_info.height())
+                    .set("href", data);
+                let pattern = Pattern::new()
+                    .set("patternUnits", "userSpaceOnUse")
+                    .set("patternContentUnits", "userSpaceOnUse")
+                    .set("x", 0)
+                    .set("y", 0)
+                    .set("width", brush_hatch.dib_header_info.width())
+                    .set("height", brush_hatch.dib_header_info.height())
+                    .add(image);
+
+                Fill::Pattern { pattern }
+            }
             Brush::Hatched { color_ref, brush_hatch } => {
                 let path = match brush_hatch {
                     HatchStyle::HS_HORIZONTAL => {
@@ -92,19 +107,35 @@ impl From<Brush> for Fill {
 
                 let pattern = Pattern::new()
                     .set("patternUnits", "userSpaceOnUse")
-                    .set("viewBox", "0 0 10 10")
+                    .set("patternContentUnits", "userSpaceOnUse")
+                    .set("x", 0)
+                    .set("y", 0)
                     .set("width", 10)
                     .set("height", 10)
                     .add(path);
 
                 Fill::Pattern { pattern }
             }
-            Brush::Pattern { brush_hatch } => Fill::Value {
-                value: url_string(
-                    crate::converter::Bitmap::from(brush_hatch.clone())
-                        .as_data_url(),
-                ),
-            },
+            Brush::Pattern { brush_hatch } => {
+                let data = crate::converter::Bitmap::from(brush_hatch.clone())
+                    .as_data_url();
+                let image = Image::new()
+                    .set("x", 0)
+                    .set("y", 0)
+                    .set("width", brush_hatch.width)
+                    .set("height", brush_hatch.height)
+                    .set("href", data);
+                let pattern = Pattern::new()
+                    .set("patternUnits", "userSpaceOnUse")
+                    .set("patternContentUnits", "userSpaceOnUse")
+                    .set("x", 0)
+                    .set("y", 0)
+                    .set("width", brush_hatch.width)
+                    .set("height", brush_hatch.height)
+                    .add(image);
+
+                Fill::Pattern { pattern }
+            }
             Brush::Solid { color_ref } => {
                 Fill::Value { value: css_color_from_color_ref(&color_ref) }
             }

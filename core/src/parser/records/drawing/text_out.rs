@@ -67,15 +67,27 @@ impl META_TEXTOUT {
                 crate::parser::read_variable(buf, string_len as usize)?;
             record_size.consume(c);
 
-            let encoding: &'static encoding_rs::Encoding = charset.into();
-            let (cow, _, had_errors) = encoding.decode(&bytes);
-
-            if had_errors {
-                return Err(crate::parser::ParseError::UnexpectedPattern {
-                    cause: "cannot decode string".to_owned(),
-                });
+            if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
+                bytes
+                    .into_iter()
+                    .map(|v| {
+                        (&*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).cloned()
+                    })
+                    .filter(Option::is_some)
+                    .map(Option::unwrap)
+                    .collect::<String>()
+                    .replace("\0", "")
             } else {
-                cow.replace("\0", "").trim_end().to_owned()
+                let encoding: &'static encoding_rs::Encoding = charset.into();
+                let (cow, _, had_errors) = encoding.decode(&bytes);
+
+                if had_errors {
+                    return Err(crate::parser::ParseError::UnexpectedPattern {
+                        cause: "cannot decode string".to_owned(),
+                    });
+                } else {
+                    cow.replace("\0", "").to_owned()
+                }
             }
         };
         let ((y_start, y_start_bytes), (x_start, x_start_bytes)) = (

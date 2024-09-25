@@ -1,23 +1,24 @@
 mod device_context;
+mod ternary_raster_operator;
 mod util;
 
-use std::{collections::VecDeque, sync::Mutex};
+use std::collections::VecDeque;
 
 use svg::{
     node::element::{
-        path::Data, Ellipse, Image, Path, Polygon, Rectangle, Text,
+        path::Data, Element, Ellipse, Path, Polygon, Rectangle, Text,
     },
-    Document,
+    Document, Node,
 };
 
 use crate::{
     converter::{
         svg::{
             device_context::DeviceContext,
+            ternary_raster_operator::TernaryRasterOperator,
             util::{as_point_string, url_string, Fill, Stroke},
         },
         GraphicsObject, PlayError, SelectedGraphicsObject,
-        TernaryRasterOperator,
     },
     parser::*,
 };
@@ -25,8 +26,8 @@ use crate::{
 pub struct SVGPlayer<W> {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
-    definition_number: Mutex<usize>,
-    document: Document,
+    definitions: Vec<Box<dyn Node>>,
+    elements: Vec<Box<dyn Node>>,
     object_selected: SelectedGraphicsObject,
     output: W,
 }
@@ -36,8 +37,8 @@ impl<W> SVGPlayer<W> {
         Self {
             context_stack: Vec::with_capacity(0),
             context_current: Default::default(),
-            definition_number: Mutex::new(0),
-            document: Document::new(),
+            definitions: vec![],
+            elements: vec![],
             object_selected: SelectedGraphicsObject::default(),
             output,
         }
@@ -49,15 +50,8 @@ impl<W> SVGPlayer<W> {
     }
 
     #[inline]
-    fn issue_id(&self) -> Result<String, PlayError> {
-        let mut definition_number = self
-            .definition_number
-            .lock()
-            .map_err(|err| PlayError::Unknown { cause: err.to_string() })?;
-
-        *definition_number += 1;
-
-        Ok(format!("defs{}", *definition_number))
+    fn issue_id(&self) -> String {
+        format!("defs{}", self.definitions.len())
     }
 
     #[inline]
@@ -83,10 +77,29 @@ where
         skip_all,
         err(level = tracing::Level::DEBUG, Display),
     )]
-    fn generate(&mut self) -> Result<(), PlayError> {
-        self.output.write(&self.document.to_string().into_bytes()).map_err(
-            |err| PlayError::FailedGenerate { cause: err.to_string() },
-        )?;
+    fn generate(self) -> Result<(), PlayError> {
+        let Self { context_current, definitions, elements, mut output, .. } =
+            self;
+
+        let mut document = Document::new()
+            .set("viewBox", context_current.window.as_view_box());
+
+        if !definitions.is_empty() {
+            let mut defs = Element::new("defs");
+            for v in definitions {
+                defs.append(v);
+            }
+
+            document = document.add(defs);
+        }
+
+        for v in elements {
+            document = document.add(v);
+        }
+
+        output.write(&document.to_string().into_bytes()).map_err(|err| {
+            PlayError::FailedGenerate { cause: err.to_string() }
+        })?;
 
         Ok(())
     }
@@ -116,7 +129,7 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn bit_blt(&mut self, record: META_BITBLT) -> Result<(), PlayError> {
-        let (x, y, width, height, operator) = match record {
+        let operator = match record {
             META_BITBLT::WithBitmap {
                 raster_operation,
                 height,
@@ -126,8 +139,13 @@ where
                 target,
                 ..
             } => {
-                let mut operator =
-                    TernaryRasterOperator::new(raster_operation, height, width);
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    x_dest,
+                    y_dest,
+                    height,
+                    width,
+                );
 
                 if raster_operation.use_selected_brush() {
                     operator = operator.brush(self.selected_brush()?.clone());
@@ -137,7 +155,7 @@ where
                     operator = operator.source_bitmap16(target);
                 }
 
-                (x_dest, y_dest, width, height, operator)
+                operator
             }
             META_BITBLT::WithoutBitmap {
                 raster_operation,
@@ -147,30 +165,31 @@ where
                 x_dest,
                 ..
             } => {
-                let mut operator =
-                    TernaryRasterOperator::new(raster_operation, height, width);
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    x_dest,
+                    y_dest,
+                    height,
+                    width,
+                );
 
                 if raster_operation.use_selected_brush() {
                     operator = operator.brush(self.selected_brush()?.clone());
                 }
 
-                (x_dest, y_dest, width, height, operator)
+                operator
             }
         };
 
-        let data = operator
-            .run()
-            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
-            .as_data_url();
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
 
-        let image = Image::new()
-            .set("x", x)
-            .set("y", y)
-            .set("width", width)
-            .set("height", height)
-            .set("href", data);
-
-        self.document = self.document.clone().add(image);
+        self.elements.push(elem);
 
         Ok(())
     }
@@ -184,7 +203,7 @@ where
         &mut self,
         record: META_DIBBITBLT,
     ) -> Result<(), PlayError> {
-        let (x, y, width, height, operator) = match record {
+        let operator = match record {
             META_DIBBITBLT::WithBitmap {
                 raster_operation,
                 height,
@@ -194,8 +213,13 @@ where
                 target,
                 ..
             } => {
-                let mut operator =
-                    TernaryRasterOperator::new(raster_operation, height, width);
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    x_dest,
+                    y_dest,
+                    height,
+                    width,
+                );
 
                 if raster_operation.use_selected_brush() {
                     operator = operator.brush(self.selected_brush()?.clone());
@@ -205,7 +229,7 @@ where
                     operator = operator.source_bitmap(target);
                 }
 
-                (x_dest, y_dest, width, height, operator)
+                operator
             }
             META_DIBBITBLT::WithoutBitmap {
                 raster_operation,
@@ -215,30 +239,31 @@ where
                 x_dest,
                 ..
             } => {
-                let mut operator =
-                    TernaryRasterOperator::new(raster_operation, height, width);
+                let mut operator = TernaryRasterOperator::new(
+                    raster_operation,
+                    x_dest,
+                    y_dest,
+                    height,
+                    width,
+                );
 
                 if raster_operation.use_selected_brush() {
                     operator = operator.brush(self.selected_brush()?.clone());
                 }
 
-                (x_dest, y_dest, width, height, operator)
+                operator
             }
         };
 
-        let data = operator
-            .run()
-            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
-            .as_data_url();
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
 
-        let image = Image::new()
-            .set("x", x)
-            .set("y", y)
-            .set("width", width)
-            .set("height", height)
-            .set("href", data);
-
-        self.document = self.document.clone().add(image);
+        self.elements.push(elem);
 
         Ok(())
     }
@@ -252,7 +277,7 @@ where
         &mut self,
         record: META_DIBSTRETCHBLT,
     ) -> Result<(), PlayError> {
-        let (x, y, width, height, operator) = match record {
+        let operator = match record {
             META_DIBSTRETCHBLT::WithBitmap {
                 raster_operation,
                 dest_height,
@@ -264,6 +289,8 @@ where
             } => {
                 let mut operator = TernaryRasterOperator::new(
                     raster_operation,
+                    x_dest,
+                    y_dest,
                     dest_height,
                     dest_width,
                 );
@@ -276,7 +303,7 @@ where
                     operator = operator.source_bitmap(target);
                 }
 
-                (x_dest, y_dest, dest_width, dest_height, operator)
+                operator
             }
             META_DIBSTRETCHBLT::WithoutBitmap {
                 raster_operation,
@@ -288,6 +315,8 @@ where
             } => {
                 let mut operator = TernaryRasterOperator::new(
                     raster_operation,
+                    x_dest,
+                    y_dest,
                     dest_height,
                     dest_width,
                 );
@@ -296,23 +325,19 @@ where
                     operator = operator.brush(self.selected_brush()?.clone());
                 }
 
-                (x_dest, y_dest, dest_width, dest_height, operator)
+                operator
             }
         };
 
-        let data = operator
-            .run()
-            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
-            .as_data_url();
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
 
-        let image = Image::new()
-            .set("x", x)
-            .set("y", y)
-            .set("width", width)
-            .set("height", height)
-            .set("href", data);
-
-        self.document = self.document.clone().add(image);
+        self.elements.push(elem);
 
         Ok(())
     }
@@ -339,7 +364,7 @@ where
         &mut self,
         record: META_STRETCHBLT,
     ) -> Result<(), PlayError> {
-        let (x, y, width, height, operator) = match record {
+        let operator = match record {
             META_STRETCHBLT::WithBitmap {
                 raster_operation,
                 dest_height,
@@ -351,6 +376,8 @@ where
             } => {
                 let mut operator = TernaryRasterOperator::new(
                     raster_operation,
+                    x_dest,
+                    y_dest,
                     dest_height,
                     dest_width,
                 );
@@ -363,7 +390,7 @@ where
                     operator = operator.source_bitmap16(target);
                 }
 
-                (x_dest, y_dest, dest_width, dest_height, operator)
+                operator
             }
             META_STRETCHBLT::WithoutBitmap {
                 raster_operation,
@@ -375,6 +402,8 @@ where
             } => {
                 let mut operator = TernaryRasterOperator::new(
                     raster_operation,
+                    x_dest,
+                    y_dest,
                     dest_height,
                     dest_width,
                 );
@@ -383,23 +412,19 @@ where
                     operator = operator.brush(self.selected_brush()?.clone());
                 }
 
-                (x_dest, y_dest, dest_width, dest_height, operator)
+                operator
             }
         };
 
-        let data = operator
-            .run()
-            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
-            .as_data_url();
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
 
-        let image = Image::new()
-            .set("x", x)
-            .set("y", y)
-            .set("width", width)
-            .set("height", height)
-            .set("href", data);
-
-        self.document = self.document.clone().add(image);
+        self.elements.push(elem);
 
         Ok(())
     }
@@ -425,6 +450,8 @@ where
 
         let mut operator = TernaryRasterOperator::new(
             raster_operation,
+            x_dst,
+            y_dst,
             dest_height,
             dest_width,
         );
@@ -437,19 +464,15 @@ where
             operator = operator.source_bitmap(dib);
         }
 
-        let data = operator
-            .run()
-            .map_err(|err| PlayError::InvalidRecord { cause: err.to_string() })?
-            .as_data_url();
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
 
-        let image = Image::new()
-            .set("x", x_dst)
-            .set("y", y_dst)
-            .set("width", dest_width)
-            .set("height", dest_height)
-            .set("href", data);
-
-        self.document = self.document.clone().add(image);
+        self.elements.push(elem);
 
         Ok(())
     }
@@ -465,11 +488,6 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn eof(&mut self, _: META_EOF) -> Result<(), PlayError> {
-        self.document = self
-            .document
-            .clone()
-            .set("viewBox", self.current_context().window.as_view_box());
-
         Ok(())
     }
 
@@ -479,7 +497,6 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn header(&mut self, header: MetafileHeader) -> Result<(), PlayError> {
-        let context = self.current_context().clone();
         let (_placeable, header) = match header {
             MetafileHeader::StartsWithHeader(header) => (None, header),
             MetafileHeader::StartsWithPlaceable(placeable, header) => {
@@ -488,7 +505,9 @@ where
         };
 
         self.set_current_context(
-            context.create_object_table(header.number_of_objects),
+            self.current_context()
+                .clone()
+                .create_object_table(header.number_of_objects),
         );
 
         Ok(())
@@ -506,7 +525,6 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn arc(&mut self, record: META_ARC) -> Result<(), PlayError> {
-        //
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let start = {
@@ -514,6 +532,7 @@ where
                 x: record.x_start_arc,
                 y: record.y_start_arc,
             });
+
             context = context.extend_window(&point);
             point
         };
@@ -522,8 +541,8 @@ where
                 x: record.x_end_arc,
                 y: record.y_end_arc,
             });
-            context = context.extend_window(&point);
 
+            context = context.extend_window(&point);
             point
         };
         let (rx, ry) = (
@@ -634,7 +653,7 @@ where
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(end));
-        self.document = self.document.clone().add(path);
+        self.elements.push(path.into());
 
         Ok(())
     }
@@ -669,16 +688,12 @@ where
             return Ok(());
         }
 
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -704,7 +719,7 @@ where
         let ellipse = stroke.set_props(ellipse);
 
         self.set_current_context(context);
-        self.document = document.add(ellipse);
+        self.elements.push(ellipse.into());
 
         Ok(())
     }
@@ -838,7 +853,7 @@ where
         }
 
         self.set_current_context(context);
-        self.document = self.document.clone().add(text);
+        self.elements.push(text.into());
 
         Ok(())
     }
@@ -917,7 +932,7 @@ where
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(point));
-        self.document = self.document.clone().add(path);
+        self.elements.push(path.into());
 
         Ok(())
     }
@@ -951,33 +966,26 @@ where
             return Ok(());
         }
 
-        let mut document = self.document.clone();
-        let context = self.current_context();
-        let brush = self.selected_brush()?;
-        let stroke = Stroke::from(brush.clone());
-        let fill = match Fill::from(brush.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+        let fill = match Fill::from(self.selected_brush()?.clone()) {
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
         };
-        let fill_rule = context.poly_fill_rule();
+        let fill_rule = self.current_context().poly_fill_rule();
 
         let rect = Rectangle::new()
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
+            .set("stroke", "none")
             .set("x", record.x_left)
             .set("y", record.y_left)
             .set("height", record.height)
             .set("width", record.width);
-        let rect = stroke.set_props(rect);
 
-        self.document = document.add(rect);
+        self.elements.push(rect.into());
 
         Ok(())
     }
@@ -988,17 +996,13 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn pie(&mut self, record: META_PIE) -> Result<(), PlayError> {
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let brush = self.selected_brush()?;
         let stroke = Stroke::from(brush.clone());
         let fill = match Fill::from(brush.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -1056,7 +1060,8 @@ where
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(p2));
-        self.document = document.add(ellipse).add(path);
+        self.elements.push(ellipse.into());
+        self.elements.push(path.into());
 
         Ok(())
     }
@@ -1104,7 +1109,7 @@ where
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(coordinate));
-        self.document = self.document.clone().add(path);
+        self.elements.push(path.into());
 
         Ok(())
     }
@@ -1120,16 +1125,12 @@ where
             return Ok(());
         }
 
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -1161,7 +1162,7 @@ where
         let polygon = stroke.set_props(polygon);
 
         self.set_current_context(context);
-        self.document = document.clone().add(polygon);
+        self.elements.push(polygon.into());
 
         Ok(())
     }
@@ -1175,17 +1176,13 @@ where
         &mut self,
         record: META_POLYPOLYGON,
     ) -> Result<(), PlayError> {
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         tracing::debug!(?stroke, "Stroke from selected Pen");
         let fill = match Fill::from(self.selected_brush()?.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -1231,11 +1228,10 @@ where
                 .set("points", points.join(" "));
             let polygon = stroke.set_props(polygon);
 
-            document = document.clone().add(polygon);
+            self.elements.push(polygon.into());
         }
 
         self.set_current_context(context);
-        self.document = document;
 
         Ok(())
     }
@@ -1246,16 +1242,12 @@ where
         err(level = tracing::Level::DEBUG, Display),
     )]
     fn reactangle(&mut self, record: META_RECTANGLE) -> Result<(), PlayError> {
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -1290,7 +1282,7 @@ where
         let rect = stroke.set_props(rect);
 
         self.set_current_context(context);
-        self.document = document.add(rect);
+        self.elements.push(rect.into());
 
         Ok(())
     }
@@ -1315,16 +1307,12 @@ where
             return Ok(());
         }
 
-        let mut document = self.document.clone();
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen()?.clone());
         let fill = match Fill::from(self.selected_brush()?.clone()) {
-            Fill::Pattern { mut pattern } => {
-                let id = self.issue_id()?;
-
-                pattern = pattern.set("id", id.as_str());
-                document = document.add(pattern);
-
+            Fill::Pattern { pattern } => {
+                let id = self.issue_id();
+                self.definitions.push(pattern.set("id", id.as_str()).into());
                 url_string(format!("#{id}"))
             }
             Fill::Value { value } => value,
@@ -1352,7 +1340,7 @@ where
         let rect = stroke.set_props(rect);
 
         self.set_current_context(context);
-        self.document = document.add(rect);
+        self.elements.push(rect.into());
 
         Ok(())
     }
@@ -1409,7 +1397,7 @@ where
         let text = text.set("style", styles.join(""));
 
         self.set_current_context(context);
-        self.document = self.document.clone().add(text);
+        self.elements.push(text.into());
 
         Ok(())
     }
@@ -1477,15 +1465,12 @@ where
     )]
     fn create_pattern_brush(
         &mut self,
-        _record: META_CREATEPATTERNBRUSH,
+        record: META_CREATEPATTERNBRUSH,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_CREATEPATTERNBRUSH: not implemented");
-        // let mut context = self.current_context().clone();
+        let mut context = self.current_context().clone();
 
-        // context
-        //     .object_table
-        //     .push(GraphicsObject::Brush(record.create_brush()));
-        // self.set_current_context(context);
+        context.object_table.push(GraphicsObject::Brush(record.create_brush()));
+        self.set_current_context(context);
 
         Ok(())
     }

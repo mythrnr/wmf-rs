@@ -25,3 +25,9 @@ pedantic = "warn"
 doc_markdown = "allow"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = "symbols"
