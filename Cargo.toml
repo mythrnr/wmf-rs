@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "core"]
+members = ["cli", "core", "wasm"]
 
 [workspace.dependencies]
 base64 = "0.22.1"
@@ -13,10 +13,19 @@ thiserror = "1.0.64"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time"] }
 unicode-segmentation = "1.12.0"
+wasm-bindgen = "0.2.93"
+wasm-bindgen-test = "0.3.43"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.7" }
 
 # workspace
 wmf-cli = { path = "./cli" }
 wmf-core = { path = "./core" }
+wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]
 pedantic = "warn"

@@ -1,0 +1,15 @@
+{
+  "name": "wmf-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "wmf_wasm_bg.wasm",
+    "wmf_wasm.js",
+    "wmf_wasm.d.ts"
+  ],
+  "main": "wmf_wasm.js",
+  "types": "wmf_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

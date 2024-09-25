@@ -27,6 +27,10 @@ lint:
 	cargo clippy --workspace --all-targets --all-features \
 		-- --no-deps -D warnings
 
+.PHONY: serve
+serve: wasm
+	yarn run serve -p 8080 wasm/dist/
+
 .PHONY: spell-check
 spell-check:
 	docker pull ghcr.io/streetsidesoftware/cspell:latest > /dev/null \
@@ -43,3 +47,7 @@ test:
 udeps:
 	cargo machete
 	cargo +nightly udeps --all-targets
+
+.PHONY: wasm
+wasm:
+	cd wasm && wasm-pack build --out-dir dist --target web
