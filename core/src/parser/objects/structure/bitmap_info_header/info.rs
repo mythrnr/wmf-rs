@@ -4,9 +4,7 @@ impl crate::parser::BitmapInfoHeader {
         skip_all,
         err(level = tracing::Level::DEBUG, Display)
     )]
-    pub(in crate::parser::objects::structure::bitmap_info_header) fn parse_as_info<
-        R: std::io::Read,
-    >(
+    pub(super) fn parse_as_info<R: std::io::Read>(
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {

@@ -27,6 +27,15 @@ lint:
 	cargo clippy --workspace --all-targets --all-features \
 		-- --no-deps -D warnings
 
+.PHONY: release
+release:
+	if [ "$(version)" = "" ]; then \
+		echo "release version is required."; \
+		exit 1; \
+	fi \
+	&& git tag $(version) \
+	&& git push origin $(version)
+
 .PHONY: serve
 serve: wasm
 	yarn

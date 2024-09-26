@@ -57,7 +57,7 @@ pub enum META_DIBBITBLT {
         /// Target (variable): A variable-sized DeviceIndependentBitmap Object
         /// that defines image content. This object MUST be specified, even if
         /// the raster operation does not require a source.
-        target: crate::parser::DeviceIndependentBitmap,
+        target: Box<crate::parser::DeviceIndependentBitmap>,
     },
     WithoutBitmap {
         /// RecordSize: A 32-bit unsigned integer that defines the number of
@@ -171,7 +171,7 @@ impl META_DIBBITBLT {
                 width,
                 y_dest,
                 x_dest,
-                target,
+                target: Box::new(target),
             }
         } else {
             Self::WithoutBitmap {

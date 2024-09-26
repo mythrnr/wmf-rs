@@ -78,7 +78,7 @@ impl META_CREATEPATTERNBRUSH {
 
     pub fn create_brush(&self) -> crate::parser::Brush {
         let mut brush_hatch = self.bitmap16.clone();
-        brush_hatch.bits = self.pattern.clone();
+        brush_hatch.bits.clone_from(&self.pattern);
 
         crate::parser::Brush::Pattern { brush_hatch }
     }

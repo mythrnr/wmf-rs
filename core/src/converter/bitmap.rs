@@ -176,30 +176,31 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         // write color palette
         match dib.colors {
             Colors::RGBColorMask(values) => {
-                values.into_iter().for_each(|(r, g, b)| {
+                for (r, g, b) in values {
                     info_header.extend(r.to_le_bytes());
                     info_header.extend(g.to_le_bytes());
                     info_header.extend(b.to_le_bytes());
-                });
+                }
             }
             Colors::RGBQuad(values) => {
-                values.into_iter().for_each(|v| {
+                for v in values {
                     info_header
                         .extend(vec![v.red, v.green, v.blue, v.reserved]);
-                });
+                }
             }
             _ => {}
         }
 
         // write pixel data
         let data = dib.bitmap_buffer.a_data;
-        file_size += data.len() as u32;
+        let data_len = u32::try_from(data.len()).expect("should be as u32");
+        file_size += data_len;
 
         // write file headers
         file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
         file_header.extend(0u32.to_le_bytes());
-        file_header.extend((file_size - data.len() as u32).to_le_bytes());
+        file_header.extend((file_size - data_len).to_le_bytes());
 
         let data = {
             file_header.extend(info_header);
@@ -227,13 +228,14 @@ impl From<Bitmap16> for Bitmap {
 
         // write pixel data
         let data = bits;
-        file_size += data.len() as u32;
+        let data_len = u32::try_from(data.len()).expect("should be as u32");
+        file_size += data_len;
 
         // write file headers
         file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
         file_header.extend(0u32.to_le_bytes());
-        file_header.extend((file_size - data.len() as u32).to_le_bytes());
+        file_header.extend((file_size - data_len).to_le_bytes());
 
         let data = {
             file_header.extend(info_header);

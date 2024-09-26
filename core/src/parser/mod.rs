@@ -32,7 +32,7 @@ pub struct ReadError {
 }
 
 impl ReadError {
-    pub fn new(err: impl ToString) -> Self {
+    pub fn new(err: impl std::fmt::Display) -> Self {
         Self { cause: err.to_string() }
     }
 }

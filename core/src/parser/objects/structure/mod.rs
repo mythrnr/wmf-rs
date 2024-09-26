@@ -31,7 +31,7 @@ pub use self::{
 
 /// Convert UTF16-LE bytes to String.
 fn utf16le_bytes_to_string(
-    bytes: Vec<u8>,
+    bytes: &[u8],
 ) -> Result<String, crate::parser::ParseError> {
     if bytes.len() % 2 != 0 {
         return Err(crate::parser::ParseError::UnexpectedPattern {

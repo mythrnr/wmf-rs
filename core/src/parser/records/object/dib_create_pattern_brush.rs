@@ -89,9 +89,9 @@ impl META_DIBCREATEPATTERNBRUSH {
                             bit_count,
                             ..
                         } => (
-                            width as i16,
-                            height as i16,
-                            planes as u8,
+                            i16::try_from(width).expect("should be as i16"),
+                            i16::try_from(height).expect("should be as i16"),
+                            u8::try_from(planes).expect("should be as u8"),
                             bit_count as u8,
                         ),
                         crate::parser::BitmapInfoHeader::Info {
@@ -115,9 +115,9 @@ impl META_DIBCREATEPATTERNBRUSH {
                             bit_count,
                             ..
                         } => (
-                            width as i16,
-                            height as i16,
-                            planes as u8,
+                            i16::try_from(width).expect("should be i16"),
+                            i16::try_from(height).expect("should be i16"),
+                            u8::try_from(planes).expect("should be as u8"),
                             bit_count as u8,
                         ),
                     };

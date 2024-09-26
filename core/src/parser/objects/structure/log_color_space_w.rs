@@ -95,7 +95,7 @@ impl LogColorSpaceW {
             let len = bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len());
 
             Some(crate::parser::objects::structure::utf16le_bytes_to_string(
-                bytes[..len].to_vec(),
+                &bytes[..len],
             )?)
         } else {
             None

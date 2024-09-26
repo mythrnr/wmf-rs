@@ -29,7 +29,7 @@ wmf-core = { path = "./core" }
 wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]
-pedantic = "warn"
+pedantic = { level = "warn", priority = -1 }
 
 # allowed rules
 doc_markdown = "allow"

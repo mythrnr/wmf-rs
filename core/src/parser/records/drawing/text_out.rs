@@ -70,13 +70,11 @@ impl META_TEXTOUT {
             if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
                 bytes
                     .into_iter()
-                    .map(|v| {
-                        (&*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).cloned()
+                    .filter_map(|v| {
+                        (*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).copied()
                     })
-                    .filter(Option::is_some)
-                    .map(Option::unwrap)
                     .collect::<String>()
-                    .replace("\0", "")
+                    .replace('\0', "")
             } else {
                 let encoding: &'static encoding_rs::Encoding = charset.into();
                 let (cow, _, had_errors) = encoding.decode(&bytes);
@@ -85,9 +83,9 @@ impl META_TEXTOUT {
                     return Err(crate::parser::ParseError::UnexpectedPattern {
                         cause: "cannot decode string".to_owned(),
                     });
-                } else {
-                    cow.replace("\0", "").to_owned()
                 }
+
+                cow.replace('\0', "").clone()
             }
         };
         let ((y_start, y_start_bytes), (x_start, x_start_bytes)) = (

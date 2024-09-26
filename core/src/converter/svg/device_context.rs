@@ -1,7 +1,4 @@
-use crate::{
-    converter::{svg::util::css_color_from_color_ref, *},
-    parser::*,
-};
+use crate::converter::{svg::util::css_color_from_color_ref, *};
 
 #[derive(Clone, Debug)]
 pub struct DeviceContext {
@@ -52,7 +49,7 @@ impl DeviceContext {
     }
 
     pub fn bk_mode(self, bk_mode: MixMode) -> Self {
-        Self { _bk_mode: bk_mode.into(), ..self }
+        Self { _bk_mode: bk_mode, ..self }
     }
 
     pub fn clipping_region(self, clipping_region: Rect) -> Self {
@@ -153,19 +150,19 @@ impl DeviceContext {
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
-        let x = ((point.x - self.window.origin_x).abs() as f32
+        let x = (f32::from((point.x - self.window.origin_x).abs())
             / self.window.scale_x) as i16;
-        let y = ((point.y - self.window.origin_y).abs() as f32
+        let y = (f32::from((point.y - self.window.origin_y).abs())
             / self.window.scale_y) as i16;
 
         PointS { x, y }
     }
 
     pub fn point_s_to_relative_point(&self, point: &PointS) -> PointS {
-        let x = ((point.x - self.window.origin_x).abs() as f32
+        let x = (f32::from((point.x - self.window.origin_x).abs())
             / self.window.scale_x) as i16
             + self.drawing_position.x;
-        let y = ((point.y - self.window.origin_y).abs() as f32
+        let y = (f32::from((point.y - self.window.origin_y).abs())
             / self.window.scale_y) as i16
             + self.drawing_position.y;
 
@@ -216,7 +213,7 @@ impl Default for Window {
 
 impl Window {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     pub fn ext(self, x: i16, y: i16) -> Self {

@@ -3,12 +3,9 @@ use ::svg::{
     Node,
 };
 
-use crate::{
-    converter::{
-        svg::{util::url_string, Fill},
-        *,
-    },
-    parser::*,
+use crate::converter::{
+    svg::{util::url_string, Fill},
+    *,
 };
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -109,9 +106,9 @@ impl TernaryRasterOperator {
             TernaryRasterOperation::PATCOPY => {
                 let fill = match Fill::from(self.brush.clone().unwrap()) {
                     Fill::Pattern { pattern } => {
-                        let id = self.issue_id(&definitions);
+                        let id = Self::issue_id(definitions);
                         definitions.push(pattern.set("id", id.as_str()).into());
-                        url_string(format!("#{id}"))
+                        url_string(format!("#{id}").as_str())
                     }
                     Fill::Value { value } => value,
                 };
@@ -150,7 +147,7 @@ impl TernaryRasterOperator {
     }
 
     #[inline]
-    fn issue_id(&self, definitions: &Vec<Box<dyn Node>>) -> String {
+    fn issue_id(definitions: &[Box<dyn Node>]) -> String {
         format!("rop_pat{}", definitions.len())
     }
 }

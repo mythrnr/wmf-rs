@@ -35,31 +35,30 @@ impl Pen {
         );
 
         let mut style = std::collections::BTreeSet::new();
-        let mut iter = crate::parser::PenStyle::iter();
         let (mut style_set, mut end_cap_set, mut join_set) =
             (false, false, false);
 
-        while let Some(s) = iter.next() {
+        for s in crate::parser::PenStyle::iter() {
             if style_u16 & s as u16 == s as u16 {
-                if s as u16 <= crate::parser::PenStyle::PS_ALTERNATE as u16 {
-                    if !style_set {
-                        style.insert(s);
-                        style_set = true;
-                    }
+                if s as u16 <= crate::parser::PenStyle::PS_ALTERNATE as u16
+                    && !style_set
+                {
+                    style.insert(s);
+                    style_set = true;
                 }
 
-                if s as u16 <= crate::parser::PenStyle::PS_ENDCAP_FLAT as u16 {
-                    if !end_cap_set {
-                        style.insert(s);
-                        end_cap_set = true;
-                    }
+                if s as u16 <= crate::parser::PenStyle::PS_ENDCAP_FLAT as u16
+                    && !end_cap_set
+                {
+                    style.insert(s);
+                    end_cap_set = true;
                 }
 
-                if s as u16 <= crate::parser::PenStyle::PS_JOIN_MITER as u16 {
-                    if !join_set {
-                        style.insert(s);
-                        join_set = true;
-                    }
+                if s as u16 <= crate::parser::PenStyle::PS_JOIN_MITER as u16
+                    && !join_set
+                {
+                    style.insert(s);
+                    join_set = true;
                 }
             }
         }

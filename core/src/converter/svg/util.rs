@@ -6,7 +6,7 @@ pub fn css_color_from_color_ref(c: &ColorRef) -> String {
     format!("#{:02X}{:02X}{:02X}", c.red, c.green, c.blue)
 }
 
-pub fn url_string(link: String) -> String {
+pub fn url_string(link: &str) -> String {
     format!("url({link})")
 }
 
@@ -47,37 +47,33 @@ impl From<Brush> for Fill {
                 let path = match brush_hatch {
                     HatchStyle::HS_HORIZONTAL => {
                         let data = Data::new().move_to((0, 0)).line_to((10, 0));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                     HatchStyle::HS_VERTICAL => {
                         let data = Data::new().move_to((0, 0)).line_to((0, 10));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                     HatchStyle::HS_FDIAGONAL => {
                         let data =
                             Data::new().move_to((0, 10)).line_to((10, 0));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                     HatchStyle::HS_BDIAGONAL => {
                         let data =
                             Data::new().move_to((0, 0)).line_to((10, 10));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                     HatchStyle::HS_CROSS => {
                         let data = Data::new()
@@ -85,11 +81,10 @@ impl From<Brush> for Fill {
                             .line_to((10, 0))
                             .move_to((0, 0))
                             .line_to((0, 10));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                     HatchStyle::HS_DIAGCROSS => {
                         let data = Data::new()
@@ -97,11 +92,10 @@ impl From<Brush> for Fill {
                             .line_to((10, 10))
                             .move_to((10, 0))
                             .line_to((0, 10));
-                        let path = Path::new()
-                            .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data);
 
-                        path
+                        Path::new()
+                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("data", data)
                     }
                 };
 
@@ -245,13 +239,10 @@ impl From<Brush> for Stroke {
             Brush::DIBPatternPT { .. } => {
                 Self { opacity: 0_f32, ..Default::default() }
             }
-            Brush::Hatched { color_ref, .. } => {
+            Brush::Hatched { color_ref, .. } | Brush::Solid { color_ref } => {
                 Self { color: color_ref, ..Default::default() }
             }
             Brush::Pattern { .. } => Self { ..Default::default() },
-            Brush::Solid { color_ref } => {
-                Self { color: color_ref, ..Default::default() }
-            }
             Brush::Null => {
                 Self { width: 0, opacity: 0_f32, ..Default::default() }
             }
@@ -329,7 +320,7 @@ impl Font {
         };
 
         if self.orientation != 0 {
-            elem.assign("rotate", -1 * self.orientation / 10);
+            elem.assign("rotate", -self.orientation / 10);
         }
 
         if self.escapement != 0 {
@@ -337,7 +328,7 @@ impl Font {
                 "transform",
                 format!(
                     "rotate({}, {} {})",
-                    -1 * self.escapement / 10,
+                    -self.escapement / 10,
                     point.x,
                     point.y
                 ),

@@ -68,7 +68,7 @@ pub enum META_DIBSTRETCHBLT {
         x_dest: i16,
         /// DIB (variable): A variable-sized DeviceIndependentBitmap Object
         /// that is the source of the color data.
-        target: crate::parser::DeviceIndependentBitmap,
+        target: Box<crate::parser::DeviceIndependentBitmap>,
     },
     WithoutBitmap {
         /// RecordSize: A 32-bit unsigned integer that defines the number of
@@ -201,7 +201,7 @@ impl META_DIBSTRETCHBLT {
                 dest_width,
                 y_dest,
                 x_dest,
-                target,
+                target: Box::new(target),
             }
         } else {
             Self::WithoutBitmap {

@@ -1,0 +1,42 @@
+name: "Check codes"
+
+on:
+  pull_request:
+
+permissions:
+  contents: "read"
+
+jobs:
+  fmt:
+    name: "Run cargo fmt"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v4"
+      - run: "rustup component add rustfmt"
+      - run: "make fmt"
+
+  clippy:
+    name: "Run cargo clippy"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v4"
+      - run: "rustup component add clippy"
+      - run: "make lint"
+
+  spell-check:
+    name: "Run cSpell"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v4"
+      - run: "make spell-check"
+
+  testing:
+    name: "Unit testing"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v4"
+      - run: "make test"

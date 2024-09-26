@@ -36,7 +36,7 @@ impl<W> SVGPlayer<W> {
     pub fn new(output: W) -> Self {
         Self {
             context_stack: Vec::with_capacity(0),
-            context_current: Default::default(),
+            context_current: DeviceContext::default(),
             definitions: vec![],
             elements: vec![],
             object_selected: SelectedGraphicsObject::default(),
@@ -59,12 +59,12 @@ impl<W> SVGPlayer<W> {
         self.context_current = context;
     }
 
-    fn selected_brush(&self) -> Result<&Brush, PlayError> {
-        Ok(&self.object_selected.brush)
+    fn selected_brush(&self) -> &Brush {
+        &self.object_selected.brush
     }
 
-    fn selected_pen(&self) -> Result<&Pen, PlayError> {
-        Ok(&self.object_selected.pen)
+    fn selected_pen(&self) -> &Pen {
+        &self.object_selected.pen
     }
 }
 
@@ -148,7 +148,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 if raster_operation.use_source() {
@@ -174,7 +174,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 operator
@@ -222,11 +222,11 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 if raster_operation.use_source() {
-                    operator = operator.source_bitmap(target);
+                    operator = operator.source_bitmap(*target);
                 }
 
                 operator
@@ -248,7 +248,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 operator
@@ -296,11 +296,11 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 if raster_operation.use_source() {
-                    operator = operator.source_bitmap(target);
+                    operator = operator.source_bitmap(*target);
                 }
 
                 operator
@@ -322,7 +322,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 operator
@@ -383,7 +383,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 if raster_operation.use_source() {
@@ -409,7 +409,7 @@ where
                 );
 
                 if raster_operation.use_selected_brush() {
-                    operator = operator.brush(self.selected_brush()?.clone());
+                    operator = operator.brush(self.selected_brush().clone());
                 }
 
                 operator
@@ -457,7 +457,7 @@ where
         );
 
         if raster_operation.use_selected_brush() {
-            operator = operator.brush(self.selected_brush()?.clone());
+            operator = operator.brush(self.selected_brush().clone());
         }
 
         if raster_operation.use_source() {
@@ -526,7 +526,7 @@ where
     )]
     fn arc(&mut self, record: META_ARC) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let stroke = Stroke::from(self.selected_pen().clone());
         let start = {
             let point = context.point_s_to_absolute_point(&PointS {
                 x: record.x_start_arc,
@@ -570,6 +570,7 @@ where
         };
         // if center_x or center_y is middle,
         // fix sweep as negative-angle direction.
+        #[allow(clippy::match_same_arms)]
         let (large_arc, sweep) = match (center_x, center_y) {
             ("left", "over") if start.x < end.x && start.y > end.y => (0, 0),
             ("left", "over") if start.x > end.x && start.y < end.y => (0, 1),
@@ -663,7 +664,7 @@ where
         skip(self),
         err(level = tracing::Level::DEBUG, Display),
     )]
-    fn chord(&mut self, _record: META_CHORD) -> Result<(), PlayError> {
+    fn chord(&mut self, record: META_CHORD) -> Result<(), PlayError> {
         tracing::info!("META_CHORD: not implemented");
         Ok(())
     }
@@ -689,12 +690,12 @@ where
         }
 
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let stroke = Stroke::from(self.selected_pen().clone());
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -731,7 +732,7 @@ where
     )]
     fn ext_flood_fill(
         &mut self,
-        _record: META_EXTFLOODFILL,
+        record: META_EXTFLOODFILL,
     ) -> Result<(), PlayError> {
         tracing::info!("META_EXTFLOODFILL: not implemented");
         Ok(())
@@ -758,7 +759,7 @@ where
                             | VerticalTextAlignmentMode::VTA_BOTTOM
                     ) && font.height < 0
                     {
-                        -1 * font.height
+                        -font.height
                     } else {
                         0
                     }),
@@ -865,7 +866,7 @@ where
     )]
     fn fill_region(
         &mut self,
-        _record: META_FILLREGION,
+        record: META_FILLREGION,
     ) -> Result<(), PlayError> {
         tracing::info!("META_FILLREGION: not implemented");
         Ok(())
@@ -876,7 +877,7 @@ where
         skip(self),
         err(level = tracing::Level::DEBUG, Display),
     )]
-    fn flood_fill(&mut self, _record: META_FLOODFILL) -> Result<(), PlayError> {
+    fn flood_fill(&mut self, record: META_FLOODFILL) -> Result<(), PlayError> {
         tracing::info!("META_FLOODFILL: not implemented");
         Ok(())
     }
@@ -888,7 +889,7 @@ where
     )]
     fn frame_region(
         &mut self,
-        _record: META_FRAMEREGION,
+        record: META_FRAMEREGION,
     ) -> Result<(), PlayError> {
         tracing::info!("META_FRAMEREGION: not implemented");
         Ok(())
@@ -901,7 +902,7 @@ where
     )]
     fn invert_region(
         &mut self,
-        _record: META_INVERTREGION,
+        record: META_INVERTREGION,
     ) -> Result<(), PlayError> {
         tracing::info!("META_INVERTREGION: not implemented");
         Ok(())
@@ -914,7 +915,7 @@ where
     )]
     fn line_to(&mut self, record: META_LINETO) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let stroke = Stroke::from(self.selected_pen().clone());
         let point = {
             let point = context.point_s_to_absolute_point(&PointS {
                 x: record.x,
@@ -966,11 +967,11 @@ where
             return Ok(());
         }
 
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -997,13 +998,13 @@ where
     )]
     fn pie(&mut self, record: META_PIE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let brush = self.selected_brush()?;
+        let brush = self.selected_brush();
         let stroke = Stroke::from(brush.clone());
         let fill = match Fill::from(brush.clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -1024,7 +1025,7 @@ where
             .set("ry", ry);
         let ellipse = stroke.set_props(ellipse);
 
-        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let stroke = Stroke::from(self.selected_pen().clone());
         let p1 = {
             let point = context.point_s_to_absolute_point(&PointS {
                 x: record.x_radial1,
@@ -1073,16 +1074,16 @@ where
     )]
     fn polyline(&mut self, record: META_POLYLINE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let stroke = Stroke::from(self.selected_pen().clone());
 
-        let Some(point) = record.a_points.get(0) else {
+        let Some(point) = record.a_points.first() else {
             return Err(PlayError::InvalidRecord {
-                cause: format!("aPoints[0] is not defined"),
+                cause: "aPoints[0] is not defined".to_owned(),
             });
         };
 
         let mut coordinate = {
-            let point = context.point_s_to_absolute_point(&point);
+            let point = context.point_s_to_absolute_point(point);
             context = context.extend_window(&point);
             point
         };
@@ -1097,7 +1098,7 @@ where
             };
 
             coordinate = {
-                let point = context.point_s_to_absolute_point(&point);
+                let point = context.point_s_to_absolute_point(point);
                 context = context.extend_window(&point);
                 point
             };
@@ -1126,12 +1127,12 @@ where
         }
 
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let stroke = Stroke::from(self.selected_pen().clone());
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -1177,13 +1178,13 @@ where
         record: META_POLYPOLYGON,
     ) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
+        let stroke = Stroke::from(self.selected_pen().clone());
         tracing::debug!(?stroke, "Stroke from selected Pen");
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -1243,12 +1244,12 @@ where
     )]
     fn reactangle(&mut self, record: META_RECTANGLE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let stroke = Stroke::from(self.selected_pen().clone());
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -1308,12 +1309,12 @@ where
         }
 
         let mut context = self.current_context().clone();
-        let stroke = Stroke::from(self.selected_pen()?.clone());
-        let fill = match Fill::from(self.selected_brush()?.clone()) {
+        let stroke = Stroke::from(self.selected_pen().clone());
+        let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
                 self.definitions.push(pattern.set("id", id.as_str()).into());
-                url_string(format!("#{id}"))
+                url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
@@ -1373,7 +1374,7 @@ where
                             | VerticalTextAlignmentMode::VTA_BOTTOM
                     ) && font.height < 0
                     {
-                        -1 * font.height
+                        -font.height
                     } else {
                         0
                     }),
@@ -1578,7 +1579,7 @@ where
             GraphicsObject::Palette(v) => selected.palette(v),
             GraphicsObject::Pen(v) => selected.pen(v),
             GraphicsObject::Region(v) => selected.region(v),
-            _ => {
+            GraphicsObject::Null => {
                 return Err(PlayError::UnexpectedGraphicsObject {
                     cause: "Graphics Object is null".to_owned(),
                 })
@@ -1809,10 +1810,10 @@ where
         record: META_SCALEWINDOWEXT,
     ) -> Result<(), PlayError> {
         let context = self.current_context();
-        let scale_x = (context.window.scale_x * record.x_num as f32)
-            / record.x_denom as f32;
-        let scale_y = (context.window.scale_y * record.y_num as f32)
-            / record.y_denom as f32;
+        let scale_x = (context.window.scale_x * f32::from(record.x_num))
+            / f32::from(record.x_denom);
+        let scale_y = (context.window.scale_y * f32::from(record.y_num))
+            / f32::from(record.y_denom);
 
         self.set_current_context(
             context.clone().window_scale(scale_x, scale_y),
@@ -1975,14 +1976,14 @@ where
             [TextAlignmentMode::TA_CENTER, TextAlignmentMode::TA_RIGHT]
                 .into_iter()
                 .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
-                .unwrap_or_else(|| TextAlignmentMode::TA_LEFT);
+                .unwrap_or(TextAlignmentMode::TA_LEFT);
         let align_vertical = [
             VerticalTextAlignmentMode::VTA_BOTTOM,
             VerticalTextAlignmentMode::VTA_TOP,
         ]
         .into_iter()
         .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
-        .unwrap_or_else(|| VerticalTextAlignmentMode::VTA_BASELINE);
+        .unwrap_or(VerticalTextAlignmentMode::VTA_BASELINE);
 
         let context = self
             .current_context()

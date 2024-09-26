@@ -443,31 +443,28 @@ impl BitmapInfoHeader {
 
                 Ok((header, consumed_bytes))
             }
-            _ => {
-                return Err(crate::parser::ParseError::UnexpectedPattern {
-                    cause: format!(
-                        "The header_size `{header_size:#10X}` field is not \
-                         match as any BitmapInfoHeader format"
-                    ),
-                })
-            }
+            _ => Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "The header_size `{header_size:#10X}` field is not match \
+                     as any BitmapInfoHeader format"
+                ),
+            }),
         }
     }
 
     pub fn bit_count(&self) -> crate::parser::BitCount {
         match self {
-            Self::Core { bit_count, .. } => *bit_count,
-            Self::Info { bit_count, .. } => *bit_count,
-            Self::V4 { bit_count, .. } => *bit_count,
-            Self::V5 { bit_count, .. } => *bit_count,
+            Self::Core { bit_count, .. }
+            | Self::Info { bit_count, .. }
+            | Self::V4 { bit_count, .. }
+            | Self::V5 { bit_count, .. } => *bit_count,
         }
     }
 
     pub fn size(&self) -> usize {
         let size = match self {
             Self::Core { width, height, planes, bit_count, .. } => u32::from(
-                (((width * planes * (bit_count.clone() as u16) + 31) & !31)
-                    / 8)
+                (((width * planes * (*bit_count as u16) + 31) & !31) / 8)
                     * height,
             ),
             Self::Info {
@@ -499,15 +496,15 @@ impl BitmapInfoHeader {
             } => match compression {
                 crate::parser::Compression::BI_RGB
                 | crate::parser::Compression::BI_BITFIELDS
-                | crate::parser::Compression::BI_CMYK => u32::from(
+                | crate::parser::Compression::BI_CMYK => {
                     ((((*width as u32)
                         * u32::from(*planes)
                         * (*bit_count as u32)
                         + 31)
                         & !31)
                         / 8)
-                        * height.abs() as u32,
-                ),
+                        * height.unsigned_abs()
+                }
                 _ => *image_size,
             },
         };

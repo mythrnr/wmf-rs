@@ -6,6 +6,7 @@
 )]
 #[repr(u32)]
 pub enum TernaryRasterOperation {
+    // cSpell:disable
     /// Common = 0
     BLACKNESS = 0x00000042,
     /// Common = DPSoon
@@ -518,6 +519,7 @@ pub enum TernaryRasterOperation {
     DPSOO = 0x00FE02A9,
     /// Common = 1
     WHITENESS = 0x00FF0062,
+    // cSpell:enable
 }
 
 crate::parser::constants::impl_parser!(TernaryRasterOperation, u32);
@@ -535,8 +537,9 @@ impl TernaryRasterOperation {
         self.as_reverse_polish_notation().contains(Self::OPERAND_SOURCE_BITMAP)
     }
 
-    fn as_reverse_polish_notation(&self) -> String {
+    fn as_reverse_polish_notation(self) -> String {
         match self {
+            // cSpell:disable
             Self::BLACKNESS => "0",
             Self::DPSOON => "DPSoon",
             Self::DPSONA => "DPSona",
@@ -793,6 +796,7 @@ impl TernaryRasterOperation {
             Self::PSDNOO => "PSDnoo",
             Self::DPSOO => "DPSoo",
             Self::WHITENESS => "1",
+            // cSpell:enable
         }
         .to_owned()
     }
