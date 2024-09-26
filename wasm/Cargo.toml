@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
+tracing-wasm = { workspace = true }
 wasm-bindgen = { workspace = true }
 wmf-core = { workspace = true }
 

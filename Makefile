@@ -29,6 +29,7 @@ lint:
 
 .PHONY: serve
 serve: wasm
+	yarn
 	yarn run serve -p 8080 wasm/dist/
 
 .PHONY: spell-check

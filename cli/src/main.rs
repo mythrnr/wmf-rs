@@ -15,7 +15,7 @@ struct Cli {
     /// The destination file path to save converted SVG
     #[arg(short, long, default_value = "output.svg")]
     output: String,
-    /// Run quiet output
+    /// Omit logs except error log
     #[arg(short, long)]
     quiet: bool,
     /// Print debug logs
