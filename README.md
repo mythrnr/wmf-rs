@@ -25,7 +25,7 @@ Library to parse WMF and convert to SVG (WIP).
 
 ```toml
 [dependencies]
-wmf-core = { tag = "0.0.1" git = "https://github.com/mythrnr/wmf-rs.git" }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.1", package = "wmf-core" }
 ```
 
 ## Examples
