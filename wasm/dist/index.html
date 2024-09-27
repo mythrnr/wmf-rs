@@ -70,7 +70,7 @@
 
           fileReader.onload = function (e) {
             const start = new Date().getTime();
-            const bytes = new Uint8Array(new Uint8Array(e.target.result));
+            const bytes = new Uint8Array(e.target.result);
 
             try {
               const output = convertWmf2Svg(bytes);

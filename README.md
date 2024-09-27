@@ -78,7 +78,7 @@ async function run() {
     const fileReader = new FileReader();
 
     fileReader.onload = function (e) {
-      const bytes = new Uint8Array(new Uint8Array(e.target.result));
+      const bytes = new Uint8Array(e.target.result);
       const output = convertWmf2Svg(bytes);
 
       document.getElementById('output').innerHTML = output;
