@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["svg"]
+default = ["converter"]
+converter = ["svg"]
 svg = ["dep:base64", "dep:strum", "dep:svg"]
 
 [dependencies]
