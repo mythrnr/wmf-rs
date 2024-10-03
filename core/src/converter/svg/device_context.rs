@@ -44,15 +44,17 @@ impl Default for DeviceContext {
 }
 
 impl DeviceContext {
-    pub fn create_object_table(self, length: u16) -> Self {
-        Self { object_table: GraphicsObjects::new(length as usize), ..self }
+    pub fn create_object_table(mut self, length: u16) -> Self {
+        self.object_table = GraphicsObjects::new(length as usize);
+        self
     }
 
-    pub fn bk_mode(self, bk_mode: MixMode) -> Self {
-        Self { _bk_mode: bk_mode, ..self }
+    pub fn bk_mode(mut self, bk_mode: MixMode) -> Self {
+        self._bk_mode = bk_mode;
+        self
     }
 
-    pub fn clipping_region(self, clipping_region: Rect) -> Self {
+    pub fn clipping_region(mut self, clipping_region: Rect) -> Self {
         let clipping_region = if let Some(ref existing) = self.clipping_region {
             if let Some(overlap_region) = existing.overlap(&clipping_region) {
                 overlap_region
@@ -63,23 +65,28 @@ impl DeviceContext {
             clipping_region
         };
 
-        Self { clipping_region: clipping_region.into(), ..self }
+        self.clipping_region = clipping_region.into();
+        self
     }
 
-    pub fn drawing_position(self, drawing_position: PointS) -> Self {
-        Self { drawing_position, ..self }
+    pub fn drawing_position(mut self, drawing_position: PointS) -> Self {
+        self.drawing_position = drawing_position;
+        self
     }
 
-    pub fn draw_mode(self, draw_mode: BinaryRasterOperation) -> Self {
-        Self { _draw_mode: draw_mode.into(), ..self }
+    pub fn draw_mode(mut self, draw_mode: BinaryRasterOperation) -> Self {
+        self._draw_mode = draw_mode.into();
+        self
     }
 
-    pub fn map_mode(self, map_mode: MapMode) -> Self {
-        Self { _map_mode: map_mode, ..self }
+    pub fn map_mode(mut self, map_mode: MapMode) -> Self {
+        self._map_mode = map_mode;
+        self
     }
 
-    pub fn poly_fill_mode(self, poly_fill_mode: PolyFillMode) -> Self {
-        Self { poly_fill_mode, ..self }
+    pub fn poly_fill_mode(mut self, poly_fill_mode: PolyFillMode) -> Self {
+        self.poly_fill_mode = poly_fill_mode;
+        self
     }
 
     pub fn poly_fill_rule(&self) -> String {
@@ -91,21 +98,24 @@ impl DeviceContext {
     }
 
     pub fn text_align_horizontal(
-        self,
+        mut self,
         text_align_horizontal: TextAlignmentMode,
     ) -> Self {
-        Self { text_align_horizontal, ..self }
+        self.text_align_horizontal = text_align_horizontal;
+        self
     }
 
     pub fn text_align_vertical(
-        self,
+        mut self,
         text_align_vertical: VerticalTextAlignmentMode,
     ) -> Self {
-        Self { text_align_vertical, ..self }
+        self.text_align_vertical = text_align_vertical;
+        self
     }
 
-    pub fn text_align_update_cp(self, text_align_update_cp: bool) -> Self {
-        Self { text_align_update_cp, ..self }
+    pub fn text_align_update_cp(mut self, text_align_update_cp: bool) -> Self {
+        self.text_align_update_cp = text_align_update_cp;
+        self
     }
 
     pub fn as_css_text_align(&self) -> String {
@@ -125,28 +135,33 @@ impl DeviceContext {
         }
     }
 
-    pub fn text_bk_color(self, text_bk_color: ColorRef) -> Self {
-        Self { _text_bk_color: text_bk_color, ..self }
+    pub fn text_bk_color(mut self, text_bk_color: ColorRef) -> Self {
+        self._text_bk_color = text_bk_color;
+        self
     }
 
-    pub fn text_color(self, text_color: ColorRef) -> Self {
-        Self { text_color, ..self }
+    pub fn text_color(mut self, text_color: ColorRef) -> Self {
+        self.text_color = text_color;
+        self
     }
 
     pub fn text_color_as_css_color(&self) -> String {
         css_color_from_color_ref(&self.text_color)
     }
 
-    pub fn window_ext(self, x: i16, y: i16) -> Self {
-        Self { window: self.window.ext(x, y), ..self }
+    pub fn window_ext(mut self, x: i16, y: i16) -> Self {
+        self.window = self.window.ext(x, y);
+        self
     }
 
-    pub fn window_origin(self, x: i16, y: i16) -> Self {
-        Self { window: self.window.origin(x, y), ..self }
+    pub fn window_origin(mut self, x: i16, y: i16) -> Self {
+        self.window = self.window.origin(x, y);
+        self
     }
 
-    pub fn window_scale(self, x: f32, y: f32) -> Self {
-        Self { window: self.window.scale(x, y), ..self }
+    pub fn window_scale(mut self, x: f32, y: f32) -> Self {
+        self.window = self.window.scale(x, y);
+        self
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
@@ -216,19 +231,27 @@ impl Window {
         Self::default()
     }
 
-    pub fn ext(self, x: i16, y: i16) -> Self {
-        Self { x: x.abs(), y: y.abs(), ..self }
+    pub fn ext(mut self, x: i16, y: i16) -> Self {
+        self.x = x.abs();
+        self.y = y.abs();
+        self
     }
 
-    pub fn origin(self, origin_x: i16, origin_y: i16) -> Self {
+    pub fn origin(mut self, origin_x: i16, origin_y: i16) -> Self {
         let x = self.x - self.origin_x + origin_x;
         let y = self.y - self.origin_y + origin_y;
 
-        Self { x, y, origin_x, origin_y, ..self }
+        self.x = x;
+        self.y = y;
+        self.origin_x = origin_x;
+        self.origin_y = origin_y;
+        self
     }
 
-    pub fn scale(self, scale_x: f32, scale_y: f32) -> Self {
-        Self { scale_x, scale_y, ..self }
+    pub fn scale(mut self, scale_x: f32, scale_y: f32) -> Self {
+        self.scale_x = scale_x;
+        self.scale_y = scale_y;
+        self
     }
 
     pub fn as_view_box(&self) -> (i16, i16, i16, i16) {

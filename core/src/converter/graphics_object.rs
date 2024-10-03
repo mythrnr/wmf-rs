@@ -82,23 +82,28 @@ impl Default for SelectedGraphicsObject {
 }
 
 impl SelectedGraphicsObject {
-    pub fn brush(self, brush: Brush) -> Self {
-        Self { brush, ..self }
+    pub fn brush(mut self, brush: Brush) -> Self {
+        self.brush = brush;
+        self
     }
 
-    pub fn font(self, font: Font) -> Self {
-        Self { font, ..self }
+    pub fn font(mut self, font: Font) -> Self {
+        self.font = font;
+        self
     }
 
-    pub fn palette(self, palette: Palette) -> Self {
-        Self { _palette: palette.into(), ..self }
+    pub fn palette(mut self, palette: Palette) -> Self {
+        self._palette = palette.into();
+        self
     }
 
-    pub fn pen(self, pen: Pen) -> Self {
-        Self { pen, ..self }
+    pub fn pen(mut self, pen: Pen) -> Self {
+        self.pen = pen;
+        self
     }
 
-    pub fn region(self, region: Region) -> Self {
-        Self { _region: region.into(), ..self }
+    pub fn region(mut self, region: Region) -> Self {
+        self._region = region.into();
+        self
     }
 }

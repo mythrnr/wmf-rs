@@ -174,30 +174,28 @@ impl From<Pen> for Stroke {
 
         for style in v.style {
             stroke = match style {
-                PenStyle::PS_DASH => Self {
-                    dash_array: format!("{v} {v}", v = stroke.width * 10),
-                    ..stroke
-                },
-                PenStyle::PS_DOT | PenStyle::PS_ALTERNATE => Self {
-                    dash_array: format!(
-                        "{} {}",
-                        stroke.width,
-                        stroke.width * 10
-                    ),
-                    ..stroke
-                },
-                PenStyle::PS_DASHDOT => Self {
-                    dash_array: format!(
+                PenStyle::PS_DASH => {
+                    stroke.dash_array =
+                        format!("{v} {v}", v = stroke.width * 10);
+                    stroke
+                }
+                PenStyle::PS_DOT | PenStyle::PS_ALTERNATE => {
+                    stroke.dash_array =
+                        format!("{} {}", stroke.width, stroke.width * 10);
+                    stroke
+                }
+                PenStyle::PS_DASHDOT => {
+                    stroke.dash_array = format!(
                         "{} {} {} {}",
                         stroke.width * 10,
                         stroke.width * 2,
                         stroke.width,
                         stroke.width * 2,
-                    ),
-                    ..stroke
-                },
-                PenStyle::PS_DASHDOTDOT => Self {
-                    dash_array: format!(
+                    );
+                    stroke
+                }
+                PenStyle::PS_DASHDOTDOT => {
+                    stroke.dash_array = format!(
                         "{} {} {} {} {} {}",
                         stroke.width * 10,
                         stroke.width * 2,
@@ -205,18 +203,24 @@ impl From<Pen> for Stroke {
                         stroke.width * 2,
                         stroke.width,
                         stroke.width * 2,
-                    ),
-                    ..stroke
-                },
-                PenStyle::PS_NULL => Self { opacity: 0_f32, ..stroke },
+                    );
+                    stroke
+                }
+                PenStyle::PS_NULL => {
+                    stroke.opacity = 0_f32;
+                    stroke
+                }
                 PenStyle::PS_ENDCAP_SQUARE => {
-                    Self { line_cap: "square".to_owned(), ..stroke }
+                    stroke.line_cap = "square".to_owned();
+                    stroke
                 }
                 PenStyle::PS_JOIN_BEVEL => {
-                    Self { line_join: "bevel".to_owned(), ..stroke }
+                    stroke.line_join = "bevel".to_owned();
+                    stroke
                 }
                 PenStyle::PS_JOIN_MITER => {
-                    Self { line_join: "miter".to_owned(), ..stroke }
+                    stroke.line_join = "miter".to_owned();
+                    stroke
                 }
                 PenStyle::PS_SOLID => stroke,
                 // not implemented

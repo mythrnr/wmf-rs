@@ -42,16 +42,19 @@ impl TernaryRasterOperator {
         Self { operation, x, y, height, width, brush: None, source: None }
     }
 
-    pub fn brush(self, brush: Brush) -> Self {
-        Self { brush: brush.into(), ..self }
+    pub fn brush(mut self, brush: Brush) -> Self {
+        self.brush = brush.into();
+        self
     }
 
-    pub fn source_bitmap16(self, source: Bitmap16) -> Self {
-        Self { source: Source::Bitmap16(source).into(), ..self }
+    pub fn source_bitmap16(mut self, source: Bitmap16) -> Self {
+        self.source = Source::Bitmap16(source).into();
+        self
     }
 
-    pub fn source_bitmap(self, source: DeviceIndependentBitmap) -> Self {
-        Self { source: Source::Bitmap(source).into(), ..self }
+    pub fn source_bitmap(mut self, source: DeviceIndependentBitmap) -> Self {
+        self.source = Source::Bitmap(source).into();
+        self
     }
 
     pub fn run(

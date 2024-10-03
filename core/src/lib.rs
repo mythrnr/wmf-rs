@@ -12,6 +12,5 @@
     non_snake_case
 )]
 
-#[cfg(feature = "converter")]
 pub mod converter;
 pub mod parser;
