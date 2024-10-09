@@ -1,7 +1,15 @@
 /// The CharacterSet Enumeration defines the possible sets of character glyphs
 /// that are defined in fonts for graphics output.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u8)]
 pub enum CharacterSet {

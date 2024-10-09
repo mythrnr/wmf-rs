@@ -1,7 +1,15 @@
 /// The FontQuality Enumeration specifies how closely the attributes of the
 /// logical font match those of the physical font when rendering text.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u8)]
 pub enum FontQuality {

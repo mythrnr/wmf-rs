@@ -1,7 +1,15 @@
 /// The PostScriptClipping Enumeration defines functions that can be applied to
 /// the clipping path used for PostScript output.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum PostScriptClipping {

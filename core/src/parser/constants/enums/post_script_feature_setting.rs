@@ -3,7 +3,15 @@
 /// (Windows NT 3.1, Windows NT 3.5, Windows NT 3.51, Windows 95, Windows 98,
 /// and Windows Millennium Edition: This functionality is not supported.)
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u32)]
 pub enum PostScriptFeatureSetting {

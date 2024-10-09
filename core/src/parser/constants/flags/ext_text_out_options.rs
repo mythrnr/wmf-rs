@@ -1,7 +1,15 @@
 /// ExtTextOutOptions Flags specify various characteristics of the output of
 /// text. These flags can be combined to specify multiple options.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum ExtTextOutOptions {
