@@ -1,7 +1,15 @@
 /// The MetafileVersion Enumeration defines values that specify support for
 /// device-independent bitmaps (DIBs) in metafiles.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum MetafileVersion {

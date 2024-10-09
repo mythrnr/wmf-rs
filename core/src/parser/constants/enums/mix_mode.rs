@@ -1,7 +1,15 @@
 /// The MixMode Enumeration specifies the background mix mode for text, hatched
 /// brushes, and other nonsolid pen styles.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum MixMode {

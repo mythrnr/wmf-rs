@@ -7,7 +7,15 @@
 /// Vertical text alignment is performed when the font has a vertical default
 /// baseline, such as Kanji.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u16)]
 pub enum VerticalTextAlignmentMode {

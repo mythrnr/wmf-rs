@@ -2,7 +2,15 @@
 /// codes, which define how to combine the bits in a source bitmap with the bits
 /// in a destination bitmap.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(u32)]
 pub enum TernaryRasterOperation {

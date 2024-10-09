@@ -211,15 +211,15 @@ impl From<Pen> for Stroke {
                     stroke
                 }
                 PenStyle::PS_ENDCAP_SQUARE => {
-                    stroke.line_cap = "square".to_owned();
+                    "square".clone_into(&mut stroke.line_cap);
                     stroke
                 }
                 PenStyle::PS_JOIN_BEVEL => {
-                    stroke.line_join = "bevel".to_owned();
+                    "bevel".clone_into(&mut stroke.line_join);
                     stroke
                 }
                 PenStyle::PS_JOIN_MITER => {
-                    stroke.line_join = "miter".to_owned();
+                    "miter".clone_into(&mut stroke.line_join);
                     stroke
                 }
                 PenStyle::PS_SOLID => stroke,

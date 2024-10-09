@@ -1,7 +1,15 @@
 /// The PostScriptJoin Enumeration defines line-joining capabilities for use
 /// with a PostScript printer driver.
 #[derive(
-    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, strum::FromRepr,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    strum::FromRepr,
+    strum::EnumIter,
 )]
 #[repr(i32)]
 pub enum PostScriptJoin {

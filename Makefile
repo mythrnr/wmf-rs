@@ -12,7 +12,7 @@ clean:
 
 .PHONY: doc
 doc:
-	cargo doc --open --workspace
+	cargo doc --open --workspace --no-deps
 
 .PHONY: fix
 fix:
