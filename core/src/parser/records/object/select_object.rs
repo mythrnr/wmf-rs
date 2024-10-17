@@ -29,7 +29,7 @@ impl META_SELECTOBJECT {
             %record_size,
             record_function = %format!("{record_function:#06X}"),
         ),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub fn parse<R: std::io::Read>(
         buf: &mut R,

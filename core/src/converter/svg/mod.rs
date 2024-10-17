@@ -75,7 +75,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn generate(self) -> Result<(), PlayError> {
         let Self { context_current, definitions, elements, mut output, .. } =
@@ -112,7 +112,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn selected_font(&self) -> Result<&Font, PlayError> {
         Ok(&self.object_selected.font)
@@ -126,7 +126,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn bit_blt(&mut self, record: META_BITBLT) -> Result<(), PlayError> {
         let operator = match record {
@@ -197,7 +197,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn device_independent_bitmap_bit_blt(
         &mut self,
@@ -271,7 +271,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn device_independent_bitmap_stretch_blt(
         &mut self,
@@ -345,7 +345,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_device_independent_bitmap_to_dev(
         &mut self,
@@ -358,7 +358,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn stretch_blt(
         &mut self,
@@ -432,7 +432,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn stretch_device_independent_bitmap(
         &mut self,
@@ -485,7 +485,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn eof(&mut self, _: META_EOF) -> Result<(), PlayError> {
         Ok(())
@@ -494,7 +494,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn header(&mut self, header: MetafileHeader) -> Result<(), PlayError> {
         let (_placeable, header) = match header {
@@ -522,7 +522,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn arc(&mut self, record: META_ARC) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -662,7 +662,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn chord(&mut self, record: META_CHORD) -> Result<(), PlayError> {
         tracing::info!("META_CHORD: not implemented");
@@ -672,7 +672,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn ellipse(&mut self, record: META_ELLIPSE) -> Result<(), PlayError> {
         let (rx, ry) = (
@@ -728,7 +728,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn ext_flood_fill(
         &mut self,
@@ -741,7 +741,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn ext_text_out(
         &mut self,
@@ -862,7 +862,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn fill_region(
         &mut self,
@@ -875,7 +875,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn flood_fill(&mut self, record: META_FLOODFILL) -> Result<(), PlayError> {
         tracing::info!("META_FLOODFILL: not implemented");
@@ -885,7 +885,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn frame_region(
         &mut self,
@@ -898,7 +898,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn invert_region(
         &mut self,
@@ -911,7 +911,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn line_to(&mut self, record: META_LINETO) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -941,7 +941,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn paint_region(
         &mut self,
@@ -954,7 +954,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn pat_blt(&mut self, record: META_PATBLT) -> Result<(), PlayError> {
         if record.width == 0 || record.height == 0 {
@@ -994,7 +994,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn pie(&mut self, record: META_PIE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -1070,7 +1070,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn polyline(&mut self, record: META_POLYLINE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -1118,7 +1118,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn polygon(&mut self, record: META_POLYGON) -> Result<(), PlayError> {
         if record.number_of_points == 0 {
@@ -1171,7 +1171,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn poly_polygon(
         &mut self,
@@ -1240,7 +1240,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn reactangle(&mut self, record: META_RECTANGLE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -1291,7 +1291,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn round_rect(&mut self, record: META_ROUNDRECT) -> Result<(), PlayError> {
         let (width, height) = (
@@ -1349,7 +1349,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_pixel(&mut self, _record: META_SETPIXEL) -> Result<(), PlayError> {
         tracing::info!("META_SETPIXEL: not implemented");
@@ -1359,7 +1359,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn text_out(&mut self, record: META_TEXTOUT) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -1411,7 +1411,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_brush_indirect(
         &mut self,
@@ -1428,7 +1428,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_font_indirect(
         &mut self,
@@ -1445,7 +1445,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_palette(
         &mut self,
@@ -1462,7 +1462,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_pattern_brush(
         &mut self,
@@ -1479,7 +1479,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_pen_indirect(
         &mut self,
@@ -1496,7 +1496,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_region(
         &mut self,
@@ -1513,7 +1513,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn delete_object(
         &mut self,
@@ -1530,7 +1530,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn create_device_independent_bitmap_pattern_brush(
         &mut self,
@@ -1547,7 +1547,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn select_clip_region(
         &mut self,
@@ -1560,7 +1560,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn select_object(
         &mut self,
@@ -1592,7 +1592,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn select_palette(
         &mut self,
@@ -1623,7 +1623,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn animate_palette(
         &mut self,
@@ -1636,7 +1636,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn exclude_clip_rect(
         &mut self,
@@ -1649,7 +1649,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn intersect_clip_rect(
         &mut self,
@@ -1671,7 +1671,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn move_to(&mut self, record: META_MOVETO) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
@@ -1687,7 +1687,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn offset_clip_region(
         &mut self,
@@ -1700,7 +1700,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn offset_viewport_origin(
         &mut self,
@@ -1713,7 +1713,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn offset_window_origin(
         &mut self,
@@ -1726,7 +1726,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn realize_palette(
         &mut self,
@@ -1739,7 +1739,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn resize_palette(
         &mut self,
@@ -1752,7 +1752,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn restore_device_context(
         &mut self,
@@ -1776,7 +1776,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn save_device_context(
         &mut self,
@@ -1790,7 +1790,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn scale_viewport_ext(
         &mut self,
@@ -1803,7 +1803,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn scale_window_ext(
         &mut self,
@@ -1825,7 +1825,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_bk_color(
         &mut self,
@@ -1841,7 +1841,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_bk_mode(&mut self, record: META_SETBKMODE) -> Result<(), PlayError> {
         self.set_current_context(
@@ -1854,7 +1854,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_layout(&mut self, _record: META_SETLAYOUT) -> Result<(), PlayError> {
         tracing::info!("META_SETLAYOUT: not implemented");
@@ -1864,7 +1864,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_map_mode(
         &mut self,
@@ -1880,7 +1880,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_mapper_flags(
         &mut self,
@@ -1893,7 +1893,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_pal_entries(
         &mut self,
@@ -1906,7 +1906,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_polyfill_mode(
         &mut self,
@@ -1924,7 +1924,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_relabs(&mut self, _record: META_SETRELABS) -> Result<(), PlayError> {
         tracing::info!("META_SETRELABS: reserved record and not supported");
@@ -1934,7 +1934,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_raster_operation(
         &mut self,
@@ -1950,7 +1950,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_stretch_blt_mode(
         &mut self,
@@ -1963,7 +1963,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_text_align(
         &mut self,
@@ -2000,7 +2000,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_text_char_extra(
         &mut self,
@@ -2013,7 +2013,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_text_color(
         &mut self,
@@ -2029,7 +2029,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_text_justification(
         &mut self,
@@ -2042,7 +2042,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_viewport_ext(
         &mut self,
@@ -2055,7 +2055,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_viewport_origin(
         &mut self,
@@ -2068,7 +2068,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_window_ext(
         &mut self,
@@ -2084,7 +2084,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn set_window_origin(
         &mut self,
@@ -2106,7 +2106,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     fn escape(&mut self, _record: META_ESCAPE) -> Result<(), PlayError> {
         Ok(())

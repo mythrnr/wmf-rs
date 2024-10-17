@@ -27,7 +27,7 @@ impl DeviceIndependentBitmap {
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display)
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub(crate) fn parse_with_color_usage<R: std::io::Read>(
         buf: &mut R,
