@@ -835,7 +835,7 @@ impl META_ESCAPE {
             %record_size,
             record_function = %format!("{record_function:#06X}"),
         ),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     #[allow(clippy::too_many_lines)]
     pub fn parse<R: std::io::Read>(

@@ -51,7 +51,7 @@ where
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub fn run(self) -> Result<(), ConvertError> {
         let Self { mut buffer, mut player } = self;

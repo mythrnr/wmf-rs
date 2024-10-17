@@ -46,7 +46,7 @@ impl META_PLACEABLE {
         level = tracing::Level::TRACE,
         skip_all,
         fields(key = %format!("{key:#010X}")),
-        err(level = tracing::Level::DEBUG, Display),
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub(in crate::parser::records::control) fn parse<R: std::io::Read>(
         buf: &mut R,

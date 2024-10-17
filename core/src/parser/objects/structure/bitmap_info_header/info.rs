@@ -2,7 +2,7 @@ impl crate::parser::BitmapInfoHeader {
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display)
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub(super) fn parse_as_info<R: std::io::Read>(
         buf: &mut R,

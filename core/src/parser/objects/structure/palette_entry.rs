@@ -21,7 +21,7 @@ impl PaletteEntry {
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
-        err(level = tracing::Level::DEBUG, Display)
+        err(level = tracing::Level::ERROR, Display),
     )]
     pub fn parse<R: std::io::Read>(
         buf: &mut R,
