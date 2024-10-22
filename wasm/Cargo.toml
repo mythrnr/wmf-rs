@@ -4,13 +4,14 @@ version = "0.1.0"
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 default = ["console_error_panic_hook"]
+tracing = ["tracing-wasm"]
 
 [dependencies]
-tracing-wasm = { workspace = true }
+tracing-wasm = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true }
 wmf-core = { workspace = true }
 

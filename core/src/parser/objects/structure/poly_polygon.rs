@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The PolyPolygon Object defines a series of closed polygons.
 #[derive(Clone, Debug)]
 pub struct PolyPolygon {
@@ -20,7 +22,7 @@ impl PolyPolygon {
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (number_of_polygons, mut consumed_bytes) =

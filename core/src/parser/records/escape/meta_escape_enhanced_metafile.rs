@@ -1,5 +1,7 @@
+use crate::imports::*;
+
 impl crate::parser::META_ESCAPE {
-    pub(super) fn parse_as_META_ESCAPE_ENHANCED_METAFILE<R: std::io::Read>(
+    pub(super) fn parse_as_META_ESCAPE_ENHANCED_METAFILE<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

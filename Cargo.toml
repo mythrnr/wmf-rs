@@ -3,15 +3,19 @@ resolver = "2"
 members = ["cli", "core", "wasm"]
 
 [workspace.dependencies]
-base64 = "0.22.1"
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 clap = { version = "4.5.20", features = ["derive", "env"] }
+embedded-io = "0.6.1"
 encoding_rs = "0.8.34"
 paste = "1.0.15"
-strum = { version = "0.26.3", features = ["derive"] }
-svg = "0.18.0"
-thiserror = "1.0.64"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time"] }
+snafu = "0.8.5"
+strum = { version = "0.26.3", default-features = false, features = ["derive"] }
+tracing = { version = "0.1.40", default-features = false, features = [
+  "attributes",
+] }
+tracing-subscriber = { version = "0.3.18", default-features = false, features = [
+  "time",
+] }
 tracing-wasm = "0.2.1"
 unicode-segmentation = "1.12.0"
 wasm-bindgen = "0.2.95"

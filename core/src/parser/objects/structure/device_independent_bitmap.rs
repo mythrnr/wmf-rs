@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The DeviceIndependentBitmap (DIB) Object defines an image in
 /// device-independent bitmap (DIB) format.
 #[derive(Clone, Debug)]
@@ -29,7 +31,7 @@ impl DeviceIndependentBitmap {
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub(crate) fn parse_with_color_usage<R: std::io::Read>(
+    pub(crate) fn parse_with_color_usage<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
@@ -64,7 +66,7 @@ pub enum Colors {
 }
 
 impl Colors {
-    fn parse<R: std::io::Read>(
+    fn parse<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
         dib_header_info: &crate::parser::BitmapInfoHeader,
@@ -129,7 +131,7 @@ impl Colors {
         }
     }
 
-    fn parse_from_color_usage<R: std::io::Read>(
+    fn parse_from_color_usage<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
         colors_length: usize,
@@ -193,8 +195,8 @@ pub struct BitmapBuffer {
     pub a_data: Vec<u8>,
 }
 
-impl std::fmt::Debug for BitmapBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for BitmapBuffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("BitmapBuffer")
             .field(
                 "undefined_space",

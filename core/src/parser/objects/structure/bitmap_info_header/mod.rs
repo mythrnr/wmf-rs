@@ -412,7 +412,7 @@ pub enum BitmapInfoHeader {
 }
 
 impl BitmapInfoHeader {
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (header_size, mut consumed_bytes) =

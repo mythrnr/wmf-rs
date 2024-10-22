@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_POLYGON Record paints a polygon consisting of two or more vertices
 /// connected by straight lines. The polygon is outlined by using the pen and
 /// filled by using the brush and polygon fill mode that are defined in the
@@ -31,7 +33,7 @@ impl META_POLYGON {
         ),
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

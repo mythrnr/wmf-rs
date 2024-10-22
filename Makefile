@@ -60,4 +60,4 @@ udeps:
 
 .PHONY: wasm
 wasm:
-	cd wasm && wasm-pack build --out-dir dist --target web
+	cd wasm && wasm-pack build --out-dir dist --target web --features tracing

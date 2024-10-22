@@ -45,6 +45,8 @@ mod set_miter_limit;
 mod spcl_passthrough2;
 mod startdoc;
 
+use crate::imports::*;
+
 /// The META_ESCAPE Record specifies extensions to WMF functionality that are
 /// not directly available through other records defined in the RecordType
 /// Enumeration. The MetafileEscapes Enumeration lists these extensions.
@@ -838,7 +840,7 @@ impl META_ESCAPE {
         err(level = tracing::Level::ERROR, Display),
     )]
     #[allow(clippy::too_many_lines)]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

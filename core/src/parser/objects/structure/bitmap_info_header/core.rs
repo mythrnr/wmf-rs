@@ -1,10 +1,12 @@
+use crate::imports::*;
+
 impl crate::parser::BitmapInfoHeader {
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub(super) fn parse_as_core<R: std::io::Read>(
+    pub(super) fn parse_as_core<R: crate::Read>(
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {

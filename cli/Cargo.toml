@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 clap = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true, default-features = true, features = [
+  "env-filter",
+] }
 wmf-core = { workspace = true }
 
 [lints]

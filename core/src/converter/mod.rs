@@ -4,7 +4,7 @@ mod player;
 
 pub use self::player::*;
 use self::{bitmap::*, graphics_object::*};
-use crate::parser::*;
+use crate::{imports::*, parser::*};
 
 #[cfg(feature = "svg")]
 mod svg;
@@ -12,11 +12,11 @@ mod svg;
 #[cfg(feature = "svg")]
 pub use self::svg::*;
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, snafu::prelude::Snafu)]
 pub enum ConvertError {
-    #[error("parse error: {source}")]
+    #[snafu(display("parse error: {source}"))]
     ParseError { source: ParseError },
-    #[error("play error: {source}")]
+    #[snafu(display("play error: {source}"))]
     PlayError { source: crate::converter::PlayError },
 }
 
@@ -45,7 +45,7 @@ impl<B, P> WMFConverter<B, P> {
 
 impl<B, P> WMFConverter<B, P>
 where
-    B: std::io::Read,
+    B: crate::Read,
     P: crate::converter::Player,
 {
     #[tracing::instrument(
@@ -53,7 +53,7 @@ where
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn run(self) -> Result<(), ConvertError> {
+    pub fn run(self) -> Result<Vec<u8>, ConvertError> {
         let Self { mut buffer, mut player } = self;
         let buf = &mut buffer;
 
@@ -782,8 +782,6 @@ where
             };
         }
 
-        player.generate()?;
-
-        Ok(())
+        Ok(player.generate()?)
     }
 }

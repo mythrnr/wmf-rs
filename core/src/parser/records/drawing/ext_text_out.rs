@@ -1,3 +1,4 @@
+use crate::imports::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The META_EXTTEXTOUT Record outputs text by using the font, background color,
@@ -25,7 +26,7 @@ pub struct META_EXTTEXTOUT {
     /// fwOpts (2 bytes): A 16-bit unsigned integer that defines the use of the
     /// application-defined rectangle. This member can be a combination of one
     /// or more values in the ExtTextOutOptions Flags.
-    pub fw_opts: std::collections::BTreeSet<crate::parser::ExtTextOutOptions>,
+    pub fw_opts: BTreeSet<crate::parser::ExtTextOutOptions>,
     /// Rectangle (8 bytes): An optional 8-byte Rect Object. When either
     /// ETO_CLIPPED, ETO_OPAQUE, or both are specified, the rectangle defines
     /// the dimensions, in logical coordinates, used for clipping, opaquing, or
@@ -62,7 +63,7 @@ impl META_EXTTEXTOUT {
         ),
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
@@ -84,7 +85,7 @@ impl META_EXTTEXTOUT {
             let (value, c) = crate::parser::read_u16_from_le_bytes(buf)?;
             record_size.consume(c);
 
-            let mut fw_opts = std::collections::BTreeSet::new();
+            let mut fw_opts = BTreeSet::new();
 
             for v in [
                 crate::parser::ExtTextOutOptions::ETO_OPAQUE,
@@ -124,7 +125,7 @@ impl META_EXTTEXTOUT {
                 bytes
                     .into_iter()
                     .filter_map(|v| {
-                        (*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).copied()
+                        crate::parser::symbol_charset_table().get(&v).copied()
                     })
                     .collect::<String>()
                     .replace('\0', "")

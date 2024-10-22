@@ -1,10 +1,10 @@
-use crate::parser::*;
+use crate::{imports::*, parser::*};
 
 #[derive(Clone)]
-pub struct Bitmap(Vec<u8>);
+pub struct Bitmap(pub(crate) Vec<u8>);
 
-impl std::fmt::Debug for Bitmap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Bitmap {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Bitmap")
             .field(&format!("[u8; {}]", self.0.len()))
             .finish()
@@ -184,8 +184,9 @@ impl From<DeviceIndependentBitmap> for Bitmap {
             }
             Colors::RGBQuad(values) => {
                 for v in values {
-                    info_header
-                        .extend(vec![v.red, v.green, v.blue, v.reserved]);
+                    info_header.extend(vec![
+                        v.red, v.green, v.blue, v.reserved
+                    ]);
                 }
             }
             _ => {}
@@ -244,12 +245,5 @@ impl From<Bitmap16> for Bitmap {
         };
 
         Self(data)
-    }
-}
-
-impl Bitmap {
-    pub fn as_data_url(&self) -> String {
-        use base64::{engine::general_purpose::STANDARD, Engine};
-        format!("data:image/bmp;base64,{}", STANDARD.encode(&self.0))
     }
 }

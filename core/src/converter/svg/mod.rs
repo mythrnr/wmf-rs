@@ -1,46 +1,38 @@
 mod device_context;
+mod node;
 mod ternary_raster_operator;
 mod util;
-
-use std::collections::VecDeque;
-
-use svg::{
-    node::element::{
-        path::Data, Element, Ellipse, Path, Polygon, Rectangle, Text,
-    },
-    Document, Node,
-};
 
 use crate::{
     converter::{
         svg::{
             device_context::DeviceContext,
+            node::{Data, Node},
             ternary_raster_operator::TernaryRasterOperator,
             util::{as_point_string, url_string, Fill, Stroke},
         },
         GraphicsObject, PlayError, SelectedGraphicsObject,
     },
+    imports::*,
     parser::*,
 };
 
-pub struct SVGPlayer<W> {
+pub struct SVGPlayer {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
-    definitions: Vec<Box<dyn Node>>,
-    elements: Vec<Box<dyn Node>>,
+    definitions: Vec<Node>,
+    elements: Vec<Node>,
     object_selected: SelectedGraphicsObject,
-    output: W,
 }
 
-impl<W> SVGPlayer<W> {
-    pub fn new(output: W) -> Self {
+impl SVGPlayer {
+    pub fn new() -> Self {
         Self {
             context_stack: Vec::with_capacity(0),
             context_current: DeviceContext::default(),
             definitions: vec![],
             elements: vec![],
             object_selected: SelectedGraphicsObject::default(),
-            output,
         }
     }
 
@@ -68,26 +60,23 @@ impl<W> SVGPlayer<W> {
     }
 }
 
-impl<W> crate::converter::Player for SVGPlayer<W>
-where
-    W: std::io::Write,
-{
+impl crate::converter::Player for SVGPlayer {
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    fn generate(self) -> Result<(), PlayError> {
-        let Self { context_current, definitions, elements, mut output, .. } =
-            self;
+    fn generate(self) -> Result<Vec<u8>, PlayError> {
+        let Self { context_current, definitions, elements, .. } = self;
 
-        let mut document = Document::new()
-            .set("viewBox", context_current.window.as_view_box());
+        let (x, y, width, height) = context_current.window.as_view_box();
+        let mut document = Node::node("svg")
+            .set("viewBox", format!("{x} {y} {width} {height}"));
 
         if !definitions.is_empty() {
-            let mut defs = Element::new("defs");
+            let mut defs = Node::node("defs");
             for v in definitions {
-                defs.append(v);
+                defs = defs.add(v);
             }
 
             document = document.add(defs);
@@ -97,11 +86,7 @@ where
             document = document.add(v);
         }
 
-        output.write(&document.to_string().into_bytes()).map_err(|err| {
-            PlayError::FailedGenerate { cause: err.to_string() }
-        })?;
-
-        Ok(())
+        Ok(document.to_string().into_bytes())
     }
 
     // .
@@ -648,9 +633,12 @@ where
         };
 
         let data = Data::new()
-            .move_to((start.x, start.y))
-            .elliptical_arc_to((rx, ry, 0, large_arc, sweep, end.x, end.y));
-        let path = Path::new().set("fill", "none").set("d", data);
+            .move_to(format!("{} {}", start.x, start.y))
+            .elliptical_arc_to(format!(
+                "{} {} {} {} {} {} {}",
+                rx, ry, 0, large_arc, sweep, end.x, end.y
+            ));
+        let path = Node::node("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(end));
@@ -710,7 +698,7 @@ where
             point
         };
 
-        let ellipse = Ellipse::new()
+        let ellipse = Node::node("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("cx", point.x)
@@ -835,12 +823,13 @@ where
             None
         };
 
-        let text = Text::new(record.string)
+        let text = Node::node("text")
             .set("x", point.x)
             .set("y", point.y)
             .set("text-anchor", text_align)
             .set("dominant-baseline", context.as_css_text_align_vertical())
-            .set("fill", context.text_color_as_css_color());
+            .set("fill", context.text_color_as_css_color())
+            .add(Node::text(record.string));
         let (text, mut styles) = font.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {
@@ -927,9 +916,12 @@ where
         };
 
         let data = Data::new()
-            .move_to((context.drawing_position.x, context.drawing_position.y))
-            .line_to((point.x, point.y));
-        let path = Path::new().set("fill", "none").set("d", data);
+            .move_to(format!(
+                "{} {}",
+                context.drawing_position.x, context.drawing_position.y
+            ))
+            .line_to(format!("{} {}", point.x, point.y));
+        let path = Node::node("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(point));
@@ -977,7 +969,7 @@ where
         };
         let fill_rule = self.current_context().poly_fill_rule();
 
-        let rect = Rectangle::new()
+        let rect = Node::node("rectangle")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("stroke", "none")
@@ -1016,7 +1008,7 @@ where
         let (center_x, center_y) =
             (record.left_rect + rx, record.top_rect + ry);
 
-        let ellipse = Ellipse::new()
+        let ellipse = Node::node("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("cx", center_x)
@@ -1054,10 +1046,10 @@ where
         };
 
         let data = Data::new()
-            .move_to((p1.x, p1.y))
-            .line_to((center.x, center.y))
-            .line_to((p2.x, p2.y));
-        let path = Path::new().set("fill", "none").set("d", data);
+            .move_to(format!("{} {}", p1.x, p1.y))
+            .line_to(format!("{} {}", center.x, center.y))
+            .line_to(format!("{} {}", p2.x, p2.y));
+        let path = Node::node("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(p2));
@@ -1088,7 +1080,8 @@ where
             point
         };
 
-        let mut data = Data::new().move_to((coordinate.x, coordinate.y));
+        let mut data =
+            Data::new().move_to(format!("{} {}", coordinate.x, coordinate.y));
 
         for i in 1..record.number_of_points {
             let Some(point) = record.a_points.get(i as usize) else {
@@ -1103,10 +1096,10 @@ where
                 point
             };
 
-            data = data.line_to((coordinate.x, coordinate.y));
+            data = data.line_to(format!("{} {}", coordinate.x, coordinate.y));
         }
 
-        let path = Path::new().set("fill", "none").set("d", data);
+        let path = Node::node("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(coordinate));
@@ -1156,7 +1149,7 @@ where
             points.push(as_point_string(&point));
         }
 
-        let polygon = Polygon::new()
+        let polygon = Node::node("polygon")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("points", points.join(" "));
@@ -1223,7 +1216,7 @@ where
                 current_point_index += 1;
             }
 
-            let polygon = Polygon::new()
+            let polygon = Node::node("polygon")
                 .set("fill", fill.as_str())
                 .set("fill-rule", fill_rule.as_str())
                 .set("points", points.join(" "));
@@ -1273,7 +1266,7 @@ where
             point
         };
 
-        let rect = Rectangle::new()
+        let rect = Node::node("rectangle")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("x", tl.x)
@@ -1329,7 +1322,7 @@ where
             point
         };
 
-        let rect = Rectangle::new()
+        let rect = Node::node("rectangle")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("x", point.x)
@@ -1390,10 +1383,11 @@ where
             point
         };
 
-        let text = Text::new(record.string)
+        let text = Node::node("text")
             .set("x", point.x)
             .set("y", point.y)
-            .set("fill", context.text_color_as_css_color());
+            .set("fill", context.text_color_as_css_color())
+            .add(Node::text(record.string));
         let (text, styles) = font.set_props(text, &point);
         let text = text.set("style", styles.join(""));
 

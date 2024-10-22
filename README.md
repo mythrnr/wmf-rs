@@ -11,7 +11,7 @@ Library to parse WMF and convert to SVG (WIP).
 
 ## Requirements
 
-- Rust 1.81.0+ (For Development)
+- Rust 1.82.0+ (For Development)
 - [wasm-pack](https://github.com/rustwasm/wasm-pack)
 - Yarn 1.22.22+ (To run example)
 

@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The Palette Object specifies the colors in a logical palette.
 #[derive(Clone, Debug)]
 pub struct Palette {
@@ -20,7 +22,7 @@ impl Palette {
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (

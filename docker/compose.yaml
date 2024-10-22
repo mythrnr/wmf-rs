@@ -1,0 +1,33 @@
+name: "mythrnr-wmf-rs"
+
+services:
+  app:
+    build:
+      context: "../"
+      dockerfile: "docker/Dockerfile"
+    environment:
+      CARGO_HOME: "/rust/cargo"
+      CARGO_BUILD_TARGET_DIR: "/rust/target"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+    volumes:
+      - type: "volume"
+        source: "volume_cargo"
+        target: "/rust/cargo"
+        read_only: false
+      - type: "volume"
+        source: "volume_target"
+        target: "/rust/target"
+        read_only: false
+      - type: "bind"
+        source: "../"
+        target: "/rust/src/github.com/mythrnr/wmf-rs"
+        read_only: false
+    working_dir: "/rust/src/github.com/mythrnr/wmf-rs"
+
+volumes:
+  volume_cargo:
+  volume_target:

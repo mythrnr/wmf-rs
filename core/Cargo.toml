@@ -5,15 +5,15 @@ edition = "2021"
 
 [features]
 default = ["svg"]
-svg = ["dep:base64", "dep:strum", "dep:svg"]
+svg = ["dep:base64"]
 
 [dependencies]
 base64 = { workspace = true, optional = true }
+embedded-io = { workspace = true }
 encoding_rs = { workspace = true }
 paste = { workspace = true }
-strum = { workspace = true, optional = true }
-svg = { workspace = true, optional = true }
-thiserror = { workspace = true }
+snafu = { workspace = true }
+strum = { workspace = true }
 tracing = { workspace = true }
 unicode-segmentation = { workspace = true }
 

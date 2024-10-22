@@ -1,6 +1,8 @@
-use svg::node::element::{path::Data, Image, Path, Pattern};
-
-use crate::parser::*;
+use crate::{
+    converter::svg::node::{Data, Node},
+    imports::*,
+    parser::*,
+};
 
 pub fn css_color_from_color_ref(c: &ColorRef) -> String {
     format!("#{:02X}{:02X}{:02X}", c.red, c.green, c.blue)
@@ -14,9 +16,16 @@ pub fn as_point_string(point: &PointS) -> String {
     format!("{},{}", point.x, point.y)
 }
 
+impl crate::converter::Bitmap {
+    pub fn as_data_url(&self) -> String {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        format!("data:image/bmp;base64,{}", STANDARD.encode(&self.0))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Fill {
-    Pattern { pattern: Pattern },
+    Pattern { pattern: Node },
     Value { value: String },
 }
 
@@ -26,13 +35,13 @@ impl From<Brush> for Fill {
             Brush::DIBPatternPT { brush_hatch, .. } => {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
                     .as_data_url();
-                let image = Image::new()
+                let image = Node::node("image")
                     .set("x", 0)
                     .set("y", 0)
                     .set("width", brush_hatch.dib_header_info.width())
                     .set("height", brush_hatch.dib_header_info.height())
                     .set("href", data);
-                let pattern = Pattern::new()
+                let pattern = Node::node("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
                     .set("x", 0)
@@ -46,60 +55,58 @@ impl From<Brush> for Fill {
             Brush::Hatched { color_ref, brush_hatch } => {
                 let path = match brush_hatch {
                     HatchStyle::HS_HORIZONTAL => {
-                        let data = Data::new().move_to((0, 0)).line_to((10, 0));
+                        let data = Data::new().move_to("0 0").line_to("10 0");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                     HatchStyle::HS_VERTICAL => {
-                        let data = Data::new().move_to((0, 0)).line_to((0, 10));
+                        let data = Data::new().move_to("0 0").line_to("0 10");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                     HatchStyle::HS_FDIAGONAL => {
-                        let data =
-                            Data::new().move_to((0, 10)).line_to((10, 0));
+                        let data = Data::new().move_to("0 10").line_to("10 0");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                     HatchStyle::HS_BDIAGONAL => {
-                        let data =
-                            Data::new().move_to((0, 0)).line_to((10, 10));
+                        let data = Data::new().move_to("0 0").line_to("10 10");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                     HatchStyle::HS_CROSS => {
                         let data = Data::new()
-                            .move_to((0, 0))
-                            .line_to((10, 0))
-                            .move_to((0, 0))
-                            .line_to((0, 10));
+                            .move_to("0 0")
+                            .line_to("10 0")
+                            .move_to("0 0")
+                            .line_to("0 10");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                     HatchStyle::HS_DIAGCROSS => {
                         let data = Data::new()
-                            .move_to((0, 0))
-                            .line_to((10, 10))
-                            .move_to((10, 0))
-                            .line_to((0, 10));
+                            .move_to("0 0")
+                            .line_to("10 10")
+                            .move_to("10 0")
+                            .line_to("0 10");
 
-                        Path::new()
+                        Node::node("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
                             .set("data", data)
                     }
                 };
 
-                let pattern = Pattern::new()
+                let pattern = Node::node("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
                     .set("x", 0)
@@ -113,13 +120,13 @@ impl From<Brush> for Fill {
             Brush::Pattern { brush_hatch } => {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
                     .as_data_url();
-                let image = Image::new()
+                let image = Node::node("image")
                     .set("x", 0)
                     .set("y", 0)
                     .set("width", brush_hatch.width)
                     .set("height", brush_hatch.height)
                     .set("href", data);
-                let pattern = Pattern::new()
+                let pattern = Node::node("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
                     .set("x", 0)
@@ -279,28 +286,26 @@ impl Stroke {
         self.width
     }
 
-    pub fn set_props<T: svg::Node>(&self, mut elem: T) -> T {
+    pub fn set_props(&self, elem: Node) -> Node {
         if self.opacity == 0_f32 {
-            elem.assign("stroke", "none");
-            return elem;
+            return elem.set("stroke", "none");
         }
 
-        elem.assign("stroke", self.color());
-        elem.assign("stroke-dasharray", self.dash_array());
-        elem.assign("stroke-linecap", self.line_cap());
-        elem.assign("stroke-linejoin", self.line_join());
-        elem.assign("stroke-opacity", self.opacity());
-        elem.assign("stroke-width", self.width());
-        elem
+        elem.set("stroke", self.color())
+            .set("stroke-dasharray", self.dash_array())
+            .set("stroke-linecap", self.line_cap())
+            .set("stroke-linejoin", self.line_join())
+            .set("stroke-opacity", self.opacity())
+            .set("stroke-width", self.width())
     }
 }
 
 impl Font {
-    pub fn set_props<T: svg::Node>(
+    pub fn set_props(
         &self,
-        mut elem: T,
+        mut elem: Node,
         point: &PointS,
-    ) -> (T, Vec<String>) {
+    ) -> (Node, Vec<String>) {
         let mut styles = vec![];
 
         if self.italic {
@@ -324,11 +329,11 @@ impl Font {
         };
 
         if self.orientation != 0 {
-            elem.assign("rotate", -self.orientation / 10);
+            elem = elem.set("rotate", -self.orientation / 10);
         }
 
         if self.escapement != 0 {
-            elem.assign(
+            elem = elem.set(
                 "transform",
                 format!(
                     "rotate({}, {} {})",
@@ -339,9 +344,10 @@ impl Font {
             );
         }
 
-        elem.assign("font-family", self.facename.as_str());
-        elem.assign("font-size", self.height.abs());
-        elem.assign("font-weight", self.weight);
+        elem = elem
+            .set("font-family", self.facename.as_str())
+            .set("font-size", self.height.abs())
+            .set("font-weight", self.weight);
 
         (elem, styles)
     }

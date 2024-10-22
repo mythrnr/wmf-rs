@@ -1,18 +1,13 @@
-use ::svg::{
-    node::element::{Image, Rectangle},
-    Node,
-};
-
 use crate::converter::{
-    svg::{util::url_string, Fill},
+    svg::{node::Node, util::url_string, Fill},
     *,
 };
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, snafu::prelude::Snafu)]
 pub enum TernaryRasterOperationError {
-    #[error("no brush specified: {cause}")]
+    #[snafu(display("no brush specified: {cause}"))]
     NoBrush { cause: String },
-    #[error("no source bitmap specified: {cause}")]
+    #[snafu(display("no source bitmap specified: {cause}"))]
     NoSource { cause: String },
 }
 
@@ -59,8 +54,8 @@ impl TernaryRasterOperator {
 
     pub fn run(
         self,
-        definitions: &mut Vec<Box<dyn Node>>,
-    ) -> Result<Option<Box<dyn ::svg::Node>>, TernaryRasterOperationError> {
+        definitions: &mut Vec<Node>,
+    ) -> Result<Option<Node>, TernaryRasterOperationError> {
         if self.operation.use_selected_brush() && self.brush.is_none() {
             return Err(TernaryRasterOperationError::NoBrush {
                 cause: format!(
@@ -79,32 +74,26 @@ impl TernaryRasterOperator {
             });
         };
 
-        let result: Box<dyn Node> = match self.operation {
-            TernaryRasterOperation::BLACKNESS => {
-                let rect = Rectangle::new()
-                    .set("x", self.x)
-                    .set("y", self.y)
-                    .set("width", self.width)
-                    .set("height", self.height)
-                    .set("stroke", "none")
-                    .set("fill", "black");
-
-                Box::new(rect)
-            }
+        let result: Node = match self.operation {
+            TernaryRasterOperation::BLACKNESS => Node::node("rectangle")
+                .set("x", self.x)
+                .set("y", self.y)
+                .set("width", self.width)
+                .set("height", self.height)
+                .set("stroke", "none")
+                .set("fill", "black"),
             TernaryRasterOperation::SRCCOPY => {
                 let bitmap = match self.source.unwrap() {
                     Source::Bitmap16(data) => Bitmap::from(data),
                     Source::Bitmap(data) => Bitmap::from(data),
                 };
 
-                Box::new(
-                    Image::new()
-                        .set("x", self.x)
-                        .set("y", self.y)
-                        .set("width", self.width)
-                        .set("height", self.height)
-                        .set("href", bitmap.as_data_url()),
-                )
+                Node::node("image")
+                    .set("x", self.x)
+                    .set("y", self.y)
+                    .set("width", self.width)
+                    .set("height", self.height)
+                    .set("href", bitmap.as_data_url())
             }
             TernaryRasterOperation::PATCOPY => {
                 let fill = match Fill::from(self.brush.clone().unwrap()) {
@@ -116,26 +105,20 @@ impl TernaryRasterOperator {
                     Fill::Value { value } => value,
                 };
 
-                let rect = Rectangle::new()
+                Node::node("rectangle")
                     .set("x", self.x)
                     .set("y", self.y)
                     .set("width", self.width)
                     .set("height", self.height)
-                    .set("fill", fill.as_str());
-
-                Box::new(rect)
+                    .set("fill", fill.as_str())
             }
-            TernaryRasterOperation::WHITENESS => {
-                let rect = Rectangle::new()
-                    .set("x", self.x)
-                    .set("y", self.y)
-                    .set("width", self.width)
-                    .set("height", self.height)
-                    .set("stroke", "none")
-                    .set("fill", "white");
-
-                Box::new(rect)
-            }
+            TernaryRasterOperation::WHITENESS => Node::node("rectangle")
+                .set("x", self.x)
+                .set("y", self.y)
+                .set("width", self.width)
+                .set("height", self.height)
+                .set("stroke", "none")
+                .set("fill", "white"),
             operation => {
                 tracing::info!(
                     ?operation,
@@ -150,7 +133,7 @@ impl TernaryRasterOperator {
     }
 
     #[inline]
-    fn issue_id(definitions: &[Box<dyn Node>]) -> String {
+    fn issue_id(definitions: &[Node]) -> String {
         format!("rop_pat{}", definitions.len())
     }
 }

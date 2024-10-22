@@ -1,4 +1,4 @@
-use crate::parser::*;
+use crate::{imports::*, parser::*};
 
 #[derive(Clone, Debug)]
 pub enum GraphicsObject {
@@ -47,8 +47,6 @@ pub struct SelectedGraphicsObject {
 
 impl Default for SelectedGraphicsObject {
     fn default() -> Self {
-        use std::collections::BTreeSet;
-
         SelectedGraphicsObject {
             brush: Brush::Null,
             font: Font {

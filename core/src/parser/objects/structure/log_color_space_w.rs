@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The LogColorSpaceW Object specifies a logical color space, which can be
 /// defined by a color profile file with a name consisting of Unicode 16-bit
 /// characters.
@@ -54,7 +56,7 @@ impl LogColorSpaceW {
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     )]
-    pub fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (

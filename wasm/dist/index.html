@@ -1,92 +1,95 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <title>WMF to SVG</title>
-    <style>
-      .uploader {
-        background: #8e8e8e;
-        height: 200px;
-        overflow: hidden;
-        position: relative;
-        width: 100%;
-      }
 
-      .uploader:before {
-        align-items: center;
-        border: dashed 2px #ffffff;
-        bottom: 24px;
-        color: #ffffff;
-        content: 'drag and drop your file here';
-        display: flex;
-        font-size: 20px;
-        justify-content: center;
-        left: 24px;
-        pointer-events: none;
-        position: absolute;
-        right: 24px;
-        top: 24px;
-      }
+<head>
+  <meta charset="utf-8">
+  <title>WMF to SVG</title>
+  <style>
+    .uploader {
+      background: #8e8e8e;
+      height: 200px;
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+    }
 
-      .uploader input {
-        display: block;
-        height: 100%;
-        left: 0;
-        opacity: 0;
-        position: absolute;
-        top: 0;
-        width: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>WMF to SVG</h1>
+    .uploader:before {
+      align-items: center;
+      border: dashed 2px #ffffff;
+      bottom: 24px;
+      color: #ffffff;
+      content: 'drag and drop your file here';
+      display: flex;
+      font-size: 20px;
+      justify-content: center;
+      left: 24px;
+      pointer-events: none;
+      position: absolute;
+      right: 24px;
+      top: 24px;
+    }
 
-    <h2>WMF File:</h2>
-    <div class="uploader">
-      <input id="input" type="file" accept=".wmf" />
-    </div>
+    .uploader input {
+      display: block;
+      height: 100%;
+      left: 0;
+      opacity: 0;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
+  </style>
+</head>
 
-    <h2>SVG Output: <span id="time"></span></h2>
-    <div id="output" style="border: solid black; padding: 10px;"></div>
+<body>
+  <h1>WMF to SVG</h1>
 
-    <script type="module">
-      import init, { convertWmf2Svg, setLogLevel } from './wmf_wasm.js';
+  <h2>WMF File:</h2>
+  <div class="uploader">
+    <input id="input" type="file" accept=".wmf" />
+  </div>
 
-      async function run() {
-        await init();
-        setLogLevel('debug');
+  <h2>SVG Output: <span id="time"></span></h2>
+  <div id="output" style="border: solid black; padding: 10px;"></div>
 
-        document.getElementById('input').addEventListener('change', () => {
-          const input = document.getElementById("input");
-          const files = input.files;
+  <script type="module">
+    import init, { convertWmf2Svg, setLogLevel } from './wmf_wasm.js';
 
-          if (files === null || files.length === 0) {
-              return;
+    async function run() {
+      await init();
+      setLogLevel('info');
+
+      document.getElementById('input').addEventListener('change', () => {
+        const input = document.getElementById("input");
+        const files = input.files;
+
+        if (files === null || files.length === 0) {
+          return;
+        }
+
+        const fileReader = new FileReader();
+        const filename = files[0].name;
+
+        fileReader.onload = function (e) {
+          const start = new Date().getTime();
+          const bytes = new Uint8Array(e.target.result);
+
+          try {
+            const output = convertWmf2Svg(bytes);
+            document.getElementById('output').innerHTML = output;
+          } catch (e) {
+            document.getElementById('output').innerText = `${e}`;
           }
 
-          const fileReader = new FileReader();
-          const filename =files[0].name;
+          document.getElementById('time').innerText = `${filename} / ${new Date().getTime() - start}ms`;
+        };
 
-          fileReader.onload = function (e) {
-            const start = new Date().getTime();
-            const bytes = new Uint8Array(e.target.result);
+        fileReader.readAsArrayBuffer(files[0]);
+      });
+    }
 
-            try {
-              const output = convertWmf2Svg(bytes);
-              document.getElementById('output').innerHTML = output;
-            } catch (e) {
-              document.getElementById('output').innerText = `${e}`;
-            }
+    run();
+  </script>
+</body>
 
-            document.getElementById('time').innerText = `${filename} / ${new Date().getTime()-start}ms`;
-          };
-
-          fileReader.readAsArrayBuffer(files[0]);
-        });
-      }
-
-      run();
-    </script>
-  </body>
 </html>
