@@ -58,6 +58,7 @@ make serve
 - Enable to set log level by running `setLogLevel(level: "trace" | "debug" | "info" | "warn" | "error")`
   - Default is `info` level.
   - **NOTE: trace and debug levels are very slow to execute.**
+- If you want more small WASM, disable `tracing` feature. But no logs will be out in console.
 
 ```html
 <script type="module">

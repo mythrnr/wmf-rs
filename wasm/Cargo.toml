@@ -7,8 +7,9 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [features]
-default = ["console_error_panic_hook"]
-tracing = ["tracing-wasm"]
+default = ["console_error_panic_hook", "tracing"]
+console_error_panic_hook = ["dep:console_error_panic_hook"]
+tracing = ["dep:tracing-wasm"]
 
 [dependencies]
 tracing-wasm = { workspace = true, optional = true }
