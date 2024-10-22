@@ -65,7 +65,7 @@ impl core::fmt::Display for Node {
             NodeType::Node(name) => {
                 write!(
                     f,
-                    "<{name} {}>{}</{name}>",
+                    "<{name} {}>\n{}</{name}>\n",
                     self.attrs
                         .iter()
                         .map(|(k, v)| {

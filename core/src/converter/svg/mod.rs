@@ -71,6 +71,7 @@ impl crate::converter::Player for SVGPlayer {
 
         let (x, y, width, height) = context_current.window.as_view_box();
         let mut document = Node::node("svg")
+            .set("xmlns", "http://www.w3.org/2000/svg")
             .set("viewBox", format!("{x} {y} {width} {height}"));
 
         if !definitions.is_empty() {
