@@ -970,7 +970,7 @@ impl crate::converter::Player for SVGPlayer {
         };
         let fill_rule = self.current_context().poly_fill_rule();
 
-        let rect = Node::node("rectangle")
+        let rect = Node::node("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("stroke", "none")
@@ -1267,7 +1267,7 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let rect = Node::node("rectangle")
+        let rect = Node::node("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("x", tl.x)
@@ -1323,7 +1323,7 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let rect = Node::node("rectangle")
+        let rect = Node::node("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("x", point.x)

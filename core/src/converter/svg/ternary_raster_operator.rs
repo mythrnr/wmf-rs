@@ -75,7 +75,7 @@ impl TernaryRasterOperator {
         };
 
         let result: Node = match self.operation {
-            TernaryRasterOperation::BLACKNESS => Node::node("rectangle")
+            TernaryRasterOperation::BLACKNESS => Node::node("rect")
                 .set("x", self.x)
                 .set("y", self.y)
                 .set("width", self.width)
@@ -105,14 +105,14 @@ impl TernaryRasterOperator {
                     Fill::Value { value } => value,
                 };
 
-                Node::node("rectangle")
+                Node::node("rect")
                     .set("x", self.x)
                     .set("y", self.y)
                     .set("width", self.width)
                     .set("height", self.height)
                     .set("fill", fill.as_str())
             }
-            TernaryRasterOperation::WHITENESS => Node::node("rectangle")
+            TernaryRasterOperation::WHITENESS => Node::node("rect")
                 .set("x", self.x)
                 .set("y", self.y)
                 .set("width", self.width)
