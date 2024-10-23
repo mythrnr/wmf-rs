@@ -18,7 +18,6 @@ pub fn convert_wmf_to_svg(buf: &[u8]) -> Result<String, JsValue> {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 
-    #[cfg(feature = "tracing")]
     set_log_level("info");
 
     let player = wmf_core::converter::SVGPlayer::new();
@@ -45,3 +44,7 @@ pub fn set_log_level(level: &str) {
         );
     }
 }
+
+#[cfg(not(feature = "tracing"))]
+#[wasm_bindgen(js_name = setLogLevel)]
+pub fn set_log_level(_: &str) {}
