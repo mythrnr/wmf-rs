@@ -92,9 +92,15 @@ pub struct Data {
     commands: Vec<String>,
 }
 
+impl Default for Data {
+    fn default() -> Self {
+        Self { commands: vec![] }
+    }
+}
+
 impl Data {
     pub fn new() -> Self {
-        Self { commands: vec![] }
+        Self::default()
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands

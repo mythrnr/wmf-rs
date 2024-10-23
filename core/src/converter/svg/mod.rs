@@ -25,8 +25,8 @@ pub struct SVGPlayer {
     object_selected: SelectedGraphicsObject,
 }
 
-impl SVGPlayer {
-    pub fn new() -> Self {
+impl Default for SVGPlayer {
+    fn default() -> Self {
         Self {
             context_stack: Vec::with_capacity(0),
             context_current: DeviceContext::default(),
@@ -34,6 +34,12 @@ impl SVGPlayer {
             elements: vec![],
             object_selected: SelectedGraphicsObject::default(),
         }
+    }
+}
+
+impl SVGPlayer {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[inline]
