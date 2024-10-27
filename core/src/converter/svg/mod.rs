@@ -67,21 +67,21 @@ impl SVGPlayer {
 }
 
 impl crate::converter::Player for SVGPlayer {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn generate(self) -> Result<Vec<u8>, PlayError> {
         let Self { context_current, definitions, elements, .. } = self;
 
         let (x, y, width, height) = context_current.window.as_view_box();
-        let mut document = Node::node("svg")
+        let mut document = Node::new("svg")
             .set("xmlns", "http://www.w3.org/2000/svg")
             .set("viewBox", format!("{x} {y} {width} {height}"));
 
         if !definitions.is_empty() {
-            let mut defs = Node::node("defs");
+            let mut defs = Node::new("defs");
             for v in definitions {
                 defs = defs.add(v);
             }
@@ -101,11 +101,11 @@ impl crate::converter::Player for SVGPlayer {
     // Functions to support parsing Records
     // .
     // .
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn selected_font(&self) -> Result<&Font, PlayError> {
         Ok(&self.object_selected.font)
     }
@@ -115,11 +115,11 @@ impl crate::converter::Player for SVGPlayer {
     // Functions to handle Bitmap Record
     // .
     // .
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn bit_blt(&mut self, record: META_BITBLT) -> Result<(), PlayError> {
         let operator = match record {
             META_BITBLT::WithBitmap {
@@ -186,11 +186,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn device_independent_bitmap_bit_blt(
         &mut self,
         record: META_DIBBITBLT,
@@ -260,11 +260,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn device_independent_bitmap_stretch_blt(
         &mut self,
         record: META_DIBSTRETCHBLT,
@@ -334,24 +334,24 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_device_independent_bitmap_to_dev(
         &mut self,
         _record: META_SETDIBTODEV,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETDIBTODEV: not implemented");
+        info!("META_SETDIBTODEV: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn stretch_blt(
         &mut self,
         record: META_STRETCHBLT,
@@ -421,11 +421,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn stretch_device_independent_bitmap(
         &mut self,
         record: META_STRETCHDIB,
@@ -474,20 +474,20 @@ impl crate::converter::Player for SVGPlayer {
     // Functions to handle Control Record
     // .
     // .
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn eof(&mut self, _: META_EOF) -> Result<(), PlayError> {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn header(&mut self, header: MetafileHeader) -> Result<(), PlayError> {
         let (_placeable, header) = match header {
             MetafileHeader::StartsWithHeader(header) => (None, header),
@@ -511,11 +511,11 @@ impl crate::converter::Player for SVGPlayer {
     // .
     // .
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn arc(&mut self, record: META_ARC) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen().clone());
@@ -645,30 +645,31 @@ impl crate::converter::Player for SVGPlayer {
                 "{} {} {} {} {} {} {}",
                 rx, ry, 0, large_arc, sweep, end.x, end.y
             ));
-        let path = Node::node("path").set("fill", "none").set("d", data);
+        let path =
+            Node::new("path").set("fill", "none").set("d", data.to_string());
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(end));
-        self.elements.push(path.into());
+        self.elements.push(path);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn chord(&mut self, record: META_CHORD) -> Result<(), PlayError> {
-        tracing::info!("META_CHORD: not implemented");
+        info!("META_CHORD: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn ellipse(&mut self, record: META_ELLIPSE) -> Result<(), PlayError> {
         let (rx, ry) = (
             (record.right_rect - record.left_rect) / 2,
@@ -676,7 +677,7 @@ impl crate::converter::Player for SVGPlayer {
         );
 
         if rx == 0 || ry == 0 {
-            tracing::info!(
+            info!(
                 %rx, %ry,
                 "META_ELLIPSE is skipped because rx or ry is zero.",
             );
@@ -689,7 +690,7 @@ impl crate::converter::Player for SVGPlayer {
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -705,39 +706,39 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let ellipse = Node::node("ellipse")
+        let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("cx", point.x)
-            .set("cy", point.y)
-            .set("rx", rx)
-            .set("ry", ry);
+            .set("cx", point.x.to_string())
+            .set("cy", point.y.to_string())
+            .set("rx", rx.to_string())
+            .set("ry", ry.to_string());
         let ellipse = stroke.set_props(ellipse);
 
         self.set_current_context(context);
-        self.elements.push(ellipse.into());
+        self.elements.push(ellipse);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn ext_flood_fill(
         &mut self,
         record: META_EXTFLOODFILL,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_EXTFLOODFILL: not implemented");
+        info!("META_EXTFLOODFILL: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn ext_text_out(
         &mut self,
         record: META_EXTTEXTOUT,
@@ -830,13 +831,13 @@ impl crate::converter::Player for SVGPlayer {
             None
         };
 
-        let text = Node::node("text")
-            .set("x", point.x)
-            .set("y", point.y)
+        let text = Node::new("text")
+            .set("x", point.x.to_string())
+            .set("y", point.y.to_string())
             .set("text-anchor", text_align)
             .set("dominant-baseline", context.as_css_text_align_vertical())
             .set("fill", context.text_color_as_css_color())
-            .add(Node::text(record.string));
+            .add(Node::new_text(record.string));
         let (text, mut styles) = font.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {
@@ -850,65 +851,65 @@ impl crate::converter::Player for SVGPlayer {
         }
 
         self.set_current_context(context);
-        self.elements.push(text.into());
+        self.elements.push(text);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn fill_region(
         &mut self,
         record: META_FILLREGION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_FILLREGION: not implemented");
+        info!("META_FILLREGION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn flood_fill(&mut self, record: META_FLOODFILL) -> Result<(), PlayError> {
-        tracing::info!("META_FLOODFILL: not implemented");
+        info!("META_FLOODFILL: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn frame_region(
         &mut self,
         record: META_FRAMEREGION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_FRAMEREGION: not implemented");
+        info!("META_FRAMEREGION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip(self),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn invert_region(
         &mut self,
         record: META_INVERTREGION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_INVERTREGION: not implemented");
+        info!("META_INVERTREGION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn line_to(&mut self, record: META_LINETO) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen().clone());
@@ -928,36 +929,37 @@ impl crate::converter::Player for SVGPlayer {
                 context.drawing_position.x, context.drawing_position.y
             ))
             .line_to(format!("{} {}", point.x, point.y));
-        let path = Node::node("path").set("fill", "none").set("d", data);
+        let path =
+            Node::new("path").set("fill", "none").set("d", data.to_string());
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(point));
-        self.elements.push(path.into());
+        self.elements.push(path);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn paint_region(
         &mut self,
         _record: META_PAINTREGION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_PAINTREGION: not implemented");
+        info!("META_PAINTREGION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn pat_blt(&mut self, record: META_PATBLT) -> Result<(), PlayError> {
         if record.width == 0 || record.height == 0 {
-            tracing::info!(
+            info!(
                 %record.width,
                 %record.height,
                 "META_PATBLT is skipped because width or height is zero.",
@@ -969,32 +971,32 @@ impl crate::converter::Player for SVGPlayer {
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
         };
         let fill_rule = self.current_context().poly_fill_rule();
 
-        let rect = Node::node("rect")
+        let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("stroke", "none")
-            .set("x", record.x_left)
-            .set("y", record.y_left)
-            .set("height", record.height)
-            .set("width", record.width);
+            .set("x", record.x_left.to_string())
+            .set("y", record.y_left.to_string())
+            .set("height", record.height.to_string())
+            .set("width", record.width.to_string());
 
-        self.elements.push(rect.into());
+        self.elements.push(rect);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn pie(&mut self, record: META_PIE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let brush = self.selected_brush();
@@ -1002,7 +1004,7 @@ impl crate::converter::Player for SVGPlayer {
         let fill = match Fill::from(brush.clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -1015,13 +1017,13 @@ impl crate::converter::Player for SVGPlayer {
         let (center_x, center_y) =
             (record.left_rect + rx, record.top_rect + ry);
 
-        let ellipse = Node::node("ellipse")
+        let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("cx", center_x)
-            .set("cy", center_y)
-            .set("rx", rx)
-            .set("ry", ry);
+            .set("cx", center_x.to_string())
+            .set("cy", center_y.to_string())
+            .set("rx", rx.to_string())
+            .set("ry", ry.to_string());
         let ellipse = stroke.set_props(ellipse);
 
         let stroke = Stroke::from(self.selected_pen().clone());
@@ -1056,21 +1058,22 @@ impl crate::converter::Player for SVGPlayer {
             .move_to(format!("{} {}", p1.x, p1.y))
             .line_to(format!("{} {}", center.x, center.y))
             .line_to(format!("{} {}", p2.x, p2.y));
-        let path = Node::node("path").set("fill", "none").set("d", data);
+        let path =
+            Node::new("path").set("fill", "none").set("d", data.to_string());
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(p2));
-        self.elements.push(ellipse.into());
-        self.elements.push(path.into());
+        self.elements.push(ellipse);
+        self.elements.push(path);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn polyline(&mut self, record: META_POLYLINE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen().clone());
@@ -1106,23 +1109,24 @@ impl crate::converter::Player for SVGPlayer {
             data = data.line_to(format!("{} {}", coordinate.x, coordinate.y));
         }
 
-        let path = Node::node("path").set("fill", "none").set("d", data);
+        let path =
+            Node::new("path").set("fill", "none").set("d", data.to_string());
         let path = stroke.set_props(path);
 
         self.set_current_context(context.drawing_position(coordinate));
-        self.elements.push(path.into());
+        self.elements.push(path);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn polygon(&mut self, record: META_POLYGON) -> Result<(), PlayError> {
         if record.number_of_points == 0 {
-            tracing::info!(%record.number_of_points, "polygon has no points");
+            info!(%record.number_of_points, "polygon has no points");
             return Ok(());
         }
 
@@ -1131,7 +1135,7 @@ impl crate::converter::Player for SVGPlayer {
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -1156,34 +1160,34 @@ impl crate::converter::Player for SVGPlayer {
             points.push(as_point_string(&point));
         }
 
-        let polygon = Node::node("polygon")
+        let polygon = Node::new("polygon")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("points", points.join(" "));
         let polygon = stroke.set_props(polygon);
 
         self.set_current_context(context);
-        self.elements.push(polygon.into());
+        self.elements.push(polygon);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn poly_polygon(
         &mut self,
         record: META_POLYPOLYGON,
     ) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen().clone());
-        tracing::debug!(?stroke, "Stroke from selected Pen");
+        debug!(?stroke, "Stroke from selected Pen");
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -1223,13 +1227,13 @@ impl crate::converter::Player for SVGPlayer {
                 current_point_index += 1;
             }
 
-            let polygon = Node::node("polygon")
+            let polygon = Node::new("polygon")
                 .set("fill", fill.as_str())
                 .set("fill-rule", fill_rule.as_str())
                 .set("points", points.join(" "));
             let polygon = stroke.set_props(polygon);
 
-            self.elements.push(polygon.into());
+            self.elements.push(polygon);
         }
 
         self.set_current_context(context);
@@ -1237,18 +1241,18 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn reactangle(&mut self, record: META_RECTANGLE) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let stroke = Stroke::from(self.selected_pen().clone());
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -1273,26 +1277,26 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let rect = Node::node("rect")
+        let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("x", tl.x)
-            .set("y", tl.y)
-            .set("height", br.y - tl.y)
-            .set("width", br.x - tl.x);
+            .set("x", tl.x.to_string())
+            .set("y", tl.y.to_string())
+            .set("height", (br.y - tl.y).to_string())
+            .set("width", (br.x - tl.x).to_string());
         let rect = stroke.set_props(rect);
 
         self.set_current_context(context);
-        self.elements.push(rect.into());
+        self.elements.push(rect);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn round_rect(&mut self, record: META_ROUNDRECT) -> Result<(), PlayError> {
         let (width, height) = (
             record.right_rect - record.left_rect,
@@ -1300,7 +1304,7 @@ impl crate::converter::Player for SVGPlayer {
         );
 
         if width == 0 || height == 0 {
-            tracing::info!(
+            info!(
                 %width, %height,
                 "META_ROUNDRECT is skipped because width or height is zero.",
             );
@@ -1313,7 +1317,7 @@ impl crate::converter::Player for SVGPlayer {
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_id();
-                self.definitions.push(pattern.set("id", id.as_str()).into());
+                self.definitions.push(pattern.set("id", id.as_str()));
                 url_string(format!("#{id}").as_str())
             }
             Fill::Value { value } => value,
@@ -1329,38 +1333,38 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let rect = Node::node("rect")
+        let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("x", point.x)
-            .set("y", point.y)
-            .set("height", height)
-            .set("width", width)
-            .set("rx", record.width)
-            .set("ry", record.height);
+            .set("x", point.x.to_string())
+            .set("y", point.y.to_string())
+            .set("height", height.to_string())
+            .set("width", width.to_string())
+            .set("rx", record.width.to_string())
+            .set("ry", record.height.to_string());
         let rect = stroke.set_props(rect);
 
         self.set_current_context(context);
-        self.elements.push(rect.into());
+        self.elements.push(rect);
 
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_pixel(&mut self, _record: META_SETPIXEL) -> Result<(), PlayError> {
-        tracing::info!("META_SETPIXEL: not implemented");
+        info!("META_SETPIXEL: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn text_out(&mut self, record: META_TEXTOUT) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let font = self.selected_font()?;
@@ -1390,16 +1394,16 @@ impl crate::converter::Player for SVGPlayer {
             point
         };
 
-        let text = Node::node("text")
-            .set("x", point.x)
-            .set("y", point.y)
+        let text = Node::new("text")
+            .set("x", point.x.to_string())
+            .set("y", point.y.to_string())
             .set("fill", context.text_color_as_css_color())
-            .add(Node::text(record.string));
+            .add(Node::new_text(record.string));
         let (text, styles) = font.set_props(text, &point);
         let text = text.set("style", styles.join(""));
 
         self.set_current_context(context);
-        self.elements.push(text.into());
+        self.elements.push(text);
 
         Ok(())
     }
@@ -1409,11 +1413,11 @@ impl crate::converter::Player for SVGPlayer {
     // Functions to handle Object Record
     // .
     // .
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_brush_indirect(
         &mut self,
         record: META_CREATEBRUSHINDIRECT,
@@ -1426,11 +1430,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_font_indirect(
         &mut self,
         record: META_CREATEFONTINDIRECT,
@@ -1443,11 +1447,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_palette(
         &mut self,
         record: META_CREATEPALETTE,
@@ -1460,11 +1464,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_pattern_brush(
         &mut self,
         record: META_CREATEPATTERNBRUSH,
@@ -1477,11 +1481,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_pen_indirect(
         &mut self,
         record: META_CREATEPENINDIRECT,
@@ -1494,11 +1498,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_region(
         &mut self,
         record: META_CREATEREGION,
@@ -1511,11 +1515,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn delete_object(
         &mut self,
         record: META_DELETEOBJECT,
@@ -1528,11 +1532,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn create_device_independent_bitmap_pattern_brush(
         &mut self,
         record: META_DIBCREATEPATTERNBRUSH,
@@ -1545,24 +1549,24 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn select_clip_region(
         &mut self,
         _record: META_SELECTCLIPREGION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SELECTCLIPREGION: not implemented");
+        info!("META_SELECTCLIPREGION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn select_object(
         &mut self,
         record: META_SELECTOBJECT,
@@ -1590,11 +1594,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn select_palette(
         &mut self,
         record: META_SELECTPALETTE,
@@ -1621,37 +1625,37 @@ impl crate::converter::Player for SVGPlayer {
     // Functions to handle State Record
     // .
     // .
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn animate_palette(
         &mut self,
         _record: META_ANIMATEPALETTE,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_ANIMATEPALETTE: not implemented");
+        info!("META_ANIMATEPALETTE: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn exclude_clip_rect(
         &mut self,
         _record: META_EXCLUDECLIPRECT,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_EXCLUDECLIPRECT: not implemented");
+        info!("META_EXCLUDECLIPRECT: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn intersect_clip_rect(
         &mut self,
         record: META_INTERSECTCLIPRECT,
@@ -1669,11 +1673,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn move_to(&mut self, record: META_MOVETO) -> Result<(), PlayError> {
         let mut context = self.current_context().clone();
         let point = context
@@ -1685,76 +1689,76 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn offset_clip_region(
         &mut self,
         _record: META_OFFSETCLIPRGN,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_OFFSETCLIPRGN: not implemented");
+        info!("META_OFFSETCLIPRGN: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn offset_viewport_origin(
         &mut self,
         _record: META_OFFSETVIEWPORTORG,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_OFFSETVIEWPORTORG: not implemented");
+        info!("META_OFFSETVIEWPORTORG: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn offset_window_origin(
         &mut self,
         _record: META_OFFSETWINDOWORG,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_OFFSETWINDOWORG: not implemented");
+        info!("META_OFFSETWINDOWORG: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn realize_palette(
         &mut self,
         _record: META_REALIZEPALETTE,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_REALIZEPALETTE: not implemented");
+        info!("META_REALIZEPALETTE: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn resize_palette(
         &mut self,
         _record: META_RESIZEPALETTE,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_RESIZEPALETTE: not implemented");
+        info!("META_RESIZEPALETTE: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn restore_device_context(
         &mut self,
         record: META_RESTOREDC,
@@ -1774,11 +1778,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn save_device_context(
         &mut self,
         _record: META_SAVEDC,
@@ -1788,24 +1792,24 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn scale_viewport_ext(
         &mut self,
         _record: META_SCALEVIEWPORTEXT,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SCALEVIEWPORTEXT: not implemented");
+        info!("META_SCALEVIEWPORTEXT: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn scale_window_ext(
         &mut self,
         record: META_SCALEWINDOWEXT,
@@ -1823,11 +1827,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_bk_color(
         &mut self,
         record: META_SETBKCOLOR,
@@ -1839,11 +1843,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_bk_mode(&mut self, record: META_SETBKMODE) -> Result<(), PlayError> {
         self.set_current_context(
             self.current_context().clone().bk_mode(record.bk_mode),
@@ -1852,21 +1856,21 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_layout(&mut self, _record: META_SETLAYOUT) -> Result<(), PlayError> {
-        tracing::info!("META_SETLAYOUT: not implemented");
+        info!("META_SETLAYOUT: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_map_mode(
         &mut self,
         record: META_SETMAPMODE,
@@ -1878,37 +1882,37 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_mapper_flags(
         &mut self,
         _record: META_SETMAPPERFLAGS,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETMAPPERFLAGS: not implemented");
+        info!("META_SETMAPPERFLAGS: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_pal_entries(
         &mut self,
         _record: META_SETPALENTRIES,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETPALENTRIES: not implemented");
+        info!("META_SETPALENTRIES: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_polyfill_mode(
         &mut self,
         record: META_SETPOLYFILLMODE,
@@ -1922,21 +1926,23 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_relabs(&mut self, _record: META_SETRELABS) -> Result<(), PlayError> {
-        tracing::info!("META_SETRELABS: reserved record and not supported");
+        info!(
+            "META_SETRELABS: reserved record and not supported"
+        );
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_raster_operation(
         &mut self,
         record: META_SETROP2,
@@ -1948,24 +1954,24 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_stretch_blt_mode(
         &mut self,
         _record: META_SETSTRETCHBLTMODE,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETSTRETCHBLTMODE: not implemented");
+        info!("META_SETSTRETCHBLTMODE: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_text_align(
         &mut self,
         record: META_SETTEXTALIGN,
@@ -1998,24 +2004,24 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_text_char_extra(
         &mut self,
         _record: META_SETTEXTCHAREXTRA,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETTEXTCHAREXTRA: not implemented");
+        info!("META_SETTEXTCHAREXTRA: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_text_color(
         &mut self,
         record: META_SETTEXTCOLOR,
@@ -2027,50 +2033,50 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_text_justification(
         &mut self,
         _record: META_SETTEXTJUSTIFICATION,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETTEXTJUSTIFICATION: not implemented");
+        info!("META_SETTEXTJUSTIFICATION: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_viewport_ext(
         &mut self,
         _record: META_SETVIEWPORTEXT,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETVIEWPORTEXT: not implemented");
+        info!("META_SETVIEWPORTEXT: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_viewport_origin(
         &mut self,
         _record: META_SETVIEWPORTORG,
     ) -> Result<(), PlayError> {
-        tracing::info!("META_SETVIEWPORTORG: not implemented");
+        info!("META_SETVIEWPORTORG: not implemented");
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_window_ext(
         &mut self,
         record: META_SETWINDOWEXT,
@@ -2082,11 +2088,11 @@ impl crate::converter::Player for SVGPlayer {
         Ok(())
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn set_window_origin(
         &mut self,
         record: META_SETWINDOWORG,
@@ -2104,11 +2110,11 @@ impl crate::converter::Player for SVGPlayer {
     // .
     // .
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     fn escape(&mut self, _record: META_ESCAPE) -> Result<(), PlayError> {
         Ok(())
     }

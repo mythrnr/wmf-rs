@@ -1,9 +1,9 @@
 impl crate::parser::BitmapInfoHeader {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub fn parse_as_v5<R: crate::Read>(
         buf: &mut R,
         header_size: u32,

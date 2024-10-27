@@ -6,7 +6,7 @@ members = ["cli", "core", "wasm"]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 clap = { version = "4.5.20", features = ["derive", "env"] }
 embedded-io = "0.6.1"
-encoding_rs = "0.8.34"
+encoding_rs = "0.8.35"
 paste = "1.0.15"
 snafu = "0.8.5"
 strum = { version = "0.26.3", default-features = false, features = ["derive"] }
@@ -29,7 +29,7 @@ console_error_panic_hook = { version = "0.1.7" }
 
 # workspace
 wmf-cli = { path = "./cli" }
-wmf-core = { path = "./core" }
+wmf-core = { path = "./core", default-features = false }
 wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]

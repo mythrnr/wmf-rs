@@ -830,7 +830,7 @@ pub enum META_ESCAPE {
 }
 
 impl META_ESCAPE {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -838,7 +838,7 @@ impl META_ESCAPE {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     #[allow(clippy::too_many_lines)]
     pub fn parse<R: crate::Read>(
         buf: &mut R,

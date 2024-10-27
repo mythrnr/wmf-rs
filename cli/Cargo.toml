@@ -9,7 +9,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, default-features = true, features = [
   "env-filter",
 ] }
-wmf-core = { workspace = true }
+wmf-core = { workspace = true, features = ["svg", "tracing"] }
 
 [lints]
 workspace = true

@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["svg"]
+default = ["svg", "tracing"]
 svg = ["dep:base64"]
+tracing = ["dep:tracing"]
 
 [dependencies]
 base64 = { workspace = true, optional = true }
@@ -14,7 +15,7 @@ encoding_rs = { workspace = true }
 paste = { workspace = true }
 snafu = { workspace = true }
 strum = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, optional = true }
 unicode-segmentation = { workspace = true }
 
 [lints]

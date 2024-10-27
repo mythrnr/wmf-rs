@@ -35,19 +35,31 @@ impl From<Brush> for Fill {
             Brush::DIBPatternPT { brush_hatch, .. } => {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
                     .as_data_url();
-                let image = Node::node("image")
-                    .set("x", 0)
-                    .set("y", 0)
-                    .set("width", brush_hatch.dib_header_info.width())
-                    .set("height", brush_hatch.dib_header_info.height())
+                let image = Node::new("image")
+                    .set("x", 0.to_string())
+                    .set("y", 0.to_string())
+                    .set(
+                        "width",
+                        brush_hatch.dib_header_info.width().to_string(),
+                    )
+                    .set(
+                        "height",
+                        brush_hatch.dib_header_info.height().to_string(),
+                    )
                     .set("href", data);
-                let pattern = Node::node("pattern")
+                let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0)
-                    .set("y", 0)
-                    .set("width", brush_hatch.dib_header_info.width())
-                    .set("height", brush_hatch.dib_header_info.height())
+                    .set("x", 0.to_string())
+                    .set("y", 0.to_string())
+                    .set(
+                        "width",
+                        brush_hatch.dib_header_info.width().to_string(),
+                    )
+                    .set(
+                        "height",
+                        brush_hatch.dib_header_info.height().to_string(),
+                    )
                     .add(image);
 
                 Fill::Pattern { pattern }
@@ -57,30 +69,30 @@ impl From<Brush> for Fill {
                     HatchStyle::HS_HORIZONTAL => {
                         let data = Data::new().move_to("0 0").line_to("10 0");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                     HatchStyle::HS_VERTICAL => {
                         let data = Data::new().move_to("0 0").line_to("0 10");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                     HatchStyle::HS_FDIAGONAL => {
                         let data = Data::new().move_to("0 10").line_to("10 0");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                     HatchStyle::HS_BDIAGONAL => {
                         let data = Data::new().move_to("0 0").line_to("10 10");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                     HatchStyle::HS_CROSS => {
                         let data = Data::new()
@@ -89,9 +101,9 @@ impl From<Brush> for Fill {
                             .move_to("0 0")
                             .line_to("0 10");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                     HatchStyle::HS_DIAGCROSS => {
                         let data = Data::new()
@@ -100,19 +112,19 @@ impl From<Brush> for Fill {
                             .move_to("10 0")
                             .line_to("0 10");
 
-                        Node::node("path")
+                        Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data)
+                            .set("data", data.to_string())
                     }
                 };
 
-                let pattern = Node::node("pattern")
+                let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0)
-                    .set("y", 0)
-                    .set("width", 10)
-                    .set("height", 10)
+                    .set("x", 0.to_string())
+                    .set("y", 0.to_string())
+                    .set("width", 10.to_string())
+                    .set("height", 10.to_string())
                     .add(path);
 
                 Fill::Pattern { pattern }
@@ -120,19 +132,19 @@ impl From<Brush> for Fill {
             Brush::Pattern { brush_hatch } => {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
                     .as_data_url();
-                let image = Node::node("image")
-                    .set("x", 0)
-                    .set("y", 0)
-                    .set("width", brush_hatch.width)
-                    .set("height", brush_hatch.height)
+                let image = Node::new("image")
+                    .set("x", 0.to_string())
+                    .set("y", 0.to_string())
+                    .set("width", brush_hatch.width.to_string())
+                    .set("height", brush_hatch.height.to_string())
                     .set("href", data);
-                let pattern = Node::node("pattern")
+                let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0)
-                    .set("y", 0)
-                    .set("width", brush_hatch.width)
-                    .set("height", brush_hatch.height)
+                    .set("x", 0.to_string())
+                    .set("y", 0.to_string())
+                    .set("width", brush_hatch.width.to_string())
+                    .set("height", brush_hatch.height.to_string())
                     .add(image);
 
                 Fill::Pattern { pattern }
@@ -234,7 +246,7 @@ impl From<Pen> for Stroke {
                 PenStyle::PS_INSIDEFRAME
                 | PenStyle::PS_USERSTYLE
                 | PenStyle::PS_ENDCAP_FLAT => {
-                    tracing::info!(?style, "pen style is not implemented");
+                    info!(?style, "pen style is not implemented");
                     stroke
                 }
             };
@@ -296,7 +308,7 @@ impl Stroke {
             .set("stroke-linecap", self.line_cap())
             .set("stroke-linejoin", self.line_join())
             .set("stroke-opacity", self.opacity())
-            .set("stroke-width", self.width())
+            .set("stroke-width", self.width().to_string())
     }
 }
 
@@ -329,7 +341,7 @@ impl Font {
         };
 
         if self.orientation != 0 {
-            elem = elem.set("rotate", -self.orientation / 10);
+            elem = elem.set("rotate", (-self.orientation / 10).to_string());
         }
 
         if self.escapement != 0 {
@@ -346,8 +358,8 @@ impl Font {
 
         elem = elem
             .set("font-family", self.facename.as_str())
-            .set("font-size", self.height.abs())
-            .set("font-weight", self.weight);
+            .set("font-size", self.height.abs().to_string())
+            .set("font-weight", self.weight.to_string());
 
         (elem, styles)
     }

@@ -15,11 +15,11 @@ pub struct ColorRef {
 }
 
 impl ColorRef {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
@@ -36,7 +36,7 @@ impl ColorRef {
         );
 
         if reserved != 0x00 {
-            tracing::warn!(
+            warn!(
                 reserved = %format!("{reserved:#04X}"),
                 "The reserved field is replaced by 0x00; MS-WMF states that \
                 this field MUST be 0x00",

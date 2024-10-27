@@ -9,12 +9,12 @@ crate-type = ["cdylib"]
 [features]
 default = ["console_error_panic_hook", "tracing"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
-tracing = ["dep:tracing-wasm"]
+tracing = ["dep:tracing-wasm", "wmf-core/tracing"]
 
 [dependencies]
 tracing-wasm = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true }
-wmf-core = { workspace = true }
+wmf-core = { workspace = true, features = ["svg"] }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

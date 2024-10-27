@@ -42,12 +42,12 @@ pub struct META_PLACEABLE {
 }
 
 impl META_PLACEABLE {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(key = %format!("{key:#010X}")),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub(in crate::parser::records::control) fn parse<R: crate::Read>(
         buf: &mut R,
         key: u32,

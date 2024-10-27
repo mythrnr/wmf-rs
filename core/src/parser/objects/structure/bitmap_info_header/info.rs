@@ -1,11 +1,11 @@
 use crate::imports::*;
 
 impl crate::parser::BitmapInfoHeader {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub(super) fn parse_as_info<R: crate::Read>(
         buf: &mut R,
         header_size: u32,

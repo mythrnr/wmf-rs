@@ -48,29 +48,29 @@ where
     B: crate::Read,
     P: crate::converter::Player,
 {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub fn run(self) -> Result<Vec<u8>, ConvertError> {
         let Self { mut buffer, mut player } = self;
         let buf = &mut buffer;
 
         let (header, _) = MetafileHeader::parse(buf)?;
 
-        tracing::debug!(?header);
+        debug!(?header);
         player.header(header)?;
 
         let mut record_number = 0;
 
         loop {
             record_number += 1;
-            tracing::debug!(%record_number);
+            debug!(%record_number);
 
             let mut record_size = RecordSize::parse(buf)?;
             if record_size.byte_count() == 0 {
-                tracing::debug!(%record_size, "skip parsing zero-sized record");
+                debug!(%record_size, "skip parsing zero-sized record");
 
                 continue;
             }
@@ -79,14 +79,14 @@ where
                 read_u16_from_le_bytes(buf).map_err(ParseError::from)?;
             record_size.consume(c);
 
-            tracing::debug!(
+            debug!(
                 %record_size,
                 record_function = %format!("{record_function:#06X}"),
             );
 
             let Some(record_type) = RecordType::from_repr(record_function)
             else {
-                tracing::debug!(
+                debug!(
                     record_function = %format!("{record_function:#06X}"),
                     "record_function is not match any RecordType",
                 );
@@ -107,7 +107,7 @@ where
                     let record =
                         META_BITBLT::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.bit_blt(record)?;
                 }
                 RecordType::META_DIBBITBLT => {
@@ -117,7 +117,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.device_independent_bitmap_bit_blt(record)?;
                 }
                 RecordType::META_DIBSTRETCHBLT => {
@@ -127,7 +127,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.device_independent_bitmap_stretch_blt(record)?;
                 }
                 RecordType::META_SETDIBTODEV => {
@@ -137,7 +137,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_device_independent_bitmap_to_dev(record)?;
                 }
                 RecordType::META_STRETCHBLT => {
@@ -147,7 +147,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.stretch_blt(record)?;
                 }
                 RecordType::META_STRETCHDIB => {
@@ -157,7 +157,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.stretch_device_independent_bitmap(record)?;
                 }
                 // control record
@@ -165,7 +165,7 @@ where
                     let record =
                         META_EOF::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.eof(record)?;
                     break;
                 }
@@ -174,21 +174,21 @@ where
                     let record =
                         META_ARC::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.arc(record)?;
                 }
                 RecordType::META_CHORD => {
                     let record =
                         META_CHORD::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.chord(record)?;
                 }
                 RecordType::META_ELLIPSE => {
                     let record =
                         META_ELLIPSE::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.ellipse(record)?;
                 }
                 RecordType::META_EXTFLOODFILL => {
@@ -198,7 +198,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.ext_flood_fill(record)?;
                 }
                 RecordType::META_EXTTEXTOUT => {
@@ -210,7 +210,7 @@ where
                         font.charset,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.ext_text_out(record)?;
                 }
                 RecordType::META_FILLREGION => {
@@ -220,7 +220,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.fill_region(record)?;
                 }
                 RecordType::META_FLOODFILL => {
@@ -230,7 +230,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.flood_fill(record)?;
                 }
                 RecordType::META_FRAMEREGION => {
@@ -240,7 +240,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.frame_region(record)?;
                 }
                 RecordType::META_INVERTREGION => {
@@ -250,14 +250,14 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.invert_region(record)?;
                 }
                 RecordType::META_LINETO => {
                     let record =
                         META_LINETO::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.line_to(record)?;
                 }
                 RecordType::META_PAINTREGION => {
@@ -267,21 +267,21 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.paint_region(record)?;
                 }
                 RecordType::META_PATBLT => {
                     let record =
                         META_PATBLT::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.pat_blt(record)?;
                 }
                 RecordType::META_PIE => {
                     let record =
                         META_PIE::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.pie(record)?;
                 }
                 RecordType::META_POLYLINE => {
@@ -291,14 +291,14 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.polyline(record)?;
                 }
                 RecordType::META_POLYGON => {
                     let record =
                         META_POLYGON::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.polygon(record)?;
                 }
                 RecordType::META_POLYPOLYGON => {
@@ -308,7 +308,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.poly_polygon(record)?;
                 }
                 RecordType::META_RECTANGLE => {
@@ -318,7 +318,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.reactangle(record)?;
                 }
                 RecordType::META_ROUNDRECT => {
@@ -328,7 +328,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.round_rect(record)?;
                 }
                 RecordType::META_SETPIXEL => {
@@ -338,7 +338,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_pixel(record)?;
                 }
                 RecordType::META_TEXTOUT => {
@@ -350,7 +350,7 @@ where
                         font.charset,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.text_out(record)?;
                 }
                 // object record
@@ -361,7 +361,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_brush_indirect(record)?;
                 }
                 RecordType::META_CREATEFONTINDIRECT => {
@@ -371,7 +371,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_font_indirect(record)?;
                 }
                 RecordType::META_CREATEPALETTE => {
@@ -381,7 +381,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_palette(record)?;
                 }
                 RecordType::META_CREATEPATTERNBRUSH => {
@@ -391,7 +391,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_pattern_brush(record)?;
                 }
                 RecordType::META_CREATEPENINDIRECT => {
@@ -401,7 +401,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_pen_indirect(record)?;
                 }
                 RecordType::META_CREATEREGION => {
@@ -411,7 +411,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_region(record)?;
                 }
                 RecordType::META_DELETEOBJECT => {
@@ -421,7 +421,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.delete_object(record)?;
                 }
                 RecordType::META_DIBCREATEPATTERNBRUSH => {
@@ -431,7 +431,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.create_device_independent_bitmap_pattern_brush(
                         record,
                     )?;
@@ -443,7 +443,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.select_clip_region(record)?;
                 }
                 RecordType::META_SELECTOBJECT => {
@@ -453,7 +453,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.select_object(record)?;
                 }
                 RecordType::META_SELECTPALETTE => {
@@ -463,7 +463,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.select_palette(record)?;
                 }
                 // state record
@@ -474,7 +474,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.animate_palette(record)?;
                 }
                 RecordType::META_EXCLUDECLIPRECT => {
@@ -484,7 +484,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.exclude_clip_rect(record)?;
                 }
                 RecordType::META_INTERSECTCLIPRECT => {
@@ -494,14 +494,14 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.intersect_clip_rect(record)?;
                 }
                 RecordType::META_MOVETO => {
                     let record =
                         META_MOVETO::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.move_to(record)?;
                 }
                 RecordType::META_OFFSETCLIPRGN => {
@@ -511,7 +511,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.offset_clip_region(record)?;
                 }
                 RecordType::META_OFFSETVIEWPORTORG => {
@@ -521,7 +521,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.offset_viewport_origin(record)?;
                 }
                 RecordType::META_OFFSETWINDOWORG => {
@@ -531,7 +531,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.offset_window_origin(record)?;
                 }
                 RecordType::META_REALIZEPALETTE => {
@@ -541,7 +541,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.realize_palette(record)?;
                 }
                 RecordType::META_RESIZEPALETTE => {
@@ -551,7 +551,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.resize_palette(record)?;
                 }
                 RecordType::META_RESTOREDC => {
@@ -561,14 +561,14 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.restore_device_context(record)?;
                 }
                 RecordType::META_SAVEDC => {
                     let record =
                         META_SAVEDC::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.save_device_context(record)?;
                 }
                 RecordType::META_SCALEVIEWPORTEXT => {
@@ -578,7 +578,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.scale_viewport_ext(record)?;
                 }
                 RecordType::META_SCALEWINDOWEXT => {
@@ -588,7 +588,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.scale_window_ext(record)?;
                 }
                 RecordType::META_SETBKCOLOR => {
@@ -598,7 +598,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_bk_color(record)?;
                 }
                 RecordType::META_SETBKMODE => {
@@ -608,7 +608,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_bk_mode(record)?;
                 }
                 RecordType::META_SETLAYOUT => {
@@ -618,7 +618,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_layout(record)?;
                 }
                 RecordType::META_SETMAPMODE => {
@@ -628,7 +628,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_map_mode(record)?;
                 }
                 RecordType::META_SETMAPPERFLAGS => {
@@ -638,7 +638,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_mapper_flags(record)?;
                 }
                 RecordType::META_SETPALENTRIES => {
@@ -648,7 +648,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_pal_entries(record)?;
                 }
                 RecordType::META_SETPOLYFILLMODE => {
@@ -658,7 +658,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_polyfill_mode(record)?;
                 }
                 RecordType::META_SETRELABS => {
@@ -668,14 +668,14 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_relabs(record)?;
                 }
                 RecordType::META_SETROP2 => {
                     let record =
                         META_SETROP2::parse(buf, record_size, record_function)?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_raster_operation(record)?;
                 }
                 RecordType::META_SETSTRETCHBLTMODE => {
@@ -685,7 +685,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_stretch_blt_mode(record)?;
                 }
                 RecordType::META_SETTEXTALIGN => {
@@ -695,7 +695,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_text_align(record)?;
                 }
                 RecordType::META_SETTEXTCHAREXTRA => {
@@ -705,7 +705,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_text_char_extra(record)?;
                 }
                 RecordType::META_SETTEXTCOLOR => {
@@ -715,7 +715,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_text_color(record)?;
                 }
                 RecordType::META_SETTEXTJUSTIFICATION => {
@@ -725,7 +725,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_text_justification(record)?;
                 }
                 RecordType::META_SETVIEWPORTEXT => {
@@ -735,7 +735,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_viewport_ext(record)?;
                 }
                 RecordType::META_SETVIEWPORTORG => {
@@ -745,7 +745,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_viewport_origin(record)?;
                 }
                 RecordType::META_SETWINDOWEXT => {
@@ -755,7 +755,7 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_window_ext(record)?;
                 }
                 RecordType::META_SETWINDOWORG => {
@@ -765,18 +765,18 @@ where
                         record_function,
                     )?;
 
-                    tracing::debug!(?record);
+                    debug!(?record);
                     player.set_window_origin(record)?;
                 }
                 // escape record
                 RecordType::META_ESCAPE => {
                     let r = read_variable(buf, record_size.remaining_bytes());
-                    tracing::debug!(?r, "META_ESCAPE skipped");
+                    debug!(?r, "META_ESCAPE skipped");
                     // let record =
                     //     META_ESCAPE::parse(buf, record_size,
                     // record_function)?;
 
-                    // tracing::debug!(?record);
+                    // debug!(?record);
                     // player.escape(record)?;
                 }
             };

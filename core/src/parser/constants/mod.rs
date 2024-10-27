@@ -22,11 +22,11 @@ macro_rules! impl_parser {
     (_, $t:ident, $raw:ty, $size:expr, $digits:expr) => {
         paste::paste! {
             impl $t {
-                #[::tracing::instrument(
+                #[cfg_attr(feature = "tracing", ::tracing::instrument(
                     level = tracing::Level::TRACE,
                     skip_all,
                     err(level = tracing::Level::ERROR, Display),
-                )]
+                ))]
                 pub fn parse<R: $crate::Read>(
                     buf: &mut R,
                 ) -> Result<(Self, usize), $crate::parser::ParseError> {

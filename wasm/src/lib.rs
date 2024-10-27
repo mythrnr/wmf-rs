@@ -31,11 +31,11 @@ pub fn convert_wmf_to_svg(buf: &[u8]) -> Result<String, JsValue> {
 #[cfg(feature = "tracing")]
 #[wasm_bindgen(js_name = setLogLevel)]
 pub fn set_log_level(level: &str) {
-    static IN: core::sync::atomic::AtomicBool =
+    static INITIALIZED: core::sync::atomic::AtomicBool =
         core::sync::atomic::AtomicBool::new(false);
 
-    if !IN.load(core::sync::atomic::Ordering::Acquire) {
-        IN.store(true, core::sync::atomic::Ordering::Release);
+    if !INITIALIZED.load(core::sync::atomic::Ordering::Acquire) {
+        INITIALIZED.store(true, core::sync::atomic::Ordering::Release);
 
         tracing_wasm::set_as_global_default_with_config(
             tracing_wasm::WASMLayerConfigBuilder::new()
@@ -47,4 +47,6 @@ pub fn set_log_level(level: &str) {
 
 #[cfg(not(feature = "tracing"))]
 #[wasm_bindgen(js_name = setLogLevel)]
-pub fn set_log_level(_: &str) {}
+pub fn set_log_level(_: &str) {
+    // NOOP
+}

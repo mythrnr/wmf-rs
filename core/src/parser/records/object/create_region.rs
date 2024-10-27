@@ -15,7 +15,7 @@ pub struct META_CREATEREGION {
 }
 
 impl META_CREATEREGION {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -23,7 +23,7 @@ impl META_CREATEREGION {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,

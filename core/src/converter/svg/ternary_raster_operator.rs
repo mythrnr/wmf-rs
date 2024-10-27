@@ -75,11 +75,11 @@ impl TernaryRasterOperator {
         };
 
         let result: Node = match self.operation {
-            TernaryRasterOperation::BLACKNESS => Node::node("rect")
-                .set("x", self.x)
-                .set("y", self.y)
-                .set("width", self.width)
-                .set("height", self.height)
+            TernaryRasterOperation::BLACKNESS => Node::new("rect")
+                .set("x", self.x.to_string())
+                .set("y", self.y.to_string())
+                .set("width", self.width.to_string())
+                .set("height", self.height.to_string())
                 .set("stroke", "none")
                 .set("fill", "black"),
             TernaryRasterOperation::SRCCOPY => {
@@ -88,42 +88,39 @@ impl TernaryRasterOperator {
                     Source::Bitmap(data) => Bitmap::from(data),
                 };
 
-                Node::node("image")
-                    .set("x", self.x)
-                    .set("y", self.y)
-                    .set("width", self.width)
-                    .set("height", self.height)
+                Node::new("image")
+                    .set("x", self.x.to_string())
+                    .set("y", self.y.to_string())
+                    .set("width", self.width.to_string())
+                    .set("height", self.height.to_string())
                     .set("href", bitmap.as_data_url())
             }
             TernaryRasterOperation::PATCOPY => {
                 let fill = match Fill::from(self.brush.clone().unwrap()) {
                     Fill::Pattern { pattern } => {
                         let id = Self::issue_id(definitions);
-                        definitions.push(pattern.set("id", id.as_str()).into());
+                        definitions.push(pattern.set("id", id.as_str()));
                         url_string(format!("#{id}").as_str())
                     }
                     Fill::Value { value } => value,
                 };
 
-                Node::node("rect")
-                    .set("x", self.x)
-                    .set("y", self.y)
-                    .set("width", self.width)
-                    .set("height", self.height)
+                Node::new("rect")
+                    .set("x", self.x.to_string())
+                    .set("y", self.y.to_string())
+                    .set("width", self.width.to_string())
+                    .set("height", self.height.to_string())
                     .set("fill", fill.as_str())
             }
-            TernaryRasterOperation::WHITENESS => Node::node("rect")
-                .set("x", self.x)
-                .set("y", self.y)
-                .set("width", self.width)
-                .set("height", self.height)
+            TernaryRasterOperation::WHITENESS => Node::new("rect")
+                .set("x", self.x.to_string())
+                .set("y", self.y.to_string())
+                .set("width", self.width.to_string())
+                .set("height", self.height.to_string())
                 .set("stroke", "none")
                 .set("fill", "white"),
             operation => {
-                tracing::info!(
-                    ?operation,
-                    "TernaryRasterOperation is not implemented"
-                );
+                info!(?operation, "TernaryRasterOperation is not implemented");
 
                 return Ok(None);
             }

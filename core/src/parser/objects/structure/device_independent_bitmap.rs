@@ -26,11 +26,11 @@ pub struct DeviceIndependentBitmap {
 }
 
 impl DeviceIndependentBitmap {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
+    ))]
     pub(crate) fn parse_with_color_usage<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,

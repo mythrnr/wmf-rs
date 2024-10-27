@@ -16,6 +16,34 @@
 #[macro_use]
 extern crate alloc;
 
+#[cfg(feature = "tracing")]
+#[macro_use]
+extern crate tracing;
+
+#[cfg(not(feature = "tracing"))]
+#[macro_use]
+mod tracing {
+    #[macro_export]
+    macro_rules! debug {
+        ($($arg:tt)+) => {};
+    }
+
+    #[macro_export]
+    macro_rules! info {
+        ($($arg:tt)+) => {};
+    }
+
+    #[macro_export]
+    macro_rules! warn {
+        ($($arg:tt)+) => {};
+    }
+
+    #[macro_export]
+    macro_rules! error {
+        ($($arg:tt)+) => {};
+    }
+}
+
 pub mod converter;
 pub mod parser;
 
