@@ -2,8 +2,8 @@ mod bitmap;
 mod graphics_object;
 mod player;
 
-pub use self::player::*;
-use self::{bitmap::*, graphics_object::*};
+use self::graphics_object::*;
+pub use self::{bitmap::Bitmap, player::*};
 use crate::{imports::*, parser::*};
 
 #[cfg(feature = "svg")]
