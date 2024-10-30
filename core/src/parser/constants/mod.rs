@@ -22,18 +22,18 @@ macro_rules! impl_parser {
     (_, $t:ident, $raw:ty, $size:expr, $digits:expr) => {
         paste::paste! {
             impl $t {
-                #[::tracing::instrument(
+                #[cfg_attr(feature = "tracing", ::tracing::instrument(
                     level = tracing::Level::TRACE,
                     skip_all,
                     err(level = tracing::Level::ERROR, Display),
-                )]
-                pub fn parse<R: ::std::io::Read>(
+                ))]
+                pub fn parse<R: $crate::Read>(
                     buf: &mut R,
                 ) -> Result<(Self, usize), $crate::parser::ParseError> {
                     let (value, consumed_bytes) = crate::parser::[<read_ $raw _from_le_bytes>](buf)?;
                     let Some(v)  = Self::from_repr(value) else {
                         return Err($crate::parser::ParseError::UnexpectedEnumValue {
-                            cause: ::std::format!(
+                            cause: ::alloc::format!(
                                 ::core::concat!(
                                     "unexpected value as ",
                                     ::core::stringify!($t),

@@ -19,7 +19,7 @@ pub struct META_OFFSETCLIPRGN {
 }
 
 impl META_OFFSETCLIPRGN {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -27,8 +27,8 @@ impl META_OFFSETCLIPRGN {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

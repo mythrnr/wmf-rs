@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The Scan Object specifies a collection of scanlines.
 #[derive(Clone, Debug)]
 #[allow(clippy::struct_field_names)]
@@ -23,12 +25,12 @@ pub struct Scan {
 }
 
 impl Scan {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let ((count, count_bytes), (top, top_bytes), (bottom, bottom_bytes)) = (
@@ -82,12 +84,12 @@ pub struct ScanLine {
 }
 
 impl ScanLine {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let ((left, left_bytes), (right, right_bytes)) = (

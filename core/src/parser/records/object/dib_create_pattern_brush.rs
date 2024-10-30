@@ -31,7 +31,7 @@ pub struct META_DIBCREATEPATTERNBRUSH {
 }
 
 impl META_DIBCREATEPATTERNBRUSH {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -39,8 +39,8 @@ impl META_DIBCREATEPATTERNBRUSH {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
@@ -50,19 +50,15 @@ impl META_DIBCREATEPATTERNBRUSH {
             crate::parser::RecordType::META_DIBCREATEPATTERNBRUSH,
         )?;
 
-        let ((style, style_bytes), (color_usage, color_usage_bytes)) = (
+        let ((style, style_bytes), (mut color_usage, color_usage_bytes)) = (
             crate::parser::BrushStyle::parse(buf)?,
-            crate::parser::read::<R, 2>(buf)?,
+            crate::parser::ColorUsage::parse(buf)?,
         );
         record_size.consume(style_bytes + color_usage_bytes);
 
-        let color_usage =
-            if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
-                crate::parser::ColorUsage::DIB_RGB_COLORS
-            } else {
-                let mut buffer = &color_usage[..];
-                crate::parser::ColorUsage::parse(&mut buffer)?.0
-            };
+        if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
+            color_usage = crate::parser::ColorUsage::DIB_RGB_COLORS;
+        }
 
         let (target, c) =
             crate::parser::DeviceIndependentBitmap::parse_with_color_usage(

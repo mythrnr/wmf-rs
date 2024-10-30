@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The DeviceIndependentBitmap (DIB) Object defines an image in
 /// device-independent bitmap (DIB) format.
 #[derive(Clone, Debug)]
@@ -24,12 +26,12 @@ pub struct DeviceIndependentBitmap {
 }
 
 impl DeviceIndependentBitmap {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub(crate) fn parse_with_color_usage<R: std::io::Read>(
+    ))]
+    pub(crate) fn parse_with_color_usage<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
@@ -64,7 +66,7 @@ pub enum Colors {
 }
 
 impl Colors {
-    fn parse<R: std::io::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
         dib_header_info: &crate::parser::BitmapInfoHeader,
@@ -72,14 +74,14 @@ impl Colors {
         match dib_header_info.bit_count() {
             crate::parser::BitCount::BI_BITCOUNT_0
             | crate::parser::BitCount::BI_BITCOUNT_5 => Ok((Colors::Null, 0)),
-            crate::parser::BitCount::BI_BITCOUNT_1 => {
-                Self::parse_from_color_usage(buf, color_usage, 2)
-            }
-            crate::parser::BitCount::BI_BITCOUNT_2 => {
-                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(4))
-            }
-            crate::parser::BitCount::BI_BITCOUNT_3 => {
-                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(8))
+            crate::parser::BitCount::BI_BITCOUNT_1
+            | crate::parser::BitCount::BI_BITCOUNT_2
+            | crate::parser::BitCount::BI_BITCOUNT_3 => {
+                Self::parse_from_color_usage(
+                    buf,
+                    color_usage,
+                    dib_header_info.color_used() as usize,
+                )
             }
             crate::parser::BitCount::BI_BITCOUNT_4
             | crate::parser::BitCount::BI_BITCOUNT_6 => {
@@ -129,7 +131,7 @@ impl Colors {
         }
     }
 
-    fn parse_from_color_usage<R: std::io::Read>(
+    fn parse_from_color_usage<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
         colors_length: usize,
@@ -193,8 +195,8 @@ pub struct BitmapBuffer {
     pub a_data: Vec<u8>,
 }
 
-impl std::fmt::Debug for BitmapBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for BitmapBuffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("BitmapBuffer")
             .field(
                 "undefined_space",

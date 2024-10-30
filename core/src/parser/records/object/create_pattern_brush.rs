@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_CREATEPATTERNBRUSH Record creates a brush object with a pattern
 /// specified by a bitmap. (The META_CREATEPATTERNBRUSH record type is
 /// deprecated. No version of Windows emits this record. Playback implementation
@@ -28,8 +30,8 @@ pub struct META_CREATEPATTERNBRUSH {
     pub pattern: Vec<u8>,
 }
 
-impl std::fmt::Debug for META_CREATEPATTERNBRUSH {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for META_CREATEPATTERNBRUSH {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("META_CREATEPATTERNBRUSH")
             .field("record_size", &self.record_size)
             .field("record_function", &self.record_function)
@@ -41,7 +43,7 @@ impl std::fmt::Debug for META_CREATEPATTERNBRUSH {
 }
 
 impl META_CREATEPATTERNBRUSH {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -49,8 +51,8 @@ impl META_CREATEPATTERNBRUSH {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

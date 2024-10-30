@@ -30,7 +30,7 @@ fn check_lower_byte_matches(
     Ok(())
 }
 
-fn consume_remaining_bytes<R: std::io::Read>(
+fn consume_remaining_bytes<R: crate::Read>(
     buf: &mut R,
     record_size: crate::parser::RecordSize,
 ) -> Result<(), crate::parser::ParseError> {
@@ -45,12 +45,12 @@ fn consume_remaining_bytes<R: std::io::Read>(
 pub struct RecordSize(u32, usize);
 
 impl RecordSize {
-    #[::tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<Self, crate::parser::ParseError> {
         let (v, c) = crate::parser::read_u32_from_le_bytes(buf)?;
@@ -71,14 +71,14 @@ impl From<RecordSize> for u32 {
     }
 }
 
-impl std::fmt::Display for RecordSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for RecordSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:#010X}", self.0)
     }
 }
 
-impl std::fmt::Debug for RecordSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RecordSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "RecordSize(size: {:#010X}, consumed_bytes: {})",

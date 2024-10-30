@@ -12,7 +12,7 @@ pub struct META_SETRELABS {
 }
 
 impl META_SETRELABS {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -20,15 +20,13 @@ impl META_SETRELABS {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        tracing::warn!(
-            "The META_SETRELABS Record is reserved and not supported."
-        );
+        warn!("The META_SETRELABS Record is reserved and not supported.");
 
         crate::parser::records::check_lower_byte_matches(
             record_function,

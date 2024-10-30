@@ -1,22 +1,22 @@
-use crate::parser::*;
+use crate::{imports::*, parser::*};
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, snafu::prelude::Snafu)]
 pub enum PlayError {
-    #[error("failed to generate: {cause}")]
+    #[snafu(display("failed to generate: {cause}"))]
     FailedGenerate { cause: String },
-    #[error("invalid brush: {cause}")]
+    #[snafu(display("invalid brush: {cause}"))]
     InvalidBrush { cause: String },
-    #[error("invalid record: {cause}")]
+    #[snafu(display("invalid record: {cause}"))]
     InvalidRecord { cause: String },
-    #[error("unexpected graphics object: {cause}")]
+    #[snafu(display("unexpected graphics object: {cause}"))]
     UnexpectedGraphicsObject { cause: String },
-    #[error("unknown: {cause}")]
+    #[snafu(display("unknown: {cause}"))]
     Unknown { cause: String },
 }
 
 pub trait Player {
     /// Call after converting to write output.
-    fn generate(self) -> Result<(), PlayError>;
+    fn generate(self) -> Result<Vec<u8>, PlayError>;
 
     // .
     // .

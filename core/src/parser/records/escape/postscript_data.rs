@@ -1,6 +1,6 @@
 impl crate::parser::META_ESCAPE {
     pub(in crate::parser::records::escape) fn parse_as_POSTSCRIPT_DATA<
-        R: std::io::Read,
+        R: crate::Read,
     >(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,

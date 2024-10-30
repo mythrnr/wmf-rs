@@ -28,6 +28,7 @@ pub use self::{
     pitch_and_family::*, point_l::*, point_s::*, poly_polygon::*, rect::*,
     rect_l::*, rgb_quad::*, scan::*, size_l::*,
 };
+use crate::imports::*;
 
 /// Convert UTF16-LE bytes to String.
 fn utf16le_bytes_to_string(

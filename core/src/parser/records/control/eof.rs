@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_EOF Record indicates the end of the WMF metafile.
 #[derive(Clone, Debug)]
 pub struct META_EOF {
@@ -12,7 +14,7 @@ pub struct META_EOF {
 }
 
 impl META_EOF {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -20,8 +22,8 @@ impl META_EOF {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         _buf: &mut R,
         record_size: crate::parser::RecordSize,
         record_function: u16,

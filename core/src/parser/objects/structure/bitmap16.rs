@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The Bitmap16 Object specifies information about the dimensions and color
 /// format of a bitmap.
 #[derive(Clone)]
@@ -29,8 +31,8 @@ pub struct Bitmap16 {
     pub bits: Vec<u8>,
 }
 
-impl std::fmt::Debug for Bitmap16 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Bitmap16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Bitmap16")
             .field("typ", &self.typ)
             .field("width", &self.width)
@@ -44,12 +46,12 @@ impl std::fmt::Debug for Bitmap16 {
 }
 
 impl Bitmap16 {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (mut bitmap, mut consumed_bytes) = Self::parse_without_bits(buf)?;
@@ -62,12 +64,12 @@ impl Bitmap16 {
         Ok((bitmap, consumed_bytes))
     }
 
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse_without_bits<R: std::io::Read>(
+    ))]
+    pub fn parse_without_bits<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (

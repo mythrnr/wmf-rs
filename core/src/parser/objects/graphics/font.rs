@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The Font object specifies the attributes of a logical font.
 #[derive(Clone, Debug)]
 pub struct Font {
@@ -97,12 +99,12 @@ pub struct Font {
 }
 
 impl Font {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (
@@ -158,10 +160,10 @@ impl Font {
             + pitch_and_family_bytes;
 
         let facename = {
-            let mut bytes = vec![];
-            let c = buf.read_to_end(&mut bytes).map_err(|err| {
+            let mut bytes = vec![0; 32];
+            let c = buf.read(&mut bytes).map_err(|err| {
                 crate::parser::ParseError::UnexpectedPattern {
-                    cause: err.to_string(),
+                    cause: format!("{err:?}"),
                 }
             })?;
             consumed_bytes += c;

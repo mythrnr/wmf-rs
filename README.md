@@ -11,7 +11,7 @@ Library to parse WMF and convert to SVG (WIP).
 
 ## Requirements
 
-- Rust 1.81.0+ (For Development)
+- Rust 1.82.0+ (For Development)
 - [wasm-pack](https://github.com/rustwasm/wasm-pack)
 - Yarn 1.22.22+ (To run example)
 
@@ -58,6 +58,8 @@ make serve
 - Enable to set log level by running `setLogLevel(level: "trace" | "debug" | "info" | "warn" | "error")`
   - Default is `info` level.
   - **NOTE: trace and debug levels are very slow to execute.**
+- If you want more small WASM, disable `tracing` feature. But no logs will be out in console.
+  - Running `setLogLevel` has no effect.
 
 ```html
 <script type="module">

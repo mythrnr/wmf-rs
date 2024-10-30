@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_TEXTOUT Record outputs a character string at the specified location
 /// by using the font, background color, and text color that are defined in the
 /// playback device context.
@@ -33,7 +35,7 @@ pub struct META_TEXTOUT {
 }
 
 impl META_TEXTOUT {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -41,8 +43,8 @@ impl META_TEXTOUT {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
@@ -71,7 +73,7 @@ impl META_TEXTOUT {
                 bytes
                     .into_iter()
                     .filter_map(|v| {
-                        (*crate::parser::SYMBOL_CHARSET_TABLE).get(&v).copied()
+                        crate::parser::symbol_charset_table().get(&v).copied()
                     })
                     .collect::<String>()
                     .replace('\0', "")

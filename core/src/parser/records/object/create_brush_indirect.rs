@@ -18,7 +18,7 @@ pub struct META_CREATEBRUSHINDIRECT {
 }
 
 impl META_CREATEBRUSHINDIRECT {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -26,8 +26,8 @@ impl META_CREATEBRUSHINDIRECT {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

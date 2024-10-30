@@ -7,36 +7,36 @@ pub struct DeviceContext {
 
     // structures
     pub drawing_position: PointS,
-    pub _text_bk_color: ColorRef,
+    pub text_bk_color: ColorRef,
     pub text_color: ColorRef,
     pub window: Window,
 
     // graphics props
-    pub _bk_mode: MixMode,
+    pub bk_mode: MixMode,
     pub clipping_region: Option<Rect>,
     pub poly_fill_mode: PolyFillMode,
     pub text_align_horizontal: TextAlignmentMode,
     pub text_align_vertical: VerticalTextAlignmentMode,
     pub text_align_update_cp: bool,
 
-    pub _draw_mode: Option<BinaryRasterOperation>,
-    pub _map_mode: MapMode,
+    pub draw_mode: Option<BinaryRasterOperation>,
+    pub map_mode: MapMode,
 }
 
 impl Default for DeviceContext {
     fn default() -> Self {
         Self {
             object_table: GraphicsObjects::new(0),
-            _bk_mode: MixMode::TRANSPARENT,
+            bk_mode: MixMode::TRANSPARENT,
             clipping_region: None,
             drawing_position: PointS { x: 0, y: 0 },
-            _draw_mode: None,
-            _map_mode: MapMode::MM_TEXT,
+            draw_mode: None,
+            map_mode: MapMode::MM_TEXT,
             poly_fill_mode: PolyFillMode::ALTERNATE,
             text_align_horizontal: TextAlignmentMode::TA_LEFT,
             text_align_vertical: VerticalTextAlignmentMode::VTA_BASELINE,
             text_align_update_cp: false,
-            _text_bk_color: ColorRef::white(),
+            text_bk_color: ColorRef::white(),
             text_color: ColorRef::black(),
             window: Window::new(),
         }
@@ -50,7 +50,7 @@ impl DeviceContext {
     }
 
     pub fn bk_mode(mut self, bk_mode: MixMode) -> Self {
-        self._bk_mode = bk_mode;
+        self.bk_mode = bk_mode;
         self
     }
 
@@ -75,12 +75,12 @@ impl DeviceContext {
     }
 
     pub fn draw_mode(mut self, draw_mode: BinaryRasterOperation) -> Self {
-        self._draw_mode = draw_mode.into();
+        self.draw_mode = draw_mode.into();
         self
     }
 
     pub fn map_mode(mut self, map_mode: MapMode) -> Self {
-        self._map_mode = map_mode;
+        self.map_mode = map_mode;
         self
     }
 
@@ -136,7 +136,7 @@ impl DeviceContext {
     }
 
     pub fn text_bk_color(mut self, text_bk_color: ColorRef) -> Self {
-        self._text_bk_color = text_bk_color;
+        self.text_bk_color = text_bk_color;
         self
     }
 

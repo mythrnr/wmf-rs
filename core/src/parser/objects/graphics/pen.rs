@@ -1,9 +1,11 @@
+use crate::imports::*;
+
 /// The Pen Object specifies the style, width, and color of a pen.
 #[derive(Clone, Debug)]
 pub struct Pen {
     /// PenStyle (2 bytes): A 16-bit unsigned integer that specifies the pen
     /// style. The value MUST be defined from the PenStyle Enumeration table.
-    pub style: std::collections::BTreeSet<crate::parser::PenStyle>,
+    pub style: BTreeSet<crate::parser::PenStyle>,
     /// Width (4 bytes): A 32-bit PointS Object that specifies a point for the
     /// object dimensions. The x-coordinate is the pen width. The y-coordinate
     /// is ignored.
@@ -14,12 +16,12 @@ pub struct Pen {
 }
 
 impl Pen {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         use strum::IntoEnumIterator;
@@ -34,7 +36,7 @@ impl Pen {
             crate::parser::ColorRef::parse(buf)?,
         );
 
-        let mut style = std::collections::BTreeSet::new();
+        let mut style = BTreeSet::new();
         let (mut style_set, mut end_cap_set, mut join_set) =
             (false, false, false);
 

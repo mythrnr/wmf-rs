@@ -3,19 +3,17 @@ mod objects;
 mod records;
 
 pub use self::{constants::*, objects::*, records::*};
+use crate::imports::*;
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, snafu::prelude::Snafu)]
 pub enum ParseError {
-    #[error("failed to read buffer: {cause}")]
-    FailedReadBuffer {
-        #[source]
-        cause: ReadError,
-    },
-    #[error("not supported: {cause}")]
+    #[snafu(display("failed to read buffer: {cause}"))]
+    FailedReadBuffer { cause: ReadError },
+    #[snafu(display("not supported: {cause}"))]
     NotSupported { cause: String },
-    #[error("unexpected enum value: {cause}")]
+    #[snafu(display("unexpected enum value: {cause}"))]
     UnexpectedEnumValue { cause: String },
-    #[error("unexpected bytes pattern: {cause}")]
+    #[snafu(display("unexpected bytes pattern: {cause}"))]
     UnexpectedPattern { cause: String },
 }
 
@@ -25,25 +23,19 @@ impl From<ReadError> for ParseError {
     }
 }
 
-#[derive(Clone, Debug, thiserror::Error)]
-#[error("failed to read buffer: {cause}")]
+#[derive(Clone, Debug, snafu::prelude::Snafu)]
+#[snafu(display("failed to read buffer: {cause}"))]
 pub struct ReadError {
     cause: String,
 }
 
 impl ReadError {
-    pub fn new(err: impl std::fmt::Display) -> Self {
+    pub fn new(err: impl core::fmt::Display) -> Self {
         Self { cause: err.to_string() }
     }
 }
 
-impl From<std::io::Error> for ReadError {
-    fn from(err: std::io::Error) -> Self {
-        Self::new(err)
-    }
-}
-
-pub fn read<R: std::io::Read, const N: usize>(
+pub fn read<R: crate::Read, const N: usize>(
     buf: &mut R,
 ) -> Result<([u8; N], usize), ReadError> {
     let mut buffer = [0u8; N];
@@ -53,11 +45,11 @@ pub fn read<R: std::io::Read, const N: usize>(
         Ok(bytes_read) => Err(ReadError::new(format!(
             "expected {N} bytes read, but {bytes_read} bytes read"
         ))),
-        Err(err) => Err(err.into()),
+        Err(err) => Err(ReadError::new(format!("{err:?}"))),
     }
 }
 
-pub fn read_variable<R: std::io::Read>(
+pub fn read_variable<R: crate::Read>(
     buf: &mut R,
     len: usize,
 ) -> Result<(Vec<u8>, usize), ReadError> {
@@ -72,7 +64,7 @@ pub fn read_variable<R: std::io::Read>(
         Ok(bytes_read) => Err(ReadError::new(format!(
             "expected {len} bytes read, but {bytes_read} bytes read"
         ))),
-        Err(err) => Err(err.into()),
+        Err(err) => Err(ReadError::new(format!("{err:?}"))),
     }
 }
 
@@ -80,7 +72,7 @@ macro_rules! impl_from_le_bytes {
     ($(($t:ty, $n:expr)),+) => {
         paste::paste!{
             $(
-                pub fn [<read_ $t _from_le_bytes>]<R: ::std::io::Read>(
+                pub fn [<read_ $t _from_le_bytes>]<R: $crate::Read>(
                     buf: &mut R,
                 ) -> Result<($t, usize), ReadError> {
                     let (bytes, consumed_bytes) = read::<R, $n>(buf)?;

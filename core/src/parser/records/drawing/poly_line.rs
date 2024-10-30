@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_POLYLINE Record draws a series of line segments by connecting the
 /// points in the specified array.
 #[derive(Clone, Debug)]
@@ -19,7 +21,7 @@ pub struct META_POLYLINE {
 }
 
 impl META_POLYLINE {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(
@@ -27,8 +29,8 @@ impl META_POLYLINE {
             record_function = %format!("{record_function:#06X}"),
         ),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub fn parse<R: std::io::Read>(
+    ))]
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,

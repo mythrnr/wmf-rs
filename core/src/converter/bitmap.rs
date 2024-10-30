@@ -1,21 +1,26 @@
-use crate::parser::*;
+use crate::{imports::*, parser::*};
 
 #[derive(Clone)]
-pub struct Bitmap(Vec<u8>);
+pub struct Bitmap(pub(crate) Vec<u8>);
 
-impl std::fmt::Debug for Bitmap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Bitmap {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Bitmap")
             .field(&format!("[u8; {}]", self.0.len()))
             .finish()
     }
 }
 
+impl Bitmap {
+    pub fn to_vec(self) -> Vec<u8> {
+        self.0
+    }
+}
+
 impl From<DeviceIndependentBitmap> for Bitmap {
     fn from(dib: DeviceIndependentBitmap) -> Self {
-        let mut file_header = vec![];
         let mut info_header = vec![];
-        let mut file_size: u32 = 14;
+        let mut file_size: u32 = 0;
 
         // write info header
         match dib.dib_header_info {
@@ -197,6 +202,8 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         file_size += data_len;
 
         // write file headers
+        let mut file_header = vec![];
+        file_size += 14;
         file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
         file_header.extend(0u32.to_le_bytes());
@@ -244,12 +251,5 @@ impl From<Bitmap16> for Bitmap {
         };
 
         Self(data)
-    }
-}
-
-impl Bitmap {
-    pub fn as_data_url(&self) -> String {
-        use base64::{engine::general_purpose::STANDARD, Engine};
-        format!("data:image/bmp;base64,{}", STANDARD.encode(&self.0))
     }
 }

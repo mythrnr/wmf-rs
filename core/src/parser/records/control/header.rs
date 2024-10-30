@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The META_HEADER Record is the first record in a standard (nonplaceable) WMF
 /// metafile.
 #[derive(Clone, Debug)]
@@ -34,13 +36,13 @@ pub struct META_HEADER {
 }
 
 impl META_HEADER {
-    #[tracing::instrument(
+    #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         fields(key = %format!("{key:#010X}")),
         err(level = tracing::Level::ERROR, Display),
-    )]
-    pub(in crate::parser::records::control) fn parse<R: std::io::Read>(
+    ))]
+    pub(in crate::parser::records::control) fn parse<R: crate::Read>(
         buf: &mut R,
         key: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
