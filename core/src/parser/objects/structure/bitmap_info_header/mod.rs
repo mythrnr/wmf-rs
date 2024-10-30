@@ -452,6 +452,15 @@ impl BitmapInfoHeader {
         }
     }
 
+    pub fn header_size(&self) -> u32 {
+        match self {
+            Self::Core { header_size, .. }
+            | Self::Info { header_size, .. }
+            | Self::V4 { header_size, .. }
+            | Self::V5 { header_size, .. } => *header_size,
+        }
+    }
+
     pub fn bit_count(&self) -> crate::parser::BitCount {
         match self {
             Self::Core { bit_count, .. }

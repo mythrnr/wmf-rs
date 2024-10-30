@@ -59,6 +59,7 @@ make serve
   - Default is `info` level.
   - **NOTE: trace and debug levels are very slow to execute.**
 - If you want more small WASM, disable `tracing` feature. But no logs will be out in console.
+  - Running `setLogLevel` has no effect.
 
 ```html
 <script type="module">

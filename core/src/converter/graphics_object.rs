@@ -40,9 +40,9 @@ impl GraphicsObjects {
 pub struct SelectedGraphicsObject {
     pub brush: Brush,
     pub font: Font,
-    pub _palette: Option<Palette>,
+    pub palette: Option<Palette>,
     pub pen: Pen,
-    pub _region: Option<Region>,
+    pub region: Option<Region>,
 }
 
 impl Default for SelectedGraphicsObject {
@@ -68,13 +68,13 @@ impl Default for SelectedGraphicsObject {
                 },
                 facename: "System".to_owned(),
             },
-            _palette: None,
+            palette: None,
             pen: Pen {
                 style: BTreeSet::from_iter([PenStyle::PS_SOLID]),
                 width: PointS { x: 1, y: 0 },
                 color_ref: ColorRef::black(),
             },
-            _region: None,
+            region: None,
         }
     }
 }
@@ -91,7 +91,7 @@ impl SelectedGraphicsObject {
     }
 
     pub fn palette(mut self, palette: Palette) -> Self {
-        self._palette = palette.into();
+        self.palette = palette.into();
         self
     }
 
@@ -101,7 +101,7 @@ impl SelectedGraphicsObject {
     }
 
     pub fn region(mut self, region: Region) -> Self {
-        self._region = region.into();
+        self.region = region.into();
         self
     }
 }

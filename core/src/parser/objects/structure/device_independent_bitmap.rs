@@ -66,7 +66,7 @@ pub enum Colors {
 }
 
 impl Colors {
-    fn parse<R: crate::Read>(
+    pub fn parse<R: crate::Read>(
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
         dib_header_info: &crate::parser::BitmapInfoHeader,
@@ -74,14 +74,14 @@ impl Colors {
         match dib_header_info.bit_count() {
             crate::parser::BitCount::BI_BITCOUNT_0
             | crate::parser::BitCount::BI_BITCOUNT_5 => Ok((Colors::Null, 0)),
-            crate::parser::BitCount::BI_BITCOUNT_1 => {
-                Self::parse_from_color_usage(buf, color_usage, 2)
-            }
-            crate::parser::BitCount::BI_BITCOUNT_2 => {
-                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(4))
-            }
-            crate::parser::BitCount::BI_BITCOUNT_3 => {
-                Self::parse_from_color_usage(buf, color_usage, 2_usize.pow(8))
+            crate::parser::BitCount::BI_BITCOUNT_1
+            | crate::parser::BitCount::BI_BITCOUNT_2
+            | crate::parser::BitCount::BI_BITCOUNT_3 => {
+                Self::parse_from_color_usage(
+                    buf,
+                    color_usage,
+                    dib_header_info.color_used() as usize,
+                )
             }
             crate::parser::BitCount::BI_BITCOUNT_4
             | crate::parser::BitCount::BI_BITCOUNT_6 => {

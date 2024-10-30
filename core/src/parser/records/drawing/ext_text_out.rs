@@ -1,5 +1,4 @@
 use crate::imports::*;
-use unicode_segmentation::UnicodeSegmentation;
 
 /// The META_EXTTEXTOUT Record outputs text by using the font, background color,
 /// and text color that are defined in the playback device context. Optionally,
@@ -69,6 +68,8 @@ impl META_EXTTEXTOUT {
         record_function: u16,
         charset: crate::parser::CharacterSet,
     ) -> Result<Self, crate::parser::ParseError> {
+        use unicode_segmentation::UnicodeSegmentation;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_EXTTEXTOUT,

@@ -11,11 +11,16 @@ impl core::fmt::Debug for Bitmap {
     }
 }
 
+impl Bitmap {
+    pub fn to_vec(self) -> Vec<u8> {
+        self.0
+    }
+}
+
 impl From<DeviceIndependentBitmap> for Bitmap {
     fn from(dib: DeviceIndependentBitmap) -> Self {
-        let mut file_header = vec![];
         let mut info_header = vec![];
-        let mut file_size: u32 = 14;
+        let mut file_size: u32 = 0;
 
         // write info header
         match dib.dib_header_info {
@@ -184,9 +189,8 @@ impl From<DeviceIndependentBitmap> for Bitmap {
             }
             Colors::RGBQuad(values) => {
                 for v in values {
-                    info_header.extend(vec![
-                        v.red, v.green, v.blue, v.reserved
-                    ]);
+                    info_header
+                        .extend(vec![v.red, v.green, v.blue, v.reserved]);
                 }
             }
             _ => {}
@@ -198,6 +202,8 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         file_size += data_len;
 
         // write file headers
+        let mut file_header = vec![];
+        file_size += 14;
         file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
         file_header.extend(0u32.to_le_bytes());

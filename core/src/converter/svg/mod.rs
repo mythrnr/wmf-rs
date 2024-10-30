@@ -1932,9 +1932,7 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_relabs(&mut self, _record: META_SETRELABS) -> Result<(), PlayError> {
-        info!(
-            "META_SETRELABS: reserved record and not supported"
-        );
+        info!("META_SETRELABS: reserved record and not supported");
         Ok(())
     }
 

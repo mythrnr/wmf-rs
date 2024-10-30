@@ -26,9 +26,7 @@ impl META_SETRELABS {
         record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        warn!(
-            "The META_SETRELABS Record is reserved and not supported."
-        );
+        warn!("The META_SETRELABS Record is reserved and not supported.");
 
         crate::parser::records::check_lower_byte_matches(
             record_function,
