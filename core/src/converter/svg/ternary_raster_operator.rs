@@ -84,7 +84,11 @@ impl TernaryRasterOperator {
                 .set("fill", "black"),
             TernaryRasterOperation::SRCCOPY => {
                 let bitmap = match self.source.unwrap() {
-                    Source::Bitmap16(data) => Bitmap::from(data),
+                    Source::Bitmap16(data) => {
+                        let bitmap =
+                            crate::parser::DeviceIndependentBitmap::from(data);
+                        crate::converter::Bitmap::from(bitmap)
+                    }
                     Source::Bitmap(data) => Bitmap::from(data),
                 };
 

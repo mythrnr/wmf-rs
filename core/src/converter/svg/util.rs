@@ -19,7 +19,7 @@ pub fn as_point_string(point: &PointS) -> String {
 impl crate::converter::Bitmap {
     pub fn as_data_url(&self) -> String {
         use base64::{engine::general_purpose::STANDARD, Engine};
-        format!("data:image/bmp;base64,{}", STANDARD.encode(&self.0))
+        format!("data:image/bmp;base64,{}", STANDARD.encode(self.as_slice()))
     }
 }
 
@@ -130,8 +130,10 @@ impl From<Brush> for Fill {
                 Fill::Pattern { pattern }
             }
             Brush::Pattern { brush_hatch } => {
-                let data = crate::converter::Bitmap::from(brush_hatch.clone())
-                    .as_data_url();
+                let bitmap = crate::parser::DeviceIndependentBitmap::from(
+                    brush_hatch.clone(),
+                );
+                let data = crate::converter::Bitmap::from(bitmap).as_data_url();
                 let image = Node::new("image")
                     .set("x", 0.to_string())
                     .set("y", 0.to_string())

@@ -14,14 +14,6 @@
 )]
 #[repr(u32)]
 pub enum GamutMappingIntent {
-    /// Specifies that the white point SHOULD be maintained. Typically used
-    /// when logical colors MUST be matched to their nearest physical color in
-    /// the destination color gamut.
-    ///
-    /// Intent: Match
-    ///
-    /// ICC name: Absolute Colorimetric
-    LCS_GM_ABS_COLORIMETRIC = 0x00000008,
     /// Specifies that saturation SHOULD be maintained. Typically used for
     /// business charts and other situations in which dithering is not
     /// required.
@@ -44,6 +36,14 @@ pub enum GamutMappingIntent {
     ///
     /// ICC name: Perceptual
     LCS_GM_IMAGES = 0x00000004,
+    /// Specifies that the white point SHOULD be maintained. Typically used
+    /// when logical colors MUST be matched to their nearest physical color in
+    /// the destination color gamut.
+    ///
+    /// Intent: Match
+    ///
+    /// ICC name: Absolute Colorimetric
+    LCS_GM_ABS_COLORIMETRIC = 0x00000008,
 }
 
 crate::parser::constants::impl_parser!(GamutMappingIntent, u32);

@@ -50,7 +50,7 @@ impl META_DIBCREATEPATTERNBRUSH {
             crate::parser::RecordType::META_DIBCREATEPATTERNBRUSH,
         )?;
 
-        let ((style, style_bytes), (mut color_usage, color_usage_bytes)) = (
+        let ((mut style, style_bytes), (mut color_usage, color_usage_bytes)) = (
             crate::parser::BrushStyle::parse(buf)?,
             crate::parser::ColorUsage::parse(buf)?,
         );
@@ -58,6 +58,8 @@ impl META_DIBCREATEPATTERNBRUSH {
 
         if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
             color_usage = crate::parser::ColorUsage::DIB_RGB_COLORS;
+        } else {
+            style = crate::parser::BrushStyle::BS_DIBPATTERNPT;
         }
 
         let (target, c) =
@@ -78,43 +80,51 @@ impl META_DIBCREATEPATTERNBRUSH {
                 let dib = self.target.clone();
                 let (width, height, planes, bits_pixel) =
                     match dib.dib_header_info {
-                        crate::parser::BitmapInfoHeader::Core {
-                            width,
-                            height,
-                            planes,
-                            bit_count,
-                            ..
-                        } => (
+                        crate::parser::BitmapInfoHeader::Core(
+                            crate::parser::BitmapInfoHeaderCore {
+                                width,
+                                height,
+                                planes,
+                                bit_count,
+                                ..
+                            },
+                        ) => (
                             i16::try_from(width).expect("should be as i16"),
                             i16::try_from(height).expect("should be as i16"),
                             u8::try_from(planes).expect("should be as u8"),
-                            bit_count as u8,
+                            bit_count,
                         ),
-                        crate::parser::BitmapInfoHeader::Info {
-                            width,
-                            height,
-                            planes,
-                            bit_count,
-                            ..
-                        }
-                        | crate::parser::BitmapInfoHeader::V4 {
-                            width,
-                            height,
-                            planes,
-                            bit_count,
-                            ..
-                        }
-                        | crate::parser::BitmapInfoHeader::V5 {
-                            width,
-                            height,
-                            planes,
-                            bit_count,
-                            ..
-                        } => (
+                        crate::parser::BitmapInfoHeader::Info(
+                            crate::parser::BitmapInfoHeaderInfo {
+                                width,
+                                height,
+                                planes,
+                                bit_count,
+                                ..
+                            },
+                        )
+                        | crate::parser::BitmapInfoHeader::V4(
+                            crate::parser::BitmapInfoHeaderV4 {
+                                width,
+                                height,
+                                planes,
+                                bit_count,
+                                ..
+                            },
+                        )
+                        | crate::parser::BitmapInfoHeader::V5(
+                            crate::parser::BitmapInfoHeaderV5 {
+                                width,
+                                height,
+                                planes,
+                                bit_count,
+                                ..
+                            },
+                        ) => (
                             i16::try_from(width).expect("should be i16"),
                             i16::try_from(height).expect("should be i16"),
                             u8::try_from(planes).expect("should be as u8"),
-                            bit_count as u8,
+                            bit_count,
                         ),
                     };
 
