@@ -133,6 +133,7 @@ impl Colors {
         ));
 
         match dib_header_info.bit_count() {
+            crate::parser::BitCount::BI_BITCOUNT_0 => unreachable!(),
             crate::parser::BitCount::BI_BITCOUNT_1
             | crate::parser::BitCount::BI_BITCOUNT_2
             | crate::parser::BitCount::BI_BITCOUNT_3 => {
@@ -158,6 +159,7 @@ impl Colors {
             crate::parser::BitCount::BI_BITCOUNT_4
             | crate::parser::BitCount::BI_BITCOUNT_6 => {
                 match &dib_header_info {
+                    crate::parser::BitmapInfoHeader::Core(_) => unreachable!(),
                     crate::parser::BitmapInfoHeader::Info(
                         crate::parser::BitmapInfoHeaderInfo {
                             compression, ..
@@ -194,10 +196,8 @@ impl Colors {
                         }
                         _ => Ok((Colors::Null, 0)),
                     },
-                    _ => unreachable!(),
                 }
             }
-            _ => unreachable!(),
         }
     }
 
@@ -246,7 +246,7 @@ impl Colors {
 
                 Ok((Colors::PaletteIndices(table), consumed_bytes))
             }
-            _ => unreachable!(),
+            crate::parser::ColorUsage::DIB_PAL_INDICES => unreachable!(),
         }
     }
 }

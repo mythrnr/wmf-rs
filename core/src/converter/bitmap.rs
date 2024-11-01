@@ -327,7 +327,7 @@ impl<'a> BitReader<'a> {
             }
 
             let bit = (self.data[self.byte_index] >> (7 - self.bit_index)) & 1;
-            value = (value << 1) | bit as u32;
+            value = (value << 1) | u32::from(bit);
 
             self.bit_index += 1;
             if self.bit_index >= 8 {
