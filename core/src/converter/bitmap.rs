@@ -1,7 +1,7 @@
 use crate::{imports::*, parser::*};
 
 #[derive(Clone)]
-pub struct Bitmap(pub(crate) Vec<u8>);
+pub struct Bitmap(Vec<u8>);
 
 impl core::fmt::Debug for Bitmap {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -12,6 +12,10 @@ impl core::fmt::Debug for Bitmap {
 }
 
 impl Bitmap {
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn to_vec(self) -> Vec<u8> {
         self.0
     }
@@ -19,18 +23,20 @@ impl Bitmap {
 
 impl From<DeviceIndependentBitmap> for Bitmap {
     fn from(dib: DeviceIndependentBitmap) -> Self {
+        let dib = dib.expand_color_palette();
+
         let mut info_header = vec![];
         let mut file_size: u32 = 0;
 
         // write info header
         match dib.dib_header_info {
-            BitmapInfoHeader::Core {
+            BitmapInfoHeader::Core(BitmapInfoHeaderCore {
                 header_size,
                 width,
                 height,
                 planes,
                 bit_count,
-            } => {
+            }) => {
                 file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
@@ -38,7 +44,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(planes.to_le_bytes());
                 info_header.extend((bit_count as u16).to_le_bytes());
             }
-            BitmapInfoHeader::Info {
+            BitmapInfoHeader::Info(BitmapInfoHeaderInfo {
                 header_size,
                 width,
                 height,
@@ -50,7 +56,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 y_pels_per_meter,
                 color_used,
                 color_important,
-            } => {
+            }) => {
                 file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
@@ -64,7 +70,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(color_used.to_le_bytes());
                 info_header.extend(color_important.to_le_bytes());
             }
-            BitmapInfoHeader::V4 {
+            BitmapInfoHeader::V4(BitmapInfoHeaderV4 {
                 header_size,
                 width,
                 height,
@@ -85,7 +91,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 gamma_red,
                 gamma_green,
                 gamma_blue,
-            } => {
+            }) => {
                 file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
@@ -116,7 +122,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(gamma_green.to_le_bytes());
                 info_header.extend(gamma_blue.to_le_bytes());
             }
-            BitmapInfoHeader::V5 {
+            BitmapInfoHeader::V5(BitmapInfoHeaderV5 {
                 header_size,
                 width,
                 height,
@@ -141,7 +147,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 profile_data,
                 profile_size,
                 reserved,
-            } => {
+            }) => {
                 file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
@@ -178,24 +184,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
             }
         };
 
-        // write color palette
-        match dib.colors {
-            Colors::RGBColorMask(values) => {
-                for (r, g, b) in values {
-                    info_header.extend(r.to_le_bytes());
-                    info_header.extend(g.to_le_bytes());
-                    info_header.extend(b.to_le_bytes());
-                }
-            }
-            Colors::RGBQuad(values) => {
-                for v in values {
-                    info_header
-                        .extend(vec![v.red, v.green, v.blue, v.reserved]);
-                }
-            }
-            _ => {}
-        }
-
         // write pixel data
         let data = dib.bitmap_buffer.a_data;
         let data_len = u32::try_from(data.len()).expect("should be as u32");
@@ -219,37 +207,135 @@ impl From<DeviceIndependentBitmap> for Bitmap {
     }
 }
 
-impl From<Bitmap16> for Bitmap {
-    fn from(bmp: Bitmap16) -> Self {
-        let Bitmap16 { width, height, planes, bits_pixel, bits, .. } = bmp;
+impl DeviceIndependentBitmap {
+    fn expand_color_palette(self) -> Self {
+        // nothing to do.
+        if matches!(
+            self.colors,
+            crate::parser::Colors::Null
+                | crate::parser::Colors::PaletteIndices(_)
+        ) {
+            return self;
+        }
 
-        let mut file_header = vec![];
-        let mut info_header = vec![];
-        let mut file_size: u32 = 12;
-
-        info_header.extend(file_size.to_le_bytes());
-        info_header.extend(width.to_le_bytes());
-        info_header.extend(height.to_le_bytes());
-        info_header.extend(u16::from(planes).to_le_bytes());
-        info_header.extend(u16::from(bits_pixel).to_le_bytes());
-
-        // write pixel data
-        let data = bits;
-        let data_len = u32::try_from(data.len()).expect("should be as u32");
-        file_size += data_len;
-
-        // write file headers
-        file_header.extend(b"BM");
-        file_header.extend(file_size.to_le_bytes());
-        file_header.extend(0u32.to_le_bytes());
-        file_header.extend((file_size - data_len).to_le_bytes());
-
-        let data = {
-            file_header.extend(info_header);
-            file_header.extend(data);
-            file_header
+        let Self { dib_header_info, colors, bitmap_buffer } = self;
+        let bit_count = dib_header_info.bit_count();
+        let palette: Vec<_> = match colors {
+            Colors::RGBTriple(values) => values
+                .into_iter()
+                .map(|v| vec![v.red, v.green, v.blue])
+                .collect(),
+            Colors::RGBQuad(values) => values
+                .into_iter()
+                .map(|v| vec![v.red, v.green, v.blue])
+                .collect(),
+            _ => unreachable!(),
         };
 
-        Self(data)
+        let new_bit_count = crate::parser::BitCount::BI_BITCOUNT_5;
+        let new_line_bits = dib_header_info.width() * (new_bit_count as usize);
+        let new_line_bytes = ((new_line_bits + 31) / 32) * 4;
+        let new_line_padding = new_line_bytes
+            - dib_header_info.width() * (new_bit_count as usize / 8);
+
+        let line_bits = dib_header_info.width() * (bit_count as usize);
+        let line_bytes = ((line_bits + 31) / 32) * 4;
+        let mut position = 0;
+        let mut new_data = vec![];
+
+        for _ in 0..dib_header_info.height() {
+            let mut reader = BitReader::new(
+                &bitmap_buffer.a_data[position..(position + line_bytes)],
+            );
+
+            for _ in 0..dib_header_info.width() {
+                let Some(idx) = reader.read_bits(bit_count as u8) else {
+                    break;
+                };
+
+                let rgb = palette
+                    .get(idx as usize)
+                    .cloned()
+                    .unwrap_or_else(|| vec![0xFF, 0xFF, 0xFF]);
+
+                new_data.extend(rgb);
+            }
+
+            new_data.extend(vec![0; new_line_padding]);
+            position += line_bytes;
+        }
+
+        Self {
+            dib_header_info: match dib_header_info {
+                crate::parser::BitmapInfoHeader::Core(v) => {
+                    crate::parser::BitmapInfoHeader::Core(v)
+                }
+                crate::parser::BitmapInfoHeader::Info(v) => {
+                    crate::parser::BitmapInfoHeader::Info(
+                        crate::parser::BitmapInfoHeaderInfo {
+                            bit_count: new_bit_count,
+                            ..v
+                        },
+                    )
+                }
+                crate::parser::BitmapInfoHeader::V4(v) => {
+                    crate::parser::BitmapInfoHeader::V4(
+                        crate::parser::BitmapInfoHeaderV4 {
+                            bit_count: new_bit_count,
+                            ..v
+                        },
+                    )
+                }
+                crate::parser::BitmapInfoHeader::V5(v) => {
+                    crate::parser::BitmapInfoHeader::V5(
+                        crate::parser::BitmapInfoHeaderV5 {
+                            bit_count: new_bit_count,
+                            ..v
+                        },
+                    )
+                }
+            },
+            colors: crate::parser::Colors::Null,
+            bitmap_buffer: crate::parser::BitmapBuffer {
+                undefined_space: vec![],
+                a_data: new_data,
+            },
+        }
+    }
+}
+
+struct BitReader<'a> {
+    data: &'a [u8],
+    byte_index: usize,
+    bit_index: u8,
+}
+
+impl<'a> BitReader<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        BitReader { data, byte_index: 0, bit_index: 0 }
+    }
+
+    fn read_bits(&mut self, num_bits: u8) -> Option<u32> {
+        if num_bits == 0 || num_bits > 32 {
+            return None;
+        }
+
+        let mut value = 0u32;
+        for _ in 0..num_bits {
+            if self.byte_index >= self.data.len() {
+                return None;
+            }
+
+            let bit = (self.data[self.byte_index] >> (7 - self.bit_index)) & 1;
+            value = (value << 1) | bit as u32;
+
+            self.bit_index += 1;
+            if self.bit_index >= 8 {
+                self.bit_index = 0;
+                self.byte_index += 1;
+            }
+        }
+
+        Some(value)
     }
 }

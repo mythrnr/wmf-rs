@@ -18,6 +18,7 @@ mod poly_polygon;
 mod rect;
 mod rect_l;
 mod rgb_quad;
+mod rgb_triple;
 mod scan;
 mod size_l;
 
@@ -26,7 +27,7 @@ pub use self::{
     color_ref::*, device_independent_bitmap::*, log_brush::*,
     log_color_space::*, log_color_space_w::*, palette_entry::*,
     pitch_and_family::*, point_l::*, point_s::*, poly_polygon::*, rect::*,
-    rect_l::*, rgb_quad::*, scan::*, size_l::*,
+    rect_l::*, rgb_quad::*, rgb_triple::*, scan::*, size_l::*,
 };
 use crate::imports::*;
 

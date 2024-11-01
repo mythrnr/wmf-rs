@@ -2,6 +2,8 @@ use crate::imports::*;
 
 /// The Bitmap16 Object specifies information about the dimensions and color
 /// format of a bitmap.
+///
+/// Bitmap16 object seems to be Windows DDB.
 #[derive(Clone)]
 pub struct Bitmap16 {
     /// Type (2 bytes): A 16-bit signed integer that defines the bitmap type.
@@ -20,7 +22,7 @@ pub struct Bitmap16 {
     pub planes: u8,
     /// BitsPixel (1 byte): An 8-bit unsigned integer that defines the number
     /// of adjacent color bits on each plane.
-    pub bits_pixel: u8,
+    pub bits_pixel: crate::parser::BitCount,
     /// Bits (variable): A variable length array of bytes that defines the
     /// bitmap pixel data. The length of this field in bytes can be computed as
     /// follows.
@@ -100,6 +102,13 @@ impl Bitmap16 {
             });
         }
 
+        let (bits_pixel, _) = {
+            let u16_bytes = u16::from(bits_pixel).to_le_bytes().to_vec();
+            let mut b = &u16_bytes[..];
+
+            crate::parser::BitCount::parse(&mut b)?
+        };
+
         Ok((
             Self {
                 typ,
@@ -115,7 +124,28 @@ impl Bitmap16 {
     }
 
     pub fn calc_length(&self) -> usize {
-        ((((self.width * i16::from(self.bits_pixel) + 15) >> 4) << 1)
-            * self.height) as usize
+        ((((self.width * self.bits_pixel as i16 + 15) >> 4) << 1) * self.height)
+            as usize
+    }
+}
+
+impl From<Bitmap16> for crate::parser::DeviceIndependentBitmap {
+    fn from(v: Bitmap16) -> Self {
+        Self {
+            dib_header_info: crate::parser::BitmapInfoHeader::Core(
+                crate::parser::BitmapInfoHeaderCore {
+                    header_size: 12,
+                    width: v.width as u16,
+                    height: v.height as u16,
+                    planes: v.planes.into(),
+                    bit_count: v.bits_pixel,
+                },
+            ),
+            colors: crate::parser::Colors::Null,
+            bitmap_buffer: crate::parser::BitmapBuffer {
+                undefined_space: vec![],
+                a_data: v.bits,
+            },
+        }
     }
 }

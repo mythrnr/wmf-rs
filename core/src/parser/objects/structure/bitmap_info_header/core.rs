@@ -1,12 +1,38 @@
 use crate::imports::*;
 
-impl crate::parser::BitmapInfoHeader {
+/// The BitmapCoreHeader Object contains information about the dimensions
+/// and color format of a device-independent bitmap (DIB). (Although
+/// Windows processes BitmapCoreHeader objects in DIBs, it does not
+/// write them to WMF metafiles)
+///
+/// A DIB is specified by a DeviceIndependentBitmap Object.
+#[derive(Clone, Debug)]
+pub struct BitmapInfoHeaderCore {
+    /// HeaderSize (4 bytes): A 32-bit unsigned integer that defines the
+    /// size of this object, in bytes.
+    pub header_size: u32,
+    /// Width (2 bytes): A 16-bit unsigned integer that defines the width
+    /// of the DIB, in pixels.
+    pub width: u16,
+    /// Height (2 bytes): A 16-bit unsigned integer that defines the height
+    /// of the DIB, in pixels.
+    pub height: u16,
+    /// Planes (2 bytes): A 16-bit unsigned integer that defines the number
+    /// of planes for the target device. This value MUST be 0x0001.
+    pub planes: u16,
+    /// BitCount (2 bytes): A 16-bit unsigned integer that defines the
+    /// format of each pixel, and the maximum number of colors in the DIB.
+    /// This value MUST be in the BitCount Enumeration.
+    pub bit_count: crate::parser::BitCount,
+}
+
+impl BitmapInfoHeaderCore {
     #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
         err(level = tracing::Level::ERROR, Display),
     ))]
-    pub(super) fn parse_as_core<R: crate::Read>(
+    pub(super) fn parse<R: crate::Read>(
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
@@ -46,7 +72,7 @@ impl crate::parser::BitmapInfoHeader {
         }
 
         Ok((
-            Self::Core { header_size, width, height, planes, bit_count },
+            Self { header_size, width, height, planes, bit_count },
             consumed_bytes,
         ))
     }
