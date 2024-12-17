@@ -27,3 +27,6 @@ wasm-bindgen-test = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[package.metadata.cargo-udeps.ignore]
+development = ["wasm-bindgen-test"]
