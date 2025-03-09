@@ -90,42 +90,19 @@ impl From<CharacterSet> for &'static encoding_rs::Encoding {
     }
 }
 
-struct SymbolCharsetTable {
-    initialized: core::sync::atomic::AtomicBool,
-    value: Option<BTreeMap<u8, char>>,
-}
-
-impl SymbolCharsetTable {
-    const fn new() -> Self {
-        SymbolCharsetTable {
-            initialized: core::sync::atomic::AtomicBool::new(false),
-            value: None,
-        }
-    }
-
-    fn call_once<F>(&mut self, f: F) -> &BTreeMap<u8, char>
-    where
-        F: FnOnce() -> BTreeMap<u8, char>,
-    {
-        if !self.initialized.load(core::sync::atomic::Ordering::Acquire) {
-            let value = f();
-            self.value = Some(value);
-            self.initialized.store(true, core::sync::atomic::Ordering::Release);
-        }
-
-        self.value.as_ref().unwrap()
-    }
-}
-
-static mut SYMBOL_CHARSET_TABLE: SymbolCharsetTable = SymbolCharsetTable::new();
+static SYMBOL_CHARSET_TABLE_INITIALIZED: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(false);
+static mut SYMBOL_CHARSET_TABLE: BTreeMap<u8, char> = BTreeMap::new();
 
 #[rustfmt::skip]
 pub(in crate::parser) fn symbol_charset_table(
 ) -> &'static BTreeMap<u8, char> {
-    unsafe {
-        SYMBOL_CHARSET_TABLE.call_once(|| {
+    if !SYMBOL_CHARSET_TABLE_INITIALIZED.load(core::sync::atomic::Ordering::Acquire) {
+        SYMBOL_CHARSET_TABLE_INITIALIZED.store(true, core::sync::atomic::Ordering::Release);
+
+        unsafe {
             // via: https://en.wikipedia.org/wiki/Symbol_(typeface)
-            BTreeMap::from_iter([
+            SYMBOL_CHARSET_TABLE = BTreeMap::from_iter([
                 // 2x
                 (0x20, ' '), (0x21, '!'), (0x22, '∀'), (0x23, '#'),
                 (0x24, '∃'), (0x25, '%'), (0x26, '&'), (0x27, '∍'),
@@ -186,7 +163,12 @@ pub(in crate::parser) fn symbol_charset_table(
                 (0xF5, '⌡'), (0xF6, '⎞'), (0xF7, '⎟'), (0xF8, '⎠'),
                 (0xF9, '⎤'), (0xFA, '⎥'), (0xFB, '⎦'), (0xFC, '⎫'),
                 (0xFD, '⎬'), (0xFE, '⎭'),
-            ])
-        })
+            ]);
+        }
     }
+
+    // SAFETY: Mutable access is not possible after state has been
+    // initialized.
+    #[allow(clippy::deref_addrof)]
+    unsafe { &*&raw const SYMBOL_CHARSET_TABLE }
 }

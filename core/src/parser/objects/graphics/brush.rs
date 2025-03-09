@@ -33,11 +33,13 @@ impl Brush {
             crate::parser::BrushStyle::parse(buf)?;
         let v = match style {
             crate::parser::BrushStyle::BS_DIBPATTERNPT => {
+                use crate::parser::DeviceIndependentBitmap;
+
                 let (color_usage, c) = crate::parser::ColorUsage::parse(buf)?;
                 consumed_bytes += c;
 
                 let (brush_hatch, c) =
-                    crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
+                    DeviceIndependentBitmap::parse_with_color_usage(
                         buf,
                         color_usage,
                     )?;
