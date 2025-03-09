@@ -75,7 +75,12 @@ impl META_EXTTEXTOUT {
             crate::parser::RecordType::META_EXTTEXTOUT,
         )?;
 
-        let ((y, y_bytes), (x, x_bytes), (string_length, string_length_bytes)) = (
+        #[rustfmt::skip]
+        let (
+            (y, y_bytes),
+            (x, x_bytes),
+            (string_length, string_length_bytes),
+        ) = (
             crate::parser::read_i16_from_le_bytes(buf)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
