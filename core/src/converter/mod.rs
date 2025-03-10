@@ -58,15 +58,13 @@ where
         let buf = &mut buffer;
 
         let (header, _) = MetafileHeader::parse(buf)?;
-
-        debug!(?header);
-        player = player.header(header)?;
-
         let mut record_number = 0;
+
+        debug!(%record_number, ?header);
+        player = player.header(record_number, header)?;
 
         loop {
             record_number += 1;
-            debug!(%record_number);
 
             let mut record_size = RecordSize::parse(buf)?;
             if record_size.byte_count() == 0 {
@@ -78,11 +76,6 @@ where
             let (record_function, c) =
                 read_u16_from_le_bytes(buf).map_err(ParseError::from)?;
             record_size.consume(c);
-
-            debug!(
-                %record_size,
-                record_function = %format!("{record_function:#06X}"),
-            );
 
             let Some(record_type) = RecordType::from_repr(record_function)
             else {
@@ -107,8 +100,8 @@ where
                     let record =
                         META_BITBLT::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.bit_blt(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.bit_blt(record_number, record)?;
                 }
                 RecordType::META_DIBBITBLT => {
                     let record = META_DIBBITBLT::parse(
@@ -117,9 +110,11 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player =
-                        player.device_independent_bitmap_bit_blt(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.device_independent_bitmap_bit_blt(
+                        record_number,
+                        record,
+                    )?;
                 }
                 RecordType::META_DIBSTRETCHBLT => {
                     let record = META_DIBSTRETCHBLT::parse(
@@ -128,9 +123,11 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player =
-                        player.device_independent_bitmap_stretch_blt(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.device_independent_bitmap_stretch_blt(
+                        record_number,
+                        record,
+                    )?;
                 }
                 RecordType::META_SETDIBTODEV => {
                     let record = META_SETDIBTODEV::parse(
@@ -139,9 +136,11 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player =
-                        player.set_device_independent_bitmap_to_dev(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_device_independent_bitmap_to_dev(
+                        record_number,
+                        record,
+                    )?;
                 }
                 RecordType::META_STRETCHBLT => {
                     let record = META_STRETCHBLT::parse(
@@ -150,8 +149,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.stretch_blt(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.stretch_blt(record_number, record)?;
                 }
                 RecordType::META_STRETCHDIB => {
                     let record = META_STRETCHDIB::parse(
@@ -160,17 +159,19 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player =
-                        player.stretch_device_independent_bitmap(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.stretch_device_independent_bitmap(
+                        record_number,
+                        record,
+                    )?;
                 }
                 // control record
                 RecordType::META_EOF => {
                     let record =
                         META_EOF::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.eof(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.eof(record_number, record)?;
                     break;
                 }
                 // drawing record
@@ -178,22 +179,22 @@ where
                     let record =
                         META_ARC::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.arc(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.arc(record_number, record)?;
                 }
                 RecordType::META_CHORD => {
                     let record =
                         META_CHORD::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.chord(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.chord(record_number, record)?;
                 }
                 RecordType::META_ELLIPSE => {
                     let record =
                         META_ELLIPSE::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.ellipse(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.ellipse(record_number, record)?;
                 }
                 RecordType::META_EXTFLOODFILL => {
                     let record = META_EXTFLOODFILL::parse(
@@ -202,8 +203,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.ext_flood_fill(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.ext_flood_fill(record_number, record)?;
                 }
                 RecordType::META_EXTTEXTOUT => {
                     let font = player.selected_font()?;
@@ -214,8 +215,8 @@ where
                         font.charset,
                     )?;
 
-                    debug!(?record);
-                    player = player.ext_text_out(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.ext_text_out(record_number, record)?;
                 }
                 RecordType::META_FILLREGION => {
                     let record = META_FILLREGION::parse(
@@ -224,8 +225,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.fill_region(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.fill_region(record_number, record)?;
                 }
                 RecordType::META_FLOODFILL => {
                     let record = META_FLOODFILL::parse(
@@ -234,8 +235,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.flood_fill(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.flood_fill(record_number, record)?;
                 }
                 RecordType::META_FRAMEREGION => {
                     let record = META_FRAMEREGION::parse(
@@ -244,8 +245,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.frame_region(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.frame_region(record_number, record)?;
                 }
                 RecordType::META_INVERTREGION => {
                     let record = META_INVERTREGION::parse(
@@ -254,15 +255,15 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.invert_region(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.invert_region(record_number, record)?;
                 }
                 RecordType::META_LINETO => {
                     let record =
                         META_LINETO::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.line_to(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.line_to(record_number, record)?;
                 }
                 RecordType::META_PAINTREGION => {
                     let record = META_PAINTREGION::parse(
@@ -271,22 +272,22 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.paint_region(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.paint_region(record_number, record)?;
                 }
                 RecordType::META_PATBLT => {
                     let record =
                         META_PATBLT::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.pat_blt(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.pat_blt(record_number, record)?;
                 }
                 RecordType::META_PIE => {
                     let record =
                         META_PIE::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.pie(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.pie(record_number, record)?;
                 }
                 RecordType::META_POLYLINE => {
                     let record = META_POLYLINE::parse(
@@ -295,15 +296,15 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.polyline(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.polyline(record_number, record)?;
                 }
                 RecordType::META_POLYGON => {
                     let record =
                         META_POLYGON::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.polygon(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.polygon(record_number, record)?;
                 }
                 RecordType::META_POLYPOLYGON => {
                     let record = META_POLYPOLYGON::parse(
@@ -312,8 +313,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.poly_polygon(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.poly_polygon(record_number, record)?;
                 }
                 RecordType::META_RECTANGLE => {
                     let record = META_RECTANGLE::parse(
@@ -322,8 +323,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.rectangle(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.rectangle(record_number, record)?;
                 }
                 RecordType::META_ROUNDRECT => {
                     let record = META_ROUNDRECT::parse(
@@ -332,8 +333,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.round_rect(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.round_rect(record_number, record)?;
                 }
                 RecordType::META_SETPIXEL => {
                     let record = META_SETPIXEL::parse(
@@ -342,8 +343,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_pixel(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_pixel(record_number, record)?;
                 }
                 RecordType::META_TEXTOUT => {
                     let font = player.selected_font()?;
@@ -354,8 +355,8 @@ where
                         font.charset,
                     )?;
 
-                    debug!(?record);
-                    player = player.text_out(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.text_out(record_number, record)?;
                 }
                 // object record
                 RecordType::META_CREATEBRUSHINDIRECT => {
@@ -365,8 +366,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_brush_indirect(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.create_brush_indirect(record_number, record)?;
                 }
                 RecordType::META_CREATEFONTINDIRECT => {
                     let record = META_CREATEFONTINDIRECT::parse(
@@ -375,8 +377,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_font_indirect(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.create_font_indirect(record_number, record)?;
                 }
                 RecordType::META_CREATEPALETTE => {
                     let record = META_CREATEPALETTE::parse(
@@ -385,8 +388,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_palette(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.create_palette(record_number, record)?;
                 }
                 RecordType::META_CREATEPATTERNBRUSH => {
                     let record = META_CREATEPATTERNBRUSH::parse(
@@ -395,8 +398,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_pattern_brush(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.create_pattern_brush(record_number, record)?;
                 }
                 RecordType::META_CREATEPENINDIRECT => {
                     let record = META_CREATEPENINDIRECT::parse(
@@ -405,8 +409,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_pen_indirect(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.create_pen_indirect(record_number, record)?;
                 }
                 RecordType::META_CREATEREGION => {
                     let record = META_CREATEREGION::parse(
@@ -415,8 +420,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.create_region(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.create_region(record_number, record)?;
                 }
                 RecordType::META_DELETEOBJECT => {
                     let record = META_DELETEOBJECT::parse(
@@ -425,8 +430,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.delete_object(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.delete_object(record_number, record)?;
                 }
                 RecordType::META_DIBCREATEPATTERNBRUSH => {
                     let record = META_DIBCREATEPATTERNBRUSH::parse(
@@ -435,9 +440,10 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
+                    debug!(%record_number, ?record);
                     player = player
                         .create_device_independent_bitmap_pattern_brush(
+                            record_number,
                             record,
                         )?;
                 }
@@ -448,8 +454,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.select_clip_region(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.select_clip_region(record_number, record)?;
                 }
                 RecordType::META_SELECTOBJECT => {
                     let record = META_SELECTOBJECT::parse(
@@ -458,8 +465,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.select_object(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.select_object(record_number, record)?;
                 }
                 RecordType::META_SELECTPALETTE => {
                     let record = META_SELECTPALETTE::parse(
@@ -468,8 +475,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.select_palette(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.select_palette(record_number, record)?;
                 }
                 // state record
                 RecordType::META_ANIMATEPALETTE => {
@@ -479,8 +486,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.animate_palette(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.animate_palette(record_number, record)?;
                 }
                 RecordType::META_EXCLUDECLIPRECT => {
                     let record = META_EXCLUDECLIPRECT::parse(
@@ -489,8 +496,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.exclude_clip_rect(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.exclude_clip_rect(record_number, record)?;
                 }
                 RecordType::META_INTERSECTCLIPRECT => {
                     let record = META_INTERSECTCLIPRECT::parse(
@@ -499,15 +506,16 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.intersect_clip_rect(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.intersect_clip_rect(record_number, record)?;
                 }
                 RecordType::META_MOVETO => {
                     let record =
                         META_MOVETO::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.move_to(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.move_to(record_number, record)?;
                 }
                 RecordType::META_OFFSETCLIPRGN => {
                     let record = META_OFFSETCLIPRGN::parse(
@@ -516,8 +524,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.offset_clip_region(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.offset_clip_region(record_number, record)?;
                 }
                 RecordType::META_OFFSETVIEWPORTORG => {
                     let record = META_OFFSETVIEWPORTORG::parse(
@@ -526,8 +535,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.offset_viewport_origin(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.offset_viewport_origin(record_number, record)?;
                 }
                 RecordType::META_OFFSETWINDOWORG => {
                     let record = META_OFFSETWINDOWORG::parse(
@@ -536,8 +546,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.offset_window_origin(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.offset_window_origin(record_number, record)?;
                 }
                 RecordType::META_REALIZEPALETTE => {
                     let record = META_REALIZEPALETTE::parse(
@@ -546,8 +557,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.realize_palette(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.realize_palette(record_number, record)?;
                 }
                 RecordType::META_RESIZEPALETTE => {
                     let record = META_RESIZEPALETTE::parse(
@@ -556,8 +567,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.resize_palette(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.resize_palette(record_number, record)?;
                 }
                 RecordType::META_RESTOREDC => {
                     let record = META_RESTOREDC::parse(
@@ -566,15 +577,17 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.restore_device_context(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.restore_device_context(record_number, record)?;
                 }
                 RecordType::META_SAVEDC => {
                     let record =
                         META_SAVEDC::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.save_device_context(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.save_device_context(record_number, record)?;
                 }
                 RecordType::META_SCALEVIEWPORTEXT => {
                     let record = META_SCALEVIEWPORTEXT::parse(
@@ -583,8 +596,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.scale_viewport_ext(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.scale_viewport_ext(record_number, record)?;
                 }
                 RecordType::META_SCALEWINDOWEXT => {
                     let record = META_SCALEWINDOWEXT::parse(
@@ -593,8 +607,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.scale_window_ext(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.scale_window_ext(record_number, record)?;
                 }
                 RecordType::META_SETBKCOLOR => {
                     let record = META_SETBKCOLOR::parse(
@@ -603,8 +617,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_bk_color(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_bk_color(record_number, record)?;
                 }
                 RecordType::META_SETBKMODE => {
                     let record = META_SETBKMODE::parse(
@@ -613,8 +627,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_bk_mode(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_bk_mode(record_number, record)?;
                 }
                 RecordType::META_SETLAYOUT => {
                     let record = META_SETLAYOUT::parse(
@@ -623,8 +637,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_layout(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_layout(record_number, record)?;
                 }
                 RecordType::META_SETMAPMODE => {
                     let record = META_SETMAPMODE::parse(
@@ -633,8 +647,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_map_mode(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_map_mode(record_number, record)?;
                 }
                 RecordType::META_SETMAPPERFLAGS => {
                     let record = META_SETMAPPERFLAGS::parse(
@@ -643,8 +657,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_mapper_flags(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_mapper_flags(record_number, record)?;
                 }
                 RecordType::META_SETPALENTRIES => {
                     let record = META_SETPALENTRIES::parse(
@@ -653,8 +667,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_pal_entries(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_pal_entries(record_number, record)?;
                 }
                 RecordType::META_SETPOLYFILLMODE => {
                     let record = META_SETPOLYFILLMODE::parse(
@@ -663,8 +677,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_polyfill_mode(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_polyfill_mode(record_number, record)?;
                 }
                 RecordType::META_SETRELABS => {
                     let record = META_SETRELABS::parse(
@@ -673,15 +687,16 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_relabs(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_relabs(record_number, record)?;
                 }
                 RecordType::META_SETROP2 => {
                     let record =
                         META_SETROP2::parse(buf, record_size, record_function)?;
 
-                    debug!(?record);
-                    player = player.set_raster_operation(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.set_raster_operation(record_number, record)?;
                 }
                 RecordType::META_SETSTRETCHBLTMODE => {
                     let record = META_SETSTRETCHBLTMODE::parse(
@@ -690,8 +705,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_stretch_blt_mode(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.set_stretch_blt_mode(record_number, record)?;
                 }
                 RecordType::META_SETTEXTALIGN => {
                     let record = META_SETTEXTALIGN::parse(
@@ -700,8 +716,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_text_align(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_text_align(record_number, record)?;
                 }
                 RecordType::META_SETTEXTCHAREXTRA => {
                     let record = META_SETTEXTCHAREXTRA::parse(
@@ -710,8 +726,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_text_char_extra(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.set_text_char_extra(record_number, record)?;
                 }
                 RecordType::META_SETTEXTCOLOR => {
                     let record = META_SETTEXTCOLOR::parse(
@@ -720,8 +737,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_text_color(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_text_color(record_number, record)?;
                 }
                 RecordType::META_SETTEXTJUSTIFICATION => {
                     let record = META_SETTEXTJUSTIFICATION::parse(
@@ -730,8 +747,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_text_justification(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.set_text_justification(record_number, record)?;
                 }
                 RecordType::META_SETVIEWPORTEXT => {
                     let record = META_SETVIEWPORTEXT::parse(
@@ -740,8 +758,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_viewport_ext(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_viewport_ext(record_number, record)?;
                 }
                 RecordType::META_SETVIEWPORTORG => {
                     let record = META_SETVIEWPORTORG::parse(
@@ -750,8 +768,9 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_viewport_origin(record)?;
+                    debug!(%record_number, ?record);
+                    player =
+                        player.set_viewport_origin(record_number, record)?;
                 }
                 RecordType::META_SETWINDOWEXT => {
                     let record = META_SETWINDOWEXT::parse(
@@ -760,8 +779,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_window_ext(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_window_ext(record_number, record)?;
                 }
                 RecordType::META_SETWINDOWORG => {
                     let record = META_SETWINDOWORG::parse(
@@ -770,8 +789,8 @@ where
                         record_function,
                     )?;
 
-                    debug!(?record);
-                    player = player.set_window_origin(record)?;
+                    debug!(%record_number, ?record);
+                    player = player.set_window_origin(record_number, record)?;
                 }
                 // escape record
                 RecordType::META_ESCAPE => {
@@ -781,8 +800,8 @@ where
                     //     META_ESCAPE::parse(buf, record_size,
                     // record_function)?;
 
-                    // debug!(?record);
-                    // player = player.escape(record)?;
+                    // debug!(%record_number, ?record);
+                    // player = player.escape(record_number, record)?;
                 }
             };
         }
