@@ -12,7 +12,7 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4.2.2
       - run: "rustup component add rustfmt"
       - run: "make fmt"
 
@@ -21,7 +21,7 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4.2.2
       - run: "rustup component add clippy"
       - run: "make lint"
 
@@ -30,7 +30,7 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4.2.2
       - run: "make spell-check"
 
   testing:
@@ -38,5 +38,5 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4.2.2
       - run: "make test"
