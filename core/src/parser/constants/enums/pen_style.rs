@@ -1,3 +1,5 @@
+use crate::imports::*;
+
 /// The 16-bit PenStyle Enumeration is used to specify different types of pens
 /// that can be used in graphics operations.
 #[derive(
@@ -13,13 +15,11 @@
 )]
 #[repr(u16)]
 pub enum PenStyle {
-    /// The pen is cosmetic.
-    // PS_COSMETIC = 0x0000,
-    /// Line end caps are round.
-    // PS_ENDCAP_ROUND = 0x0000,
-    /// Line joins are round.
-    // PS_JOIN_ROUND = 0x0000,
-    /// The pen is solid.
+    /// This value 0x0000 has multiple meanings:
+    /// - The pen is cosmetic `PS_COSMETIC = 0x0000`.
+    /// - Line end caps are round `PS_ENDCAP_ROUND = 0x0000`.
+    /// - Line joins are round `PS_JOIN_ROUND = 0x0000`.
+    /// - The pen is solid `PS_SOLID = 0x0000`.
     PS_SOLID = 0x0000,
     /// The pen is dashed.
     PS_DASH = 0x0001,
@@ -54,3 +54,37 @@ pub enum PenStyle {
 }
 
 crate::parser::constants::impl_parser!(PenStyle, u16);
+
+impl PenStyle {
+    pub fn end_cap() -> BTreeSet<Self> {
+        BTreeSet::from_iter([
+            // NOTE: use `PS_SOLID` as `PS_ENDCAP_ROUND`.
+            Self::PS_SOLID,
+            Self::PS_ENDCAP_SQUARE,
+            Self::PS_ENDCAP_FLAT,
+        ])
+    }
+
+    pub fn line_join() -> BTreeSet<Self> {
+        BTreeSet::from_iter([
+            // NOTE: use `PS_SOLID` as `PS_JOIN_ROUND`.
+            Self::PS_SOLID,
+            Self::PS_JOIN_BEVEL,
+            Self::PS_JOIN_MITER,
+        ])
+    }
+
+    pub fn style() -> BTreeSet<Self> {
+        BTreeSet::from_iter([
+            Self::PS_SOLID,
+            Self::PS_DASH,
+            Self::PS_DOT,
+            Self::PS_DASHDOT,
+            Self::PS_DASHDOTDOT,
+            Self::PS_NULL,
+            Self::PS_INSIDEFRAME,
+            Self::PS_USERSTYLE,
+            Self::PS_ALTERNATE,
+        ])
+    }
+}

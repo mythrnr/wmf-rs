@@ -11,11 +11,11 @@ pub enum GraphicsObject {
 }
 
 #[derive(Clone, Debug)]
-pub struct GraphicsObjects(Vec<GraphicsObject>);
+pub struct GraphicsObjects(Vec<GraphicsObject>, GraphicsObject);
 
 impl GraphicsObjects {
     pub fn new(v: usize) -> Self {
-        Self(vec![GraphicsObject::Null; v])
+        Self(vec![GraphicsObject::Null; v], GraphicsObject::Null)
     }
 
     pub fn delete(&mut self, i: usize) {
@@ -23,7 +23,7 @@ impl GraphicsObjects {
     }
 
     pub fn get(&self, i: usize) -> &GraphicsObject {
-        self.0.get(i).expect("should be set")
+        self.0.get(i).unwrap_or(&self.1)
     }
 
     pub fn push(&mut self, g: GraphicsObject) {
@@ -70,7 +70,12 @@ impl Default for SelectedGraphicsObject {
             },
             palette: None,
             pen: Pen {
-                style: BTreeSet::from_iter([PenStyle::PS_SOLID]),
+                style: PenStyleSubsection {
+                    style: PenStyle::PS_SOLID,
+                    end_cap: PenStyle::PS_ENDCAP_FLAT,
+                    line_join: PenStyle::PS_JOIN_MITER,
+                    typ: PenStyle::PS_SOLID,
+                },
                 width: PointS { x: 1, y: 0 },
                 color_ref: ColorRef::black(),
             },

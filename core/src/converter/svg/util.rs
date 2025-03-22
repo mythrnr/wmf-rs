@@ -161,6 +161,8 @@ impl From<Brush> for Fill {
 
 #[derive(Clone, Debug)]
 pub struct Stroke {
+    /// set true if stroke should not be rendered
+    none: bool,
     /// sets the color of the line around an element
     color: ColorRef,
     /// sets the width of the line around an element
@@ -178,6 +180,7 @@ pub struct Stroke {
 impl Default for Stroke {
     fn default() -> Self {
         Self {
+            none: false,
             color: ColorRef::black(),
             width: 1,
             opacity: 1_f32,
@@ -190,70 +193,68 @@ impl Default for Stroke {
 
 impl From<Pen> for Stroke {
     fn from(v: Pen) -> Self {
-        let mut stroke =
-            Self { color: v.color_ref, width: v.width.x, ..Default::default() };
-
-        for style in v.style {
-            stroke = match style {
-                PenStyle::PS_DASH => {
-                    stroke.dash_array =
-                        format!("{v} {v}", v = stroke.width * 10);
-                    stroke
-                }
-                PenStyle::PS_DOT | PenStyle::PS_ALTERNATE => {
-                    stroke.dash_array =
-                        format!("{} {}", stroke.width, stroke.width * 10);
-                    stroke
-                }
-                PenStyle::PS_DASHDOT => {
-                    stroke.dash_array = format!(
-                        "{} {} {} {}",
-                        stroke.width * 10,
-                        stroke.width * 2,
-                        stroke.width,
-                        stroke.width * 2,
-                    );
-                    stroke
-                }
-                PenStyle::PS_DASHDOTDOT => {
-                    stroke.dash_array = format!(
-                        "{} {} {} {} {} {}",
-                        stroke.width * 10,
-                        stroke.width * 2,
-                        stroke.width,
-                        stroke.width * 2,
-                        stroke.width,
-                        stroke.width * 2,
-                    );
-                    stroke
-                }
-                PenStyle::PS_NULL => {
-                    stroke.opacity = 0_f32;
-                    stroke
-                }
-                PenStyle::PS_ENDCAP_SQUARE => {
-                    "square".clone_into(&mut stroke.line_cap);
-                    stroke
-                }
-                PenStyle::PS_JOIN_BEVEL => {
-                    "bevel".clone_into(&mut stroke.line_join);
-                    stroke
-                }
-                PenStyle::PS_JOIN_MITER => {
-                    "miter".clone_into(&mut stroke.line_join);
-                    stroke
-                }
-                PenStyle::PS_SOLID => stroke,
-                // not implemented
-                PenStyle::PS_INSIDEFRAME
-                | PenStyle::PS_USERSTYLE
-                | PenStyle::PS_ENDCAP_FLAT => {
-                    info!(?style, "pen style is not implemented");
-                    stroke
-                }
-            };
+        if v.style.style == PenStyle::PS_NULL {
+            return Self { none: true, ..Default::default() };
         }
 
+        let mut stroke = Self::default();
+
+        match v.style.end_cap {
+            PenStyle::PS_SOLID => {
+                stroke.line_cap = "round".to_owned();
+            }
+            PenStyle::PS_ENDCAP_SQUARE => {
+                stroke.line_cap = "square".to_owned();
+            }
+            _ => {
+                stroke.line_cap = "butt".to_owned();
+            }
+        }
+
+        match v.style.line_join {
+            PenStyle::PS_SOLID => {
+                stroke.line_join = "round".to_owned();
+            }
+            PenStyle::PS_JOIN_BEVEL => {
+                stroke.line_join = "bevel".to_owned();
+            }
+            _ => {
+                stroke.line_join = "miter".to_owned();
+            }
+        }
+
+        match v.style.style {
+            PenStyle::PS_DASH => {
+                stroke.dash_array = format!("{v} {v}", v = v.width.x * 10);
+            }
+            PenStyle::PS_ALTERNATE | PenStyle::PS_DOT => {
+                stroke.dash_array = format!("{} {}", v.width.x, v.width.x * 10);
+            }
+            PenStyle::PS_DASHDOT => {
+                stroke.dash_array = format!(
+                    "{} {} {} {}",
+                    v.width.x * 10,
+                    v.width.x * 2,
+                    v.width.x,
+                    v.width.x * 2,
+                );
+            }
+            PenStyle::PS_DASHDOTDOT => {
+                stroke.dash_array = format!(
+                    "{} {} {} {} {} {}",
+                    v.width.x * 10,
+                    v.width.x * 2,
+                    v.width.x,
+                    v.width.x * 2,
+                    v.width.x,
+                    v.width.x * 2,
+                );
+            }
+            _ => {}
+        }
+
+        stroke.color = v.color_ref;
+        stroke.width = if v.width.x == 0 { 1 } else { v.width.x };
         stroke
     }
 }
@@ -262,15 +263,13 @@ impl From<Brush> for Stroke {
     fn from(v: Brush) -> Self {
         match v {
             Brush::DIBPatternPT { .. } => {
-                Self { opacity: 0_f32, ..Default::default() }
+                Self { none: true, ..Default::default() }
             }
             Brush::Hatched { color_ref, .. } | Brush::Solid { color_ref } => {
                 Self { color: color_ref, ..Default::default() }
             }
             Brush::Pattern { .. } => Self { ..Default::default() },
-            Brush::Null => {
-                Self { width: 0, opacity: 0_f32, ..Default::default() }
-            }
+            Brush::Null => Self { none: true, width: 0, ..Default::default() },
         }
     }
 }
@@ -301,7 +300,7 @@ impl Stroke {
     }
 
     pub fn set_props(&self, elem: Node) -> Node {
-        if self.opacity == 0_f32 {
+        if self.none {
             return elem.set("stroke", "none");
         }
 

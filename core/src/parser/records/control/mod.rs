@@ -3,9 +3,9 @@
 
 mod eof;
 mod header;
-mod replaceable;
+mod placeable;
 
-pub use self::{eof::*, header::*, replaceable::*};
+pub use self::{eof::*, header::*, placeable::*};
 
 #[derive(Clone, Debug)]
 pub enum MetafileHeader {
