@@ -2,6 +2,13 @@ name: "Check codes"
 
 on:
   pull_request:
+  push:
+    branches:
+      - "master"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
 
 permissions:
   contents: "read"
