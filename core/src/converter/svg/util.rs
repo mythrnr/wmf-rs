@@ -201,25 +201,25 @@ impl From<Pen> for Stroke {
 
         match v.style.end_cap {
             PenStyle::PS_SOLID => {
-                stroke.line_cap = "round".to_owned();
+                "round".clone_into(&mut stroke.line_cap);
             }
             PenStyle::PS_ENDCAP_SQUARE => {
-                stroke.line_cap = "square".to_owned();
+                "square".clone_into(&mut stroke.line_cap);
             }
             _ => {
-                stroke.line_cap = "butt".to_owned();
+                "butt".clone_into(&mut stroke.line_cap);
             }
         }
 
         match v.style.line_join {
             PenStyle::PS_SOLID => {
-                stroke.line_join = "round".to_owned();
+                "round".clone_into(&mut stroke.line_join);
             }
             PenStyle::PS_JOIN_BEVEL => {
-                stroke.line_join = "bevel".to_owned();
+                "bevel".clone_into(&mut stroke.line_join);
             }
             _ => {
-                stroke.line_join = "miter".to_owned();
+                "miter".clone_into(&mut stroke.line_join);
             }
         }
 
