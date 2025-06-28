@@ -766,22 +766,29 @@ impl crate::converter::Player for SVGPlayer {
         let font_height = self.selected_font()?.height;
         let point = {
             let point = PointS {
-                x: record.x,
-                y: record.y
-                    + (if matches!(
-                        self.context_current.text_align_vertical,
-                        VerticalTextAlignmentMode::VTA_BASELINE
-                            | VerticalTextAlignmentMode::VTA_BOTTOM
-                    ) && font_height < 0
-                    {
-                        -font_height
-                    } else {
-                        0
-                    }),
+                x: if self.context_current.text_align_update_cp {
+                    self.context_current.drawing_position.x
+                } else {
+                    record.x
+                },
+                y: if self.context_current.text_align_update_cp {
+                    self.context_current.drawing_position.y
+                } else {
+                    record.y
+                } + (if matches!(
+                    self.context_current.text_align_vertical,
+                    VerticalTextAlignmentMode::VTA_BASELINE
+                        | VerticalTextAlignmentMode::VTA_BOTTOM
+                ) && font_height < 0
+                {
+                    -font_height
+                } else {
+                    0
+                }),
             };
 
             let point = if self.context_current.text_align_update_cp {
-                self.context_current.point_s_to_relative_point(&point)
+                point
             } else {
                 self.context_current.point_s_to_absolute_point(&point)
             };
