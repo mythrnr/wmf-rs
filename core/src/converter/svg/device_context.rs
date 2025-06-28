@@ -238,11 +238,6 @@ impl Window {
     }
 
     pub fn origin(mut self, origin_x: i16, origin_y: i16) -> Self {
-        let x = self.x - self.origin_x + origin_x;
-        let y = self.y - self.origin_y + origin_y;
-
-        self.x = x;
-        self.y = y;
         self.origin_x = origin_x;
         self.origin_y = origin_y;
         self
