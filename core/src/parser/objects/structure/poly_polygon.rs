@@ -28,8 +28,9 @@ impl PolyPolygon {
         let (number_of_polygons, mut consumed_bytes) =
             crate::parser::read_u16_from_le_bytes(buf)?;
         let mut number_of_points = 0;
-        let mut a_points_per_polygon = vec![];
-        let mut a_points = vec![];
+        let mut a_points_per_polygon =
+            Vec::with_capacity(number_of_polygons as usize);
+        let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_polygons {
             let (v, c) = crate::parser::read_u16_from_le_bytes(buf)?;

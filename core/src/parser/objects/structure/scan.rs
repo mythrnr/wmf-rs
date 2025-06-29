@@ -46,9 +46,10 @@ impl Scan {
             });
         }
 
-        let mut scan_lines = vec![];
+        let line_count = count as usize / 2;
+        let mut scan_lines = Vec::with_capacity(line_count);
 
-        for _ in 0..(count / 2) {
+        for _ in 0..line_count {
             let (v, c) = ScanLine::parse(buf)?;
 
             consumed_bytes += c;

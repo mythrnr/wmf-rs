@@ -44,7 +44,7 @@ impl META_POLYLINE {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
-        let mut a_points = vec![];
+        let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
             let (v, c) = crate::parser::PointS::parse(buf)?;

@@ -41,7 +41,7 @@ impl DeviceIndependentBitmap {
         consumed_bytes += c;
 
         //  TODO: Not written in [MS-WMF] how to parse this field.
-        let undefined_space = vec![];
+        let undefined_space = Vec::with_capacity(0);
         let (a_data, c) =
             crate::parser::read_variable(buf, dib_header_info.size())?;
         consumed_bytes += c;
@@ -211,7 +211,7 @@ impl Colors {
 
         match color_usage {
             crate::parser::ColorUsage::DIB_RGB_COLORS if core => {
-                let mut table = vec![];
+                let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
                     let (v, c) = crate::parser::RGBTriple::parse(buf)?;
@@ -223,7 +223,7 @@ impl Colors {
                 Ok((Colors::RGBTriple(table), consumed_bytes))
             }
             crate::parser::ColorUsage::DIB_RGB_COLORS => {
-                let mut table = vec![];
+                let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
                     let (v, c) = crate::parser::RGBQuad::parse(buf)?;
@@ -235,7 +235,7 @@ impl Colors {
                 Ok((Colors::RGBQuad(table), consumed_bytes))
             }
             crate::parser::ColorUsage::DIB_PAL_COLORS => {
-                let mut table = vec![];
+                let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
                     let (v, c) = crate::parser::read_u16_from_le_bytes(buf)?;

@@ -155,10 +155,13 @@ impl META_EXTTEXTOUT {
             record_size.consume(1);
         }
 
-        let mut dx = vec![];
+        let mut dx = Vec::with_capacity(0);
 
         if record_size.remaining() {
-            for _ in 0..string.graphemes(true).count() {
+            let length = string.graphemes(true).count();
+            dx.reserve_exact(length);
+
+            for _ in 0..length {
                 let (v, c) = crate::parser::read_i16_from_le_bytes(buf)?;
 
                 record_size.consume(c);

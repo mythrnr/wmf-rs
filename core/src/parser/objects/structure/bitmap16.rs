@@ -117,7 +117,7 @@ impl Bitmap16 {
                 width_bytes,
                 planes,
                 bits_pixel,
-                bits: vec![],
+                bits: Vec::with_capacity(0),
             },
             consumed_bytes,
         ))
@@ -143,7 +143,7 @@ impl From<Bitmap16> for crate::parser::DeviceIndependentBitmap {
             ),
             colors: crate::parser::Colors::Null,
             bitmap_buffer: crate::parser::BitmapBuffer {
-                undefined_space: vec![],
+                undefined_space: Vec::with_capacity(0),
                 a_data: v.bits,
             },
         }

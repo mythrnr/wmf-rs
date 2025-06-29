@@ -25,7 +25,7 @@ impl Node {
     pub fn new_text(value: impl Into<String>) -> Self {
         Self {
             typ: NodeType::Text(value.into()),
-            inner: vec![],
+            inner: Vec::with_capacity(0),
             attrs: BTreeMap::new(),
         }
     }

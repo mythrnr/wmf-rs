@@ -34,7 +34,8 @@ impl Palette {
         );
 
         let mut consumed_bytes = start_bytes + number_of_entries_bytes;
-        let mut a_palette_entries = vec![];
+        let mut a_palette_entries =
+            Vec::with_capacity(number_of_entries as usize);
 
         for _ in 0..number_of_entries {
             let (v, c) = crate::parser::PaletteEntry::parse(buf)?;
