@@ -23,6 +23,64 @@ impl crate::converter::Bitmap {
     }
 }
 
+impl Brush {
+    pub fn as_filter(&self) -> Node {
+        match self {
+            Brush::DIBPatternPT { brush_hatch, .. } => {
+                let data = crate::converter::Bitmap::from(brush_hatch.clone())
+                    .as_data_url();
+                Node::new("filter").add(Node::new("feImage").set("href", data))
+            }
+            Brush::Hatched { color_ref, brush_hatch } => {
+                let data = crate::converter::Bitmap::from((
+                    color_ref.clone(),
+                    brush_hatch.clone(),
+                ))
+                .as_data_url();
+                Node::new("filter").add(Node::new("feImage").set("href", data))
+            }
+            Brush::Pattern { brush_hatch } => {
+                let bitmap = crate::parser::DeviceIndependentBitmap::from(
+                    brush_hatch.clone(),
+                );
+                let data = crate::converter::Bitmap::from(bitmap).as_data_url();
+
+                Node::new("filter").add(Node::new("feImage").set("href", data))
+            }
+            Brush::Solid { color_ref } => Node::new("filter")
+                .set("x", "0")
+                .set("y", "0")
+                .set("width", "1")
+                .set("height", "1")
+                .add(
+                    Node::new("feFlood")
+                        .set(
+                            "flood-color",
+                            css_color_from_color_ref(&color_ref),
+                        )
+                        .set("result", "bg"),
+                )
+                .add(
+                    Node::new("feMerge")
+                        .add(Node::new("feMergeNode").set("in", "bg"))
+                        .add(
+                            Node::new("feMergeNode").set("in", "SourceGraphic"),
+                        ),
+                ),
+            Brush::Null => Node::new("filter")
+                .set("x", "0")
+                .set("y", "0")
+                .set("width", "0")
+                .set("height", "0")
+                .add(
+                    Node::new("feFlood")
+                        .set("flood-color", "#000")
+                        .set("flood-opacity", "0"),
+                ),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Fill {
     Pattern { pattern: Node },
@@ -36,8 +94,8 @@ impl From<Brush> for Fill {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
                     .as_data_url();
                 let image = Node::new("image")
-                    .set("x", 0.to_string())
-                    .set("y", 0.to_string())
+                    .set("x", "0")
+                    .set("y", "0")
                     .set(
                         "width",
                         brush_hatch.dib_header_info.width().to_string(),
@@ -50,8 +108,8 @@ impl From<Brush> for Fill {
                 let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0.to_string())
-                    .set("y", 0.to_string())
+                    .set("x", "0")
+                    .set("y", "0")
                     .set(
                         "width",
                         brush_hatch.dib_header_info.width().to_string(),
@@ -71,28 +129,28 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                     HatchStyle::HS_VERTICAL => {
                         let data = Data::new().move_to("0 0").line_to("0 10");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                     HatchStyle::HS_FDIAGONAL => {
                         let data = Data::new().move_to("0 10").line_to("10 0");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                     HatchStyle::HS_BDIAGONAL => {
                         let data = Data::new().move_to("0 0").line_to("10 10");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                     HatchStyle::HS_CROSS => {
                         let data = Data::new()
@@ -103,7 +161,7 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                     HatchStyle::HS_DIAGCROSS => {
                         let data = Data::new()
@@ -114,17 +172,17 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("data", data.to_string())
+                            .set("d", data.to_string())
                     }
                 };
 
                 let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0.to_string())
-                    .set("y", 0.to_string())
-                    .set("width", 10.to_string())
-                    .set("height", 10.to_string())
+                    .set("x", "0")
+                    .set("y", "0")
+                    .set("width", "10")
+                    .set("height", "10")
                     .add(path);
 
                 Fill::Pattern { pattern }
@@ -135,16 +193,16 @@ impl From<Brush> for Fill {
                 );
                 let data = crate::converter::Bitmap::from(bitmap).as_data_url();
                 let image = Node::new("image")
-                    .set("x", 0.to_string())
-                    .set("y", 0.to_string())
+                    .set("x", "0")
+                    .set("y", "0")
                     .set("width", brush_hatch.width.to_string())
                     .set("height", brush_hatch.height.to_string())
                     .set("href", data);
                 let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
-                    .set("x", 0.to_string())
-                    .set("y", 0.to_string())
+                    .set("x", "0")
+                    .set("y", "0")
                     .set("width", brush_hatch.width.to_string())
                     .set("height", brush_hatch.height.to_string())
                     .add(image);
@@ -342,7 +400,11 @@ impl Font {
         };
 
         if self.orientation != 0 {
-            elem = elem.set("rotate", (-self.orientation / 10).to_string());
+            let ori = self.orientation - self.escapement;
+
+            if ori != 0 {
+                elem = elem.set("rotate", (-ori / 10).to_string());
+            }
         }
 
         if self.escapement != 0 {

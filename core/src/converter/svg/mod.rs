@@ -28,7 +28,7 @@ pub struct SVGPlayer {
 impl Default for SVGPlayer {
     fn default() -> Self {
         Self {
-            context_stack: Vec::with_capacity(0),
+            context_stack: vec![],
             context_current: DeviceContext::default(),
             definitions: vec![],
             elements: vec![],
@@ -48,8 +48,11 @@ impl SVGPlayer {
     }
 
     #[inline]
-    fn push_element(&mut self, record_number: usize, element: Node) {
-        let element = element.set("id", format!("elem{record_number}"));
+    fn push_element(&mut self, record_number: usize, mut element: Node) {
+        if record_number > 0 {
+            element = element.set("id", format!("elem{record_number}"));
+        }
+
         self.elements.push(element);
     }
 
@@ -870,17 +873,35 @@ impl crate::converter::Player for SVGPlayer {
                 self.context_current.as_css_text_align_vertical(),
             )
             .set("fill", self.context_current.text_color_as_css_color())
-            .add(Node::new_text(record.string));
+            .add(Node::new_text(record.string.as_str()));
         let (text, mut styles) = self.selected_font()?.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {
             styles.push(shape_inside);
         }
 
-        let text = text.set("style", styles.join(""));
+        let mut text = text.set("style", styles.join(""));
 
         if self.context_current.text_align_update_cp {
-            self.context_current = self.context_current.drawing_position(point);
+            self.context_current =
+                self.context_current.drawing_position(point.clone());
+        }
+
+        // HACK: background color
+        // https://stackoverflow.com/a/31013492
+        if self.context_current.bk_mode == MixMode::OPAQUE {
+            let id = self.issue_definition_id();
+            let brush = if matches!(self.selected_brush(), Brush::Null) {
+                Brush::Solid {
+                    color_ref: self.context_current.text_bk_color.clone(),
+                }
+            } else {
+                self.selected_brush().clone()
+            };
+
+            self.definitions.push(brush.as_filter().set("id", id.as_str()));
+
+            text = text.set("filter", url_string(format!("#{id}").as_str()));
         }
 
         self.push_element(record_number, text);
@@ -1205,7 +1226,7 @@ impl crate::converter::Player for SVGPlayer {
         };
         let fill_rule = self.context_current.poly_fill_rule();
 
-        let mut points = vec![];
+        let mut points = Vec::with_capacity(record.number_of_points as usize);
 
         for i in 0..record.number_of_points {
             let Some(point) = record.a_points.get(i as usize) else {
@@ -1247,7 +1268,6 @@ impl crate::converter::Player for SVGPlayer {
         record: META_POLYPOLYGON,
     ) -> Result<Self, PlayError> {
         let stroke = Stroke::from(self.selected_pen().clone());
-        debug!(?stroke, "Stroke from selected Pen");
         let fill = match Fill::from(self.selected_brush().clone()) {
             Fill::Pattern { pattern } => {
                 let id = self.issue_definition_id();
@@ -1270,7 +1290,7 @@ impl crate::converter::Player for SVGPlayer {
                 });
             };
 
-            let mut points = vec![];
+            let mut points = Vec::with_capacity(*points_of_polygon as usize);
 
             for _ in 0..*points_of_polygon {
                 let Some(point) = a_point.pop_front() else {
