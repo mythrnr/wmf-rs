@@ -17,24 +17,13 @@ use crate::{
     parser::*,
 };
 
+#[derive(Default)]
 pub struct SVGPlayer {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
     definitions: Vec<Node>,
     elements: Vec<Node>,
     object_selected: SelectedGraphicsObject,
-}
-
-impl Default for SVGPlayer {
-    fn default() -> Self {
-        Self {
-            context_stack: vec![],
-            context_current: DeviceContext::default(),
-            definitions: vec![],
-            elements: vec![],
-            object_selected: SelectedGraphicsObject::default(),
-        }
-    }
 }
 
 impl SVGPlayer {
@@ -766,6 +755,8 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_EXTTEXTOUT,
     ) -> Result<Self, PlayError> {
+        use unicode_segmentation::UnicodeSegmentation;
+
         let font_height = self.selected_font()?.height;
         let point = {
             let point = PointS {
@@ -864,7 +855,7 @@ impl crate::converter::Player for SVGPlayer {
             None
         };
 
-        let text = Node::new("text")
+        let mut text = Node::new("text")
             .set("x", point.x.to_string())
             .set("y", point.y.to_string())
             .set("text-anchor", text_align)
@@ -874,6 +865,25 @@ impl crate::converter::Player for SVGPlayer {
             )
             .set("fill", self.context_current.text_color_as_css_color())
             .add(Node::new_text(record.string.as_str()));
+
+        // https://opengrok.libreoffice.org/xref/core/emfio/source/reader/wmfreader.cxx?r=07a3dd72f3eb79c03297aa9af9d77326b07458b6#693-826
+        if !record.dx.is_empty()
+            && record.string.graphemes(true).count() == record.dx.len()
+        {
+            let mut dx = Vec::with_capacity(record.dx.len() + 1);
+
+            dx.push(0);
+            dx.extend(record.dx);
+
+            text = text.set(
+                "dx",
+                dx.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+        }
+
         let (text, mut styles) = self.selected_font()?.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {

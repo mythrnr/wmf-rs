@@ -34,7 +34,7 @@ impl Brush {
             Brush::Hatched { color_ref, brush_hatch } => {
                 let data = crate::converter::Bitmap::from((
                     color_ref.clone(),
-                    brush_hatch.clone(),
+                    *brush_hatch,
                 ))
                 .as_data_url();
                 Node::new("filter").add(Node::new("feImage").set("href", data))
@@ -54,10 +54,7 @@ impl Brush {
                 .set("height", "1")
                 .add(
                     Node::new("feFlood")
-                        .set(
-                            "flood-color",
-                            css_color_from_color_ref(&color_ref),
-                        )
+                        .set("flood-color", css_color_from_color_ref(color_ref))
                         .set("result", "bg"),
                 )
                 .add(

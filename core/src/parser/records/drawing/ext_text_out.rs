@@ -68,8 +68,6 @@ impl META_EXTTEXTOUT {
         record_function: u16,
         charset: crate::parser::CharacterSet,
     ) -> Result<Self, crate::parser::ParseError> {
-        use unicode_segmentation::UnicodeSegmentation;
-
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_EXTTEXTOUT,
@@ -158,10 +156,9 @@ impl META_EXTTEXTOUT {
         let mut dx = Vec::with_capacity(0);
 
         if record_size.remaining() {
-            let length = string.graphemes(true).count();
-            dx.reserve_exact(length);
+            dx.reserve_exact(string_length as usize);
 
-            for _ in 0..length {
+            for _ in 0..string_length {
                 let (v, c) = crate::parser::read_i16_from_le_bytes(buf)?;
 
                 record_size.consume(c);
@@ -169,7 +166,9 @@ impl META_EXTTEXTOUT {
             }
         }
 
-        crate::parser::records::consume_remaining_bytes(buf, record_size)?;
+        let (_, c) =
+            crate::parser::records::consume_remaining_bytes(buf, record_size)?;
+        record_size.consume(c);
 
         Ok(Self {
             record_size,
