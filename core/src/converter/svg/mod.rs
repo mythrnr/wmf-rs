@@ -557,18 +557,17 @@ impl crate::converter::Player for SVGPlayer {
             y: record.top_rect + ry,
         });
         // Start and end vectors relative to the center of the ellipse
-        let start_dx = i32::from(start.x - center.x);
-        let start_dy = i32::from(start.y - center.y);
-        let end_dx = i32::from(end.x - center.x);
-        let end_dy = i32::from(end.y - center.y);
+        let start_dx = f32::from(start.x - center.x);
+        let start_dy = f32::from(start.y - center.y);
+        let end_dx = f32::from(end.x - center.x);
+        let end_dy = f32::from(end.y - center.y);
 
         // Calculate cross product to determine if the arc is larger than 180
         // degrees. Invert the sign because upper-left is origin.
-        let cross = -(start_dx.checked_mul(end_dy).unwrap_or(i32::MAX)
-            - start_dy.checked_mul(end_dx).unwrap_or(i32::MAX));
+        let cross = -(start_dx * end_dy - start_dy * end_dx);
         // If the arc is less than 180 degrees (equivalent to the cross product
         // is positive), it is not the larger arc.
-        let large_arc = i16::from(cross < 0);
+        let large_arc = i16::from(cross < 0.0);
 
         // sweep is always 0 ( equivalent to "counter-clockwise" in SVG )
         let data = Data::new()
