@@ -562,8 +562,8 @@ impl crate::converter::Player for SVGPlayer {
         let end_dx = i32::from(end.x - center.x);
         let end_dy = i32::from(end.y - center.y);
 
-        // Calculate cross product to determine the quadrant of the arc
-        // Invert the sign because upper-left is origin.
+        // Calculate cross product to determine if the arc is larger than 180
+        // degrees. Invert the sign because upper-left is origin.
         let cross = -(start_dx * end_dy - start_dy * end_dx);
         // If the arc is less than 180 degrees (equivalent to the cross product
         // is positive), it is not the larger arc.
