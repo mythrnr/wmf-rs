@@ -556,105 +556,25 @@ impl crate::converter::Player for SVGPlayer {
             x: record.left_rect + rx,
             y: record.top_rect + ry,
         });
+        // Start and end vectors relative to the center of the ellipse
+        let start_dx = f32::from(start.x - center.x);
+        let start_dy = f32::from(start.y - center.y);
+        let end_dx = f32::from(end.x - center.x);
+        let end_dy = f32::from(end.y - center.y);
 
-        let center_x = if center.x < start.x && center.x < end.x {
-            "left"
-        } else if start.x < center.x && end.x < center.x {
-            "right"
-        } else {
-            "middle"
-        };
-        let center_y = if start.y < center.y && end.y < center.y {
-            "over"
-        } else if center.y < start.y && center.y < end.y {
-            "under"
-        } else {
-            "middle"
-        };
-        // if center_x or center_y is middle,
-        // fix sweep as negative-angle direction.
-        #[allow(clippy::match_same_arms)]
-        let (large_arc, sweep) = match (center_x, center_y) {
-            ("left", "over") if start.x < end.x && start.y > end.y => (0, 0),
-            ("left", "over") if start.x > end.x && start.y < end.y => (0, 1),
-            ("left", "middle") if start.x < end.x && start.y < end.y => (1, 0),
-            ("left", "middle") if start.x < end.x && start.y > end.y => (0, 0),
-            ("left", "middle") if start.x > end.x && start.y < end.y => (1, 0),
-            ("left", "middle") if start.x > end.x && start.y > end.y => (0, 0),
-            ("left", "under") if start.x < end.x && start.y < end.y => (0, 1),
-            ("left", "under") if start.x > end.x && start.y > end.y => (0, 0),
-            ("right", "over") if start.x < end.x && start.y < end.y => (0, 0),
-            ("right", "over") if start.x > end.x && start.y > end.y => (0, 1),
-            ("right", "middle") if start.x < end.x && start.y < end.y => (0, 0),
-            ("right", "middle") if start.x < end.x && start.y > end.y => (1, 0),
-            ("right", "middle") if start.x > end.x && start.y < end.y => (0, 0),
-            ("right", "middle") if start.x > end.x && start.y > end.y => (1, 0),
-            ("right", "under") if start.x < end.x && start.y > end.y => (0, 1),
-            ("right", "under") if start.x > end.x && start.y < end.y => (0, 0),
-            ("middle", "over") if start.x < end.x && start.y < end.y => (0, 0),
-            ("middle", "over") if start.x > end.x && start.y > end.y => (1, 0),
-            ("middle", "under") if start.x < end.x && start.y < end.y => (1, 0),
-            ("middle", "under") if start.x > end.x && start.y > end.y => (0, 0),
-            ("middle", "middle") if start.x <= end.x && start.y <= end.y => {
-                let antipodal = PointS {
-                    x: start.x + (center.x - start.x) * 2,
-                    y: start.y + (center.y - start.y) * 2,
-                };
+        // Calculate cross product to determine if the arc is larger than 180
+        // degrees. Invert the sign because upper-left is origin.
+        let cross = -(start_dx * end_dy - start_dy * end_dx);
+        // If the arc is less than 180 degrees (equivalent to the cross product
+        // is positive), it is not the larger arc.
+        let large_arc = i16::from(cross < 0.0);
 
-                if antipodal.x < end.x {
-                    (1, 0)
-                } else {
-                    (0, 0)
-                }
-            }
-            ("middle", "middle") if start.x <= end.x && start.y >= end.y => {
-                let antipodal = PointS {
-                    x: start.x + (center.x - start.x) * 2,
-                    y: start.y + (center.y - start.y) * 2,
-                };
-
-                if antipodal.x < end.x {
-                    (0, 0)
-                } else {
-                    (1, 0)
-                }
-            }
-            ("middle", "middle") if start.x >= end.x && start.y <= end.y => {
-                let antipodal = PointS {
-                    x: start.x - (center.x - end.x) * 2,
-                    y: start.y - (center.y - end.y) * 2,
-                };
-
-                if antipodal.x < end.x {
-                    (1, 0)
-                } else {
-                    (0, 0)
-                }
-            }
-            ("middle", "middle") if start.x >= end.x && start.y >= end.y => {
-                let antipodal = PointS {
-                    x: start.x - (center.x - end.x) * 2,
-                    y: start.y - (center.y - end.y) * 2,
-                };
-
-                if antipodal.x < end.x {
-                    (0, 0)
-                } else {
-                    (1, 0)
-                }
-            }
-            _ => {
-                return Err(PlayError::InvalidRecord {
-                    cause: "invalid points and bounding rectangle".to_owned(),
-                });
-            }
-        };
-
+        // sweep is always 0 ( equivalent to "counter-clockwise" in SVG )
         let data = Data::new()
             .move_to(format!("{} {}", start.x, start.y))
             .elliptical_arc_to(format!(
                 "{} {} {} {} {} {} {}",
-                rx, ry, 0, large_arc, sweep, end.x, end.y
+                rx, ry, 0, large_arc, 0, end.x, end.y
             ));
         let path =
             Node::new("path").set("fill", "none").set("d", data.to_string());
