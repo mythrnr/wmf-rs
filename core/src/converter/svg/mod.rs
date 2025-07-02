@@ -556,18 +556,18 @@ impl crate::converter::Player for SVGPlayer {
             x: record.left_rect + rx,
             y: record.top_rect + ry,
         });
-        // Normalize the start and end points to the ellipse's center
-        let start_dx = f32::from(start.x - center.x) / f32::from(rx);
-        let start_dy = f32::from(start.y - center.y) / f32::from(ry);
-        let end_dx = f32::from(end.x - center.x) / f32::from(rx);
-        let end_dy = f32::from(end.y - center.y) / f32::from(ry);
+        // Start and end vectors relative to the center of the ellipse
+        let start_dx = i32::from(start.x - center.x);
+        let start_dy = i32::from(start.y - center.y);
+        let end_dx = i32::from(end.x - center.x);
+        let end_dy = i32::from(end.y - center.y);
 
         // Calculate cross product to determine the quadrant of the arc
         // Invert the sign because upper-left is origin.
         let cross = -(start_dx * end_dy - start_dy * end_dx);
         // If the arc is less than 180 degrees (equivalent to the cross product
         // is positive), it is not the larger arc.
-        let large_arc = i32::from(cross < 0.0);
+        let large_arc = i16::from(cross < 0);
 
         // sweep is always 0 ( equivalent to "counter-clockwise" in SVG )
         let data = Data::new()
