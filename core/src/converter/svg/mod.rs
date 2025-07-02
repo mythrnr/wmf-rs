@@ -564,7 +564,8 @@ impl crate::converter::Player for SVGPlayer {
 
         // Calculate cross product to determine if the arc is larger than 180
         // degrees. Invert the sign because upper-left is origin.
-        let cross = -(start_dx * end_dy - start_dy * end_dx);
+        let cross = -(start_dx.checked_mul(end_dy).unwrap_or(i32::MAX)
+            - start_dy.checked_mul(end_dx).unwrap_or(i32::MAX));
         // If the arc is less than 180 degrees (equivalent to the cross product
         // is positive), it is not the larger arc.
         let large_arc = i16::from(cross < 0);
