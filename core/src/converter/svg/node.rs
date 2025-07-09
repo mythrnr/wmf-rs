@@ -114,7 +114,7 @@ impl Data {
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
     pub fn elliptical_arc_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("L {}", param.into().0));
+        self.commands.push(format!("A {}", param.into().0));
         self
     }
 }
