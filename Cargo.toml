@@ -33,6 +33,7 @@ wmf-core = { path = "./core", default-features = false }
 wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 # allowed rules
