@@ -17,24 +17,13 @@ use crate::{
     parser::*,
 };
 
+#[derive(Default)]
 pub struct SVGPlayer {
     context_stack: Vec<DeviceContext>,
     context_current: DeviceContext,
     definitions: Vec<Node>,
     elements: Vec<Node>,
     object_selected: SelectedGraphicsObject,
-}
-
-impl Default for SVGPlayer {
-    fn default() -> Self {
-        Self {
-            context_stack: Vec::with_capacity(0),
-            context_current: DeviceContext::default(),
-            definitions: vec![],
-            elements: vec![],
-            object_selected: SelectedGraphicsObject::default(),
-        }
-    }
 }
 
 impl SVGPlayer {
@@ -1125,7 +1114,7 @@ impl crate::converter::Player for SVGPlayer {
         };
         let fill_rule = self.context_current.poly_fill_rule();
 
-        let mut points = vec![];
+        let mut points = Vec::with_capacity(record.number_of_points as usize);
 
         for i in 0..record.number_of_points {
             let Some(point) = record.a_points.get(i as usize) else {
@@ -1190,7 +1179,7 @@ impl crate::converter::Player for SVGPlayer {
                 });
             };
 
-            let mut points = vec![];
+            let mut points = Vec::with_capacity(*points_of_polygon as usize);
 
             for _ in 0..*points_of_polygon {
                 let Some(point) = a_point.pop_front() else {

@@ -64,7 +64,7 @@ impl Region {
             + scan_count_bytes
             + max_scan_bytes
             + bounding_rectangle_bytes;
-        let mut a_scans = vec![];
+        let mut a_scans = Vec::with_capacity(scan_count as usize);
 
         for _ in 0..scan_count {
             let (v, c) = crate::parser::Scan::parse(buf)?;

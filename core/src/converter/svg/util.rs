@@ -319,14 +319,14 @@ impl Font {
         mut elem: Node,
         point: &PointS,
     ) -> (Node, Vec<String>) {
-        let mut styles = vec![];
+        let mut styles = Vec::with_capacity(2);
 
         if self.italic {
             styles.push("font-style: italic;".to_owned());
         }
 
         {
-            let mut v = vec![];
+            let mut v = Vec::with_capacity(2);
 
             if self.underline {
                 v.push("underline");
