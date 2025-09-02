@@ -4,16 +4,16 @@ resolver = "2"
 
 [workspace.dependencies]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
-clap = { version = "4.5.41", features = ["derive", "env"] }
+clap = { version = "4.5.46", features = ["derive", "env"] }
 embedded-io = "0.6.1"
 encoding_rs = "0.8.35"
 paste = "1.0.15"
-snafu = "0.8.6"
-strum = { version = "0.27.1", default-features = false, features = ["derive"] }
+snafu = "0.8.8"
+strum = { version = "0.27.2", default-features = false, features = ["derive"] }
 tracing = { version = "0.1.41", default-features = false, features = [
   "attributes",
 ] }
-tracing-subscriber = { version = "0.3.19", default-features = false, features = [
+tracing-subscriber = { version = "0.3.20", default-features = false, features = [
   "time",
 ] }
 tracing-wasm = "0.2.1"
