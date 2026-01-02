@@ -9,16 +9,12 @@ updates:
     directory: "/"
     registries:
       - "github-private"
-    reviewers:
-      - "mythrnr"
     schedule:
       interval: "weekly"
     target-branch: "master"
 
   - package-ecosystem: "cargo"
     directory: "/"
-    reviewers:
-      - "mythrnr"
     schedule:
       interval: "weekly"
     target-branch: "master"
