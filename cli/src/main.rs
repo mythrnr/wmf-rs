@@ -9,6 +9,14 @@ use tracing_subscriber::{
     EnvFilter,
 };
 
+/// Command-line for converting wmf to svg.
+///
+/// # Example
+///
+/// ```sh
+/// wmf-cli --input sample.wmf --output out.svg --verbose
+/// wmf-cli -i sample.wmf -o out.svg --quiet
+/// ```
 #[derive(Clone, Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -26,6 +34,10 @@ struct Cli {
     verbose: bool,
 }
 
+/// Main entry point for wmf-cli.
+///
+/// Reads a WMF file, converts it to SVG, and writes the result to the output
+/// file. Handles errors and logs them appropriately.
 fn main() {
     let cli = Cli::parse();
 

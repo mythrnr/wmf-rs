@@ -6,6 +6,25 @@ use alloc::string::{String, ToString};
 
 use wasm_bindgen::prelude::*;
 
+/// Converts WMF binary data to an SVG string.
+///
+/// # Arguments
+///
+/// - `buf` - Byte array of a WMF file
+///
+/// # Returns
+///
+/// - SVG string (UTF-8)
+/// - On failure, returns a JsValue containing error details
+///
+/// # Example
+///
+/// ```js
+/// import { convertWmf2Svg } from "wmf-wasm";
+///
+/// // svg is a string containing SVG data
+/// const svg = convertWmf2Svg(wmfBytes);
+/// ```
 #[wasm_bindgen(js_name = convertWmf2Svg)]
 pub fn convert_wmf_to_svg(buf: &[u8]) -> Result<String, JsValue> {
     // When the `console_error_panic_hook` feature is enabled, we can call
@@ -28,6 +47,19 @@ pub fn convert_wmf_to_svg(buf: &[u8]) -> Result<String, JsValue> {
     Ok(String::from_utf8_lossy(&output).to_string())
 }
 
+/// Sets the log level (only when the `tracing` feature is enabled).
+///
+/// # Arguments
+///
+/// - `level` - e.g. "info", "debug", etc.
+///
+/// # Example
+///
+/// ```js
+/// import { setLogLevel } from "wmf-wasm";
+/// setLogLevel("debug");
+/// // Now debug logs will be shown in the browser console (if tracing feature is enabled)
+/// ```
 #[cfg(feature = "tracing")]
 #[wasm_bindgen(js_name = setLogLevel)]
 pub fn set_log_level(level: &str) {
@@ -45,6 +77,7 @@ pub fn set_log_level(level: &str) {
     }
 }
 
+/// Sets the log level (no-op if `tracing` feature is disabled).
 #[cfg(not(feature = "tracing"))]
 #[wasm_bindgen(js_name = setLogLevel)]
 pub fn set_log_level(_: &str) {
