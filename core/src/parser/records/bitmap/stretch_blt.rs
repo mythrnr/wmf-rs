@@ -18,7 +18,7 @@
 /// between the two forms of META_STRETCHBLT. If the following Boolean
 /// expression is TRUE, a source bitmap is not specified in the record.
 ///
-/// ```
+/// ```text
 /// RecordSize == ((RecordFunction >> 8) + 3)
 /// ```
 #[derive(Clone, Debug)]

@@ -22,7 +22,7 @@ use crate::imports::*;
 /// between the two forms of META_DIBSTRETCHBLT. If the following Boolean
 /// expression is TRUE, a source DIB is not specified in the record.
 ///
-/// ```
+/// ```text
 /// RecordSize == ((RecordFunction >> 8) + 3)
 /// ```
 #[derive(Clone, Debug)]
