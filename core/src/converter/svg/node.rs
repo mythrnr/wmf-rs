@@ -100,9 +100,15 @@ impl Data {
         Self::default()
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
-    pub fn move_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("M {}", param.into().0));
+    /// https://www.w3.org/TR/SVG/paths.html#PathDataClosePathCommand
+    pub fn close(mut self) -> Self {
+        self.commands.push("Z".to_string());
+        self
+    }
+
+    /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
+    pub fn elliptical_arc_to(mut self, param: impl Into<Parameters>) -> Self {
+        self.commands.push(format!("A {}", param.into().0));
         self
     }
 
@@ -112,9 +118,9 @@ impl Data {
         self
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
-    pub fn elliptical_arc_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("A {}", param.into().0));
+    /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
+    pub fn move_to(mut self, param: impl Into<Parameters>) -> Self {
+        self.commands.push(format!("M {}", param.into().0));
         self
     }
 }

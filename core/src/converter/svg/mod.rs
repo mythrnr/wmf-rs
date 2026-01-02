@@ -24,6 +24,7 @@ pub struct SVGPlayer {
     definitions: Vec<Node>,
     elements: Vec<Node>,
     object_selected: SelectedGraphicsObject,
+    current_clip_id: Option<String>,
 }
 
 impl SVGPlayer {
@@ -37,8 +38,13 @@ impl SVGPlayer {
     }
 
     #[inline]
-    fn push_element(&mut self, record_number: usize, element: Node) {
-        let element = element.set("id", format!("elem{record_number}"));
+    fn push_element(&mut self, record_number: usize, mut element: Node) {
+        element = element.set("id", format!("elem{record_number}"));
+
+        if let Some(ref clip_id) = self.current_clip_id {
+            element = element.set("clip-path", format!("url(#{clip_id})"));
+        }
+
         self.elements.push(element);
     }
 
@@ -581,11 +587,67 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn chord(
-        self,
+        mut self,
         record_number: usize,
         record: META_CHORD,
     ) -> Result<Self, PlayError> {
-        info!("META_CHORD: not implemented");
+        // Calculate ellipse center and radii from bounding rectangle
+        let rx = (record.right_rect - record.left_rect) / 2;
+        let ry = (record.bottom_rect - record.top_rect) / 2;
+        if rx == 0 || ry == 0 {
+            info!("META_CHORD is skipped because rx or ry is zero.");
+            return Ok(self);
+        }
+        let center = self.context_current.point_s_to_absolute_point(&PointS {
+            x: record.left_rect + rx,
+            y: record.top_rect + ry,
+        });
+
+        // Convert radial endpoints from WMF coordinates to SVG absolute
+        // coordinates
+        let p1 = self.context_current.point_s_to_absolute_point(&PointS {
+            x: record.x_radial1,
+            y: record.y_radial1,
+        });
+        let p2 = self.context_current.point_s_to_absolute_point(&PointS {
+            x: record.x_radial2,
+            y: record.y_radial2,
+        });
+
+        // Build SVG path for chord: move to first radial, draw arc, line to
+        // center, close path
+        let fill = match Fill::from(self.selected_brush().clone()) {
+            Fill::Pattern { pattern } => {
+                let id = self.issue_definition_id();
+                self.definitions.push(pattern.set("id", id.as_str()));
+                url_string(format!("#{id}").as_str())
+            }
+            Fill::Value { value } => value,
+        };
+        let fill_rule = self.context_current.poly_fill_rule();
+        let stroke = Stroke::from(self.selected_pen().clone());
+
+        // SVG arc parameters:
+        // - always small arc (large_arc=0)
+        // - always clockwise (sweep=1)
+        let large_arc = 0;
+        let sweep = 1;
+        let data = Data::new()
+            .move_to(format!("{} {}", p1.x, p1.y))
+            .elliptical_arc_to(format!(
+                "{} {} 0 {} {} {} {}",
+                rx, ry, large_arc, sweep, p2.x, p2.y
+            ))
+            .line_to(format!("{} {}", center.x, center.y))
+            .close();
+        let path = Node::new("path")
+            .set("fill", fill.as_str())
+            .set("fill-rule", fill_rule.as_str())
+            .set("d", data.to_string());
+        let path = stroke.set_props(path);
+
+        self.push_element(record_number, path);
+
         Ok(self)
     }
 
@@ -1537,11 +1599,29 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn select_clip_region(
-        self,
+        mut self,
         record_number: usize,
         record: META_SELECTCLIPREGION,
     ) -> Result<Self, PlayError> {
-        info!("META_SELECTCLIPREGION: not implemented");
+        let object =
+            self.context_current.object_table.get(record.region as usize);
+
+        if let GraphicsObject::Region(region) = object {
+            let rect = &region.bounding_rectangle;
+            let id = format!("clip{record_number}");
+            let mut clip = Node::new("clipPath").set("id", &id);
+            let rect_node = Node::new("rect")
+                .set("x", rect.left.to_string())
+                .set("y", rect.top.to_string())
+                .set("width", (rect.right - rect.left).to_string())
+                .set("height", (rect.bottom - rect.top).to_string());
+            clip = clip.add(rect_node);
+            self.definitions.push(clip);
+            self.current_clip_id = Some(id);
+        } else {
+            self.current_clip_id = None;
+        }
+
         Ok(self)
     }
 
