@@ -803,7 +803,7 @@ where
                     // debug!(%record_number, ?record);
                     // player = player.escape(record_number, record)?;
                 }
-            };
+            }
         }
 
         Ok(player.generate()?)

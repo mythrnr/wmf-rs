@@ -118,7 +118,7 @@ fn main() {
 
             std::process::exit(1);
         }
-    };
+    }
 
     tracing::info!("Converted successfully.");
 }

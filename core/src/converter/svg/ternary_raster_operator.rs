@@ -63,7 +63,7 @@ impl TernaryRasterOperator {
                     self.operation,
                 ),
             });
-        };
+        }
 
         if self.operation.use_source() && self.source.is_none() {
             return Err(TernaryRasterOperationError::NoSource {
@@ -72,7 +72,7 @@ impl TernaryRasterOperator {
                     self.operation,
                 ),
             });
-        };
+        }
 
         let result: Node = match self.operation {
             TernaryRasterOperation::BLACKNESS => Node::new("rect")

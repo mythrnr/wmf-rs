@@ -182,7 +182,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(profile_size.to_le_bytes());
                 info_header.extend(reserved.to_le_bytes());
             }
-        };
+        }
 
         // write pixel data
         let data = dib.bitmap_buffer.a_data;
@@ -271,7 +271,7 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
                     }
                 }
             }
-        };
+        }
 
         DeviceIndependentBitmap {
             dib_header_info: BitmapInfoHeader::Info(BitmapInfoHeaderInfo {
@@ -331,12 +331,12 @@ impl DeviceIndependentBitmap {
 
         let new_bit_count = crate::parser::BitCount::BI_BITCOUNT_5;
         let new_line_bits = dib_header_info.width() * (new_bit_count as usize);
-        let new_line_bytes = ((new_line_bits + 31) / 32) * 4;
+        let new_line_bytes = ((new_line_bits + 31).div_ceil(32)) * 4;
         let new_line_padding = new_line_bytes
             - dib_header_info.width() * (new_bit_count as usize / 8);
 
         let line_bits = dib_header_info.width() * (bit_count as usize);
-        let line_bytes = ((line_bits + 31) / 32) * 4;
+        let line_bytes = ((line_bits + 31).div_ceil(32)) * 4;
         let mut position = 0;
         let mut new_data = vec![];
 
