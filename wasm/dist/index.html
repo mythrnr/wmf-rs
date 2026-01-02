@@ -53,13 +53,13 @@
   <div id="output" style="border: solid black; padding: 10px;"></div>
 
   <script type="module">
-    import init, { convertWmf2Svg, setLogLevel } from './wmf_wasm.js';
+    import init, { convertWmf2Svg, setLogLevel } from "./wmf_wasm.js";
 
     async function run() {
       await init();
-      setLogLevel('info');
+      setLogLevel("info");
 
-      document.getElementById('input').addEventListener('change', () => {
+      document.getElementById("input").addEventListener("change", () => {
         const input = document.getElementById("input");
         const files = input.files;
 
@@ -70,18 +70,18 @@
         const fileReader = new FileReader();
         const filename = files[0].name;
 
-        fileReader.onload = function (e) {
-          const start = new Date().getTime();
+        fileReader.onload = (e) => {
+          const start = Date().getTime();
           const bytes = new Uint8Array(e.target.result);
 
           try {
             const output = convertWmf2Svg(bytes);
-            document.getElementById('output').innerHTML = output;
+            document.getElementById("output").innerHTML = output;
           } catch (e) {
-            document.getElementById('output').innerText = `${e}`;
+            document.getElementById("output").innerText = `${e}`;
           }
 
-          document.getElementById('time').innerText = `${filename} / ${new Date().getTime() - start}ms`;
+          document.getElementById("time").innerText = `${filename} / ${Date().getTime() - start}ms`;
         };
 
         fileReader.readAsArrayBuffer(files[0]);
