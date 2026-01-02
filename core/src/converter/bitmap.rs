@@ -295,10 +295,7 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
                     blue: color_ref.blue,
                 },
             ]),
-            bitmap_buffer: BitmapBuffer {
-                undefined_space: Vec::with_capacity(0),
-                a_data,
-            },
+            bitmap_buffer: BitmapBuffer { undefined_space: vec![], a_data },
         }
         .into()
     }
@@ -394,7 +391,7 @@ impl DeviceIndependentBitmap {
             },
             colors: crate::parser::Colors::Null,
             bitmap_buffer: crate::parser::BitmapBuffer {
-                undefined_space: Vec::with_capacity(0),
+                undefined_space: vec![],
                 a_data: new_data,
             },
         }

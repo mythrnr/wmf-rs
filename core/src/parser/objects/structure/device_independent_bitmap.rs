@@ -41,7 +41,7 @@ impl DeviceIndependentBitmap {
         consumed_bytes += c;
 
         //  TODO: Not written in [MS-WMF] how to parse this field.
-        let undefined_space = Vec::with_capacity(0);
+        let undefined_space = vec![];
         let (a_data, c) =
             crate::parser::read_variable(buf, dib_header_info.size())?;
         consumed_bytes += c;

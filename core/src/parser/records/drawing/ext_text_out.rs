@@ -153,7 +153,7 @@ impl META_EXTTEXTOUT {
             record_size.consume(1);
         }
 
-        let mut dx = Vec::with_capacity(0);
+        let mut dx = vec![];
 
         if record_size.remaining() {
             dx.reserve_exact(string_length as usize);
