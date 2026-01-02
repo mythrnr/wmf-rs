@@ -16,7 +16,7 @@ pub struct Font {
     /// formula can be used to compute the height of a font with a specified
     /// point size.
     ///
-    /// ```
+    /// ```text
     /// Height = -MulDiv(PointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72);
     /// ```
     pub height: i16,

@@ -4,23 +4,23 @@ resolver = "2"
 
 [workspace.dependencies]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
-clap = { version = "4.5.41", features = ["derive", "env"] }
+clap = { version = "4.5.53", features = ["derive", "env"] }
 codepage = "0.1.2"
-embedded-io = "0.6.1"
+embedded-io = "0.7.1"
 encoding_rs = "0.8.35"
 paste = "1.0.15"
-snafu = "0.8.6"
-strum = { version = "0.27.1", default-features = false, features = ["derive"] }
-tracing = { version = "0.1.41", default-features = false, features = [
+snafu = "0.8.9"
+strum = { version = "0.27.2", default-features = false, features = ["derive"] }
+tracing = { version = "0.1.44", default-features = false, features = [
   "attributes",
 ] }
-tracing-subscriber = { version = "0.3.19", default-features = false, features = [
+tracing-subscriber = { version = "0.3.22", default-features = false, features = [
   "time",
 ] }
 tracing-wasm = "0.2.1"
 unicode-segmentation = "1.12.0"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-test = "0.3.50"
+wasm-bindgen = "0.2.106"
+wasm-bindgen-test = "0.3.56"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

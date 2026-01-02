@@ -24,7 +24,7 @@ pub struct META_CREATEPATTERNBRUSH {
     /// bitmap pixel data that composes the brush pattern. The length of this
     /// field, in bytes, can be computed from bitmap parameters as follows.
     ///
-    /// ```
+    /// ```text
     /// (((Width * BitsPixel + 15) >> 4) << 1) * Height
     /// ```
     pub pattern: Vec<u8>,
