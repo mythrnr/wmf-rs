@@ -7,8 +7,6 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    registries:
-      - "github-private"
     schedule:
       interval: "weekly"
     target-branch: "master"
