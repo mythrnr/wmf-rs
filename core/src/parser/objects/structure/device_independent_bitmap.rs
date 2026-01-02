@@ -262,7 +262,7 @@ pub struct BitmapBuffer {
     /// DIBHeaderInfo field. If it is a BitmapCoreHeader, the size in bytes
     /// MUST be calculated as follows:
     ///
-    /// ```
+    /// ```text
     /// (((Width * Planes * BitCount + 31) & ~31) / 8) * abs(Height)
     /// ```
     ///

@@ -27,7 +27,7 @@ pub struct Bitmap16 {
     /// bitmap pixel data. The length of this field in bytes can be computed as
     /// follows.
     ///
-    /// ```
+    /// ```text
     /// (((Width * BitsPixel + 15) >> 4) << 1) * Height
     /// ```
     pub bits: Vec<u8>,
