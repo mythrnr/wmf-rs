@@ -207,12 +207,10 @@ where
                     player = player.ext_flood_fill(record_number, record)?;
                 }
                 RecordType::META_EXTTEXTOUT => {
-                    let font = player.selected_font()?;
                     let record = META_EXTTEXTOUT::parse(
                         buf,
                         record_size,
                         record_function,
-                        font.charset,
                     )?;
 
                     debug!(%record_number, ?record);
@@ -347,13 +345,8 @@ where
                     player = player.set_pixel(record_number, record)?;
                 }
                 RecordType::META_TEXTOUT => {
-                    let font = player.selected_font()?;
-                    let record = META_TEXTOUT::parse(
-                        buf,
-                        record_size,
-                        record_function,
-                        font.charset,
-                    )?;
+                    let record =
+                        META_TEXTOUT::parse(buf, record_size, record_function)?;
 
                     debug!(%record_number, ?record);
                     player = player.text_out(record_number, record)?;

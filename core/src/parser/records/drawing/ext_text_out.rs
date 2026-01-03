@@ -42,7 +42,7 @@ pub struct META_EXTTEXTOUT {
     /// decoding is undefined. If a matching font is found that matches the
     /// charset specified in the font object, the string should be decoded with
     /// the codepages in the following table.
-    pub string: String,
+    pub string: Vec<u8>,
     /// Dx (variable): An optional array of 16-bit signed integers that
     /// indicate the distance between origins of adjacent character cells. For
     /// example, Dx[i] logical units separate the origins of character cell i
@@ -58,7 +58,6 @@ impl META_EXTTEXTOUT {
         fields(
             %record_size,
             record_function = %format!("{record_function:#06X}"),
-            ?charset,
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -66,7 +65,6 @@ impl META_EXTTEXTOUT {
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
-        charset: crate::parser::CharacterSet,
     ) -> Result<Self, crate::parser::ParseError> {
         crate::parser::records::check_lower_byte_matches(
             record_function,
@@ -120,32 +118,9 @@ impl META_EXTTEXTOUT {
             None
         };
 
-        let string = {
-            let (bytes, c) =
-                crate::parser::read_variable(buf, string_length as usize)?;
-            record_size.consume(c);
-
-            if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
-                bytes
-                    .into_iter()
-                    .filter_map(|v| {
-                        crate::parser::symbol_charset_table().get(&v).copied()
-                    })
-                    .collect::<String>()
-                    .replace('\0', "")
-            } else {
-                let encoding: &'static encoding_rs::Encoding = charset.into();
-                let (cow, _, had_errors) = encoding.decode(&bytes);
-
-                if had_errors {
-                    return Err(crate::parser::ParseError::UnexpectedPattern {
-                        cause: "cannot decode string".to_owned(),
-                    });
-                }
-
-                cow.replace('\0', "").clone()
-            }
-        };
+        let (string, string_bytes) =
+            crate::parser::read_variable(buf, string_length as usize)?;
+        record_size.consume(string_bytes);
 
         // ignore odd bytes
         if string_length % 2 != 0 {
@@ -181,5 +156,21 @@ impl META_EXTTEXTOUT {
             string,
             dx,
         })
+    }
+
+    /// Converts the string to UTF-8 using the specified character set.
+    ///
+    /// # Arguments
+    ///
+    /// - `charset` - The character set to use for conversion.
+    ///
+    /// # Returns
+    ///
+    /// A UTF-8 string, or `ParseError` if decoding fails.
+    pub fn into_utf8(
+        &self,
+        charset: crate::parser::CharacterSet,
+    ) -> Result<String, crate::parser::ParseError> {
+        crate::parser::records::bytes_into_utf8(&self.string, charset)
     }
 }

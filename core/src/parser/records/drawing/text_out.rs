@@ -23,7 +23,7 @@ pub struct META_TEXTOUT {
     /// null-terminated, because StringLength specifies the length of the
     /// string. The string is written at the location specified by the XStart
     /// and YStart fields.
-    pub string: String,
+    pub string: Vec<u8>,
     /// YStart (2 bytes): A 16-bit signed integer that defines the vertical
     /// (y-axis) coordinate, in logical units, of the point where drawing is to
     /// start.
@@ -48,7 +48,6 @@ impl META_TEXTOUT {
         buf: &mut R,
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
-        charset: crate::parser::CharacterSet,
     ) -> Result<Self, crate::parser::ParseError> {
         crate::parser::records::check_lower_byte_matches(
             record_function,
@@ -59,42 +58,18 @@ impl META_TEXTOUT {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(string_length_bytes);
 
-        let string_len = if string_length % 2 == 0 {
-            string_length
-        } else {
-            string_length + 1
-        };
-        let string = {
-            let (bytes, c) =
-                crate::parser::read_variable(buf, string_len as usize)?;
-            record_size.consume(c);
+        let string_len = string_length + (string_length % 2);
 
-            if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
-                bytes
-                    .into_iter()
-                    .filter_map(|v| {
-                        crate::parser::symbol_charset_table().get(&v).copied()
-                    })
-                    .collect::<String>()
-                    .replace('\0', "")
-            } else {
-                let encoding: &'static encoding_rs::Encoding = charset.into();
-                let (cow, _, had_errors) = encoding.decode(&bytes);
-
-                if had_errors {
-                    return Err(crate::parser::ParseError::UnexpectedPattern {
-                        cause: "cannot decode string".to_owned(),
-                    });
-                }
-
-                cow.replace('\0', "").clone()
-            }
-        };
-        let ((y_start, y_start_bytes), (x_start, x_start_bytes)) = (
+        let (
+            (string, string_bytes),
+            (y_start, y_start_bytes),
+            (x_start, x_start_bytes),
+        ) = (
+            crate::parser::read_variable(buf, string_len as usize)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
         );
-        record_size.consume(y_start_bytes + x_start_bytes);
+        record_size.consume(string_bytes + y_start_bytes + x_start_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
@@ -106,5 +81,21 @@ impl META_TEXTOUT {
             y_start,
             x_start,
         })
+    }
+
+    /// Converts the string to UTF-8 using the specified character set.
+    ///
+    /// # Arguments
+    ///
+    /// - `charset` - The character set to use for conversion.
+    ///
+    /// # Returns
+    ///
+    /// A UTF-8 string, or `ParseError` if decoding fails.
+    pub fn into_utf8(
+        &self,
+        charset: crate::parser::CharacterSet,
+    ) -> Result<String, crate::parser::ParseError> {
+        crate::parser::records::bytes_into_utf8(&self.string, charset)
     }
 }

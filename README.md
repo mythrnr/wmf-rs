@@ -63,14 +63,14 @@ make serve
 
 ```html
 <script type="module">
-import init, { convertWmf2Svg, setLogLevel } from './wmf_wasm.js';
+import init, { convertWmf2Svg, setLogLevel } from "./wmf_wasm.js";
 
 async function run() {
   await init();
-  setLogLevel('debug');
+  setLogLevel("debug");
 
-  document.getElementById('input').addEventListener('change', () => {
-    const input = document.getElementById('input');
+  document.getElementById("input").addEventListener("change", () => {
+    const input = document.getElementById("input");
     const files = input.files;
 
     if (files === null || files.length === 0) {
@@ -83,7 +83,7 @@ async function run() {
       const bytes = new Uint8Array(e.target.result);
       const output = convertWmf2Svg(bytes);
 
-      document.getElementById('output').innerHTML = output;
+      document.getElementById("output").innerHTML = output;
     };
 
     fileReader.readAsArrayBuffer(files[0]);

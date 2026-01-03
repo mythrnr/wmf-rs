@@ -91,20 +91,6 @@ impl crate::converter::Player for SVGPlayer {
 
     // .
     // .
-    // Functions to support parsing Records
-    // .
-    // .
-    #[cfg_attr(feature = "tracing", tracing::instrument(
-        level = tracing::Level::TRACE,
-        skip(self),
-        err(level = tracing::Level::ERROR, Display),
-    ))]
-    fn selected_font(&self) -> Result<&Font, PlayError> {
-        Ok(&self.object_selected.font)
-    }
-
-    // .
-    // .
     // Functions to handle Bitmap Record
     // .
     // .
@@ -738,7 +724,10 @@ impl crate::converter::Player for SVGPlayer {
     ) -> Result<Self, PlayError> {
         use unicode_segmentation::UnicodeSegmentation;
 
-        let font_height = self.selected_font()?.height;
+        let font = &self.object_selected.font;
+        let text_content = record.into_utf8(font.charset).map_err(|err| {
+            PlayError::InvalidRecord { cause: err.to_string() }
+        })?;
         let point = {
             let point = PointS {
                 x: if self.context_current.text_align_update_cp {
@@ -754,9 +743,9 @@ impl crate::converter::Player for SVGPlayer {
                     self.context_current.text_align_vertical,
                     VerticalTextAlignmentMode::VTA_BASELINE
                         | VerticalTextAlignmentMode::VTA_BOTTOM
-                ) && font_height < 0
+                ) && font.height < 0
                 {
-                    -font_height
+                    -font.height
                 } else {
                     0
                 }),
@@ -845,11 +834,11 @@ impl crate::converter::Player for SVGPlayer {
                 self.context_current.as_css_text_align_vertical(),
             )
             .set("fill", self.context_current.text_color_as_css_color())
-            .add(Node::new_text(record.string.as_str()));
+            .add(Node::new_text(text_content.clone()));
 
         // https://opengrok.libreoffice.org/xref/core/emfio/source/reader/wmfreader.cxx?r=07a3dd72f3eb79c03297aa9af9d77326b07458b6#693-826
         if !record.dx.is_empty()
-            && record.string.graphemes(true).count() == record.dx.len()
+            && text_content.graphemes(true).count() == record.dx.len()
         {
             let mut dx = Vec::with_capacity(record.dx.len() + 1);
 
@@ -865,7 +854,8 @@ impl crate::converter::Player for SVGPlayer {
             );
         }
 
-        let (text, mut styles) = self.selected_font()?.set_props(text, &point);
+        let (text, mut styles) =
+            self.object_selected.font.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {
             styles.push(shape_inside);
@@ -1456,8 +1446,11 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_TEXTOUT,
     ) -> Result<Self, PlayError> {
+        let font = &self.object_selected.font;
+        let text_content = record.into_utf8(font.charset).map_err(|err| {
+            PlayError::InvalidRecord { cause: err.to_string() }
+        })?;
         let point = {
-            let font_height = self.selected_font()?.height;
             let point = PointS {
                 x: record.x_start,
                 y: record.y_start
@@ -1465,9 +1458,9 @@ impl crate::converter::Player for SVGPlayer {
                         self.context_current.text_align_vertical,
                         VerticalTextAlignmentMode::VTA_BASELINE
                             | VerticalTextAlignmentMode::VTA_BOTTOM
-                    ) && font_height < 0
+                    ) && font.height < 0
                     {
-                        -font_height
+                        -font.height
                     } else {
                         0
                     }),
@@ -1487,8 +1480,8 @@ impl crate::converter::Player for SVGPlayer {
             .set("x", point.x.to_string())
             .set("y", point.y.to_string())
             .set("fill", self.context_current.text_color_as_css_color())
-            .add(Node::new_text(record.string));
-        let (text, styles) = self.selected_font()?.set_props(text, &point);
+            .add(Node::new_text(text_content));
+        let (text, styles) = self.object_selected.font.set_props(text, &point);
         let text = text.set("style", styles.join(""));
 
         self.push_element(record_number, text);
