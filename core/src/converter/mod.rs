@@ -787,14 +787,23 @@ where
                 }
                 // escape record
                 RecordType::META_ESCAPE => {
-                    let r = read_variable(buf, record_size.remaining_bytes());
-                    debug!(?r, "META_ESCAPE skipped");
-                    // let record =
-                    //     META_ESCAPE::parse(buf, record_size,
-                    // record_function)?;
+                    let (buf, _) =
+                        read_variable(buf, record_size.remaining_bytes())
+                            .map_err(ParseError::from)?;
 
-                    // debug!(%record_number, ?record);
-                    // player = player.escape(record_number, record)?;
+                    match META_ESCAPE::parse(
+                        &mut buf.as_slice(),
+                        record_size,
+                        record_function,
+                    ) {
+                        Ok(record) => {
+                            debug!(%record_number, ?record);
+                            player = player.escape(record_number, record)?;
+                        }
+                        Err(err) => {
+                            error!(%record_number, ?err, "META_ESCAPE parse error");
+                        }
+                    }
                 }
             }
         }

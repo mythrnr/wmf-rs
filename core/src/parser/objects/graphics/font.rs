@@ -170,14 +170,19 @@ impl Font {
 
             // Find the position of the first null byte (0)
             let len = bytes.iter().position(|&c| c == 0).unwrap_or(32);
-            let encoding: &'static encoding_rs::Encoding = charset.into();
 
-            let (cow, _, had_errors) = encoding.decode(&bytes[..len]);
-            if had_errors {
-                "undecodable facename".to_owned()
-            } else {
-                cow.trim_end().to_owned()
-            }
+            // Convert bytes to UTF-8 string from Latin-1
+            crate::parser::bytes_into_utf8(
+                &bytes[..len],
+                crate::parser::CharacterSet::ANSI_CHARSET,
+            )?
+        };
+
+        // if facename is `Symbol`, set charset `SYMBOL_CHARSET`.
+        let charset = if facename.eq_ignore_ascii_case("Symbol") {
+            crate::parser::CharacterSet::SYMBOL_CHARSET
+        } else {
+            charset
         };
 
         Ok((

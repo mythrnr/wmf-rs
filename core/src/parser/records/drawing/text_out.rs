@@ -96,6 +96,6 @@ impl META_TEXTOUT {
         &self,
         charset: crate::parser::CharacterSet,
     ) -> Result<String, crate::parser::ParseError> {
-        crate::parser::records::bytes_into_utf8(&self.string, charset)
+        crate::parser::bytes_into_utf8(&self.string, charset)
     }
 }

@@ -85,3 +85,46 @@ macro_rules! impl_from_le_bytes {
 }
 
 impl_from_le_bytes! {(i8, 1), (i16, 2), (i32, 4), (u8, 1), (u16, 2), (u32, 4) }
+
+/// Converts the given byte slice to a UTF-8 string using the specified
+/// character set.
+///
+/// # Arguments
+///
+/// - `bytes` - The byte slice to convert.
+/// - `charset` - The character set indicating the encoding of the byte slice.
+///
+/// # Returns
+///
+/// - On success, returns a UTF-8 string.
+/// - On failure to decode, returns a `ParseError`.
+///
+/// If `SYMBOL_CHARSET` is specified, the function uses the symbol charset table
+/// for conversion. Otherwise, it decodes using the provided encoding and
+/// removes any null ( `\0` ) characters from the result.
+fn bytes_into_utf8(
+    bytes: &[u8],
+    charset: crate::parser::CharacterSet,
+) -> Result<String, crate::parser::ParseError> {
+    if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
+        Ok(bytes
+            .iter()
+            .filter_map(|v| {
+                crate::parser::symbol_charset_table().get(&v).copied()
+            })
+            .collect::<String>()
+            .replace('\0', ""))
+    } else {
+        let encoding: &'static encoding_rs::Encoding = charset.into();
+        let (cow, _, had_errors) = encoding.decode(bytes);
+
+        if had_errors {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: "Failed to decode string with specified charset"
+                    .to_string(),
+            });
+        }
+
+        Ok(cow.replace('\0', ""))
+    }
+}
