@@ -14,17 +14,17 @@ enum NodeType {
 }
 
 impl Node {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl ToString) -> Self {
         Self {
-            typ: NodeType::Node(name.into()),
+            typ: NodeType::Node(name.to_string()),
             inner: vec![],
             attrs: BTreeMap::new(),
         }
     }
 
-    pub fn new_text(value: impl Into<String>) -> Self {
+    pub fn new_text(value: impl ToString) -> Self {
         Self {
-            typ: NodeType::Text(value.into()),
+            typ: NodeType::Text(value.to_string()),
             inner: vec![],
             attrs: BTreeMap::new(),
         }
@@ -38,27 +38,23 @@ impl Node {
         self
     }
 
-    pub fn set(
-        mut self,
-        name: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Self {
+    pub fn set(mut self, name: impl ToString, value: impl ToString) -> Self {
         if matches!(self.typ, NodeType::Node(_)) {
-            self.attrs.insert(name.into(), value.into());
+            self.attrs.insert(name.to_string(), value.to_string());
         }
 
         self
     }
 
-    fn escape_text(value: impl Into<String>) -> String {
+    fn escape_text(value: impl ToString) -> String {
         value
-            .into()
+            .to_string()
             .replace('&', "&amp;")
             .replace('<', "&lt;")
             .replace('>', "&gt;")
     }
 
-    fn escape_attr(value: impl Into<String>) -> String {
+    fn escape_attr(value: impl ToString) -> String {
         Self::escape_text(value).replace('"', "&quot;").replace('\'', "&apos;")
     }
 }
@@ -69,7 +65,7 @@ impl core::fmt::Display for Node {
             NodeType::Node(name) => {
                 write!(
                     f,
-                    "<{name} {}>{}</{name}>\n",
+                    "<{name} {}>{}</{name}>",
                     self.attrs
                         .iter()
                         .map(|(k, v)| {

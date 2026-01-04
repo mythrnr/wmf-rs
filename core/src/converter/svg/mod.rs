@@ -559,8 +559,7 @@ impl crate::converter::Player for SVGPlayer {
                 "{} {} {} {} {} {} {}",
                 rx, ry, 0, large_arc, 0, end.x, end.y
             ));
-        let path =
-            Node::new("path").set("fill", "none").set("d", data.to_string());
+        let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.context_current = self.context_current.drawing_position(end);
@@ -631,7 +630,7 @@ impl crate::converter::Player for SVGPlayer {
         let path = Node::new("path")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("d", data.to_string());
+            .set("d", data);
         let path = stroke.set_props(path);
 
         self.push_element(record_number, path);
@@ -687,10 +686,10 @@ impl crate::converter::Player for SVGPlayer {
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("cx", point.x.to_string())
-            .set("cy", point.y.to_string())
-            .set("rx", rx.to_string())
-            .set("ry", ry.to_string());
+            .set("cx", point.x)
+            .set("cy", point.y)
+            .set("rx", rx)
+            .set("ry", ry);
         let ellipse = stroke.set_props(ellipse);
 
         self.push_element(record_number, ellipse);
@@ -826,8 +825,8 @@ impl crate::converter::Player for SVGPlayer {
         };
 
         let mut text = Node::new("text")
-            .set("x", point.x.to_string())
-            .set("y", point.y.to_string())
+            .set("x", point.x)
+            .set("y", point.y)
             .set("text-anchor", text_align)
             .set(
                 "dominant-baseline",
@@ -975,8 +974,7 @@ impl crate::converter::Player for SVGPlayer {
                 self.context_current.drawing_position.y
             ))
             .line_to(format!("{} {}", point.x, point.y));
-        let path =
-            Node::new("path").set("fill", "none").set("d", data.to_string());
+        let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.context_current = self.context_current.drawing_position(point);
@@ -1033,10 +1031,10 @@ impl crate::converter::Player for SVGPlayer {
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
             .set("stroke", "none")
-            .set("x", record.x_left.to_string())
-            .set("y", record.y_left.to_string())
-            .set("height", record.height.to_string())
-            .set("width", record.width.to_string());
+            .set("x", record.x_left)
+            .set("y", record.y_left)
+            .set("height", record.height)
+            .set("width", record.width);
 
         self.push_element(record_number, rect);
 
@@ -1074,10 +1072,10 @@ impl crate::converter::Player for SVGPlayer {
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("cx", center_x.to_string())
-            .set("cy", center_y.to_string())
-            .set("rx", rx.to_string())
-            .set("ry", ry.to_string());
+            .set("cx", center_x)
+            .set("cy", center_y)
+            .set("rx", rx)
+            .set("ry", ry);
         let ellipse = stroke.set_props(ellipse);
 
         let stroke = Stroke::from(self.selected_pen().clone());
@@ -1115,8 +1113,7 @@ impl crate::converter::Player for SVGPlayer {
             .move_to(format!("{} {}", p1.x, p1.y))
             .line_to(format!("{} {}", center.x, center.y))
             .line_to(format!("{} {}", p2.x, p2.y));
-        let path =
-            Node::new("path").set("fill", "none").set("d", data.to_string());
+        let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.context_current = self.context_current.drawing_position(p2);
@@ -1170,8 +1167,7 @@ impl crate::converter::Player for SVGPlayer {
             data = data.line_to(format!("{} {}", coordinate.x, coordinate.y));
         }
 
-        let path =
-            Node::new("path").set("fill", "none").set("d", data.to_string());
+        let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
         self.context_current =
@@ -1350,10 +1346,10 @@ impl crate::converter::Player for SVGPlayer {
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("x", tl.x.to_string())
-            .set("y", tl.y.to_string())
-            .set("height", (br.y - tl.y).to_string())
-            .set("width", (br.x - tl.x).to_string());
+            .set("x", tl.x)
+            .set("y", tl.y)
+            .set("height", br.y - tl.y)
+            .set("width", br.x - tl.x);
         let rect = stroke.set_props(rect);
 
         self.push_element(record_number, rect);
@@ -1409,12 +1405,12 @@ impl crate::converter::Player for SVGPlayer {
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule.as_str())
-            .set("x", point.x.to_string())
-            .set("y", point.y.to_string())
-            .set("height", height.to_string())
-            .set("width", width.to_string())
-            .set("rx", record.width.to_string())
-            .set("ry", record.height.to_string());
+            .set("x", point.x)
+            .set("y", point.y)
+            .set("height", height)
+            .set("width", width)
+            .set("rx", record.width)
+            .set("ry", record.height);
         let rect = stroke.set_props(rect);
 
         self.push_element(record_number, rect);
@@ -1477,8 +1473,8 @@ impl crate::converter::Player for SVGPlayer {
         };
 
         let text = Node::new("text")
-            .set("x", point.x.to_string())
-            .set("y", point.y.to_string())
+            .set("x", point.x)
+            .set("y", point.y)
             .set("fill", self.context_current.text_color_as_css_color())
             .add(Node::new_text(text_content));
         let (text, styles) = self.object_selected.font.set_props(text, &point);
@@ -1644,10 +1640,10 @@ impl crate::converter::Player for SVGPlayer {
             let id = format!("clip{record_number}");
             let mut clip = Node::new("clipPath").set("id", &id);
             let rect_node = Node::new("rect")
-                .set("x", rect.left.to_string())
-                .set("y", rect.top.to_string())
-                .set("width", (rect.right - rect.left).to_string())
-                .set("height", (rect.bottom - rect.top).to_string());
+                .set("x", rect.left)
+                .set("y", rect.top)
+                .set("width", rect.right - rect.left)
+                .set("height", rect.bottom - rect.top);
             clip = clip.add(rect_node);
             self.definitions.push(clip);
             self.current_clip_id = Some(id);
