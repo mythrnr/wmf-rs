@@ -214,7 +214,7 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
         match brush_hatch {
             HatchStyle::HS_HORIZONTAL => {
                 for i in 0..10 {
-                    if i % 2 == 0 {
+                    if i == 0 {
                         a_data.extend([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
                     } else {
                         a_data.extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -223,7 +223,7 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
             }
             HatchStyle::HS_VERTICAL => {
                 a_data.extend(
-                    vec![[1, 0, 1, 0, 1, 0, 1, 0, 1, 0]; 10]
+                    vec![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0]; 10]
                         .into_iter()
                         .flatten()
                         .collect::<Vec<_>>(),

@@ -845,7 +845,7 @@ impl crate::converter::Player for SVGPlayer {
             .set("fill", self.context_current.text_color_as_css_color());
 
         if record.dx.len() <= 1 {
-            text = text.add(Node::new_text(text_content));
+            text = text.add(Node::new_text(&text_content));
         } else {
             // https://cgit.freedesktop.org/libreoffice/core/tree/emfio/source/reader/wmfreader.cxx?id=c0b14ab9aa4d713a6b718ef07b9e0379b88e97d3#n693
             for (i, s) in text_content.graphemes(true).enumerate() {
@@ -881,7 +881,8 @@ impl crate::converter::Player for SVGPlayer {
         }
 
         if self.context_current.text_align_update_cp {
-            let dx = (font.height.abs() / 2) * record.string_length;
+            let dx = (font.height.abs() / 2)
+                * i16::try_from(text_content.width()).unwrap_or(0);
             let point = PointS { x: point.x + dx, y: point.y };
             self.context_current = self.context_current.drawing_position(point);
         }
