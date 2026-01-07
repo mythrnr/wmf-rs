@@ -110,7 +110,7 @@ fn bytes_into_utf8(
         Ok(bytes
             .iter()
             .filter_map(|v| {
-                crate::parser::symbol_charset_table().get(&v).copied()
+                crate::parser::symbol_charset_table().get(v).copied()
             })
             .collect::<String>()
             .replace('\0', ""))

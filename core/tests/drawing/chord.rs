@@ -26,10 +26,7 @@ fn meta_chord_svg_table_test() {
                 top_rect: 40,
                 left_rect: 40,
             },
-            expected_svg: r###"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-<path d="M 40 80 A 40 40 0 0 1 120 80 L 80 80 Z" fill="none" fill-rule="evenodd" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1">
-</path>
-</svg>"###,
+            expected_svg: r##"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M 40 80 A 40 40 0 0 1 120 80 L 80 80 Z" fill="none" fill-rule="evenodd" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1"></path></svg>"##,
         },
         TestCase {
             desc: "Vertical ellipse chord",
@@ -45,10 +42,7 @@ fn meta_chord_svg_table_test() {
                 top_rect: 40,
                 left_rect: 40,
             },
-            expected_svg: r###"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-<path d="M 80 40 A 40 40 0 0 1 80 120 L 80 80 Z" fill="none" fill-rule="evenodd" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1">
-</path>
-</svg>"###,
+            expected_svg: r##"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M 80 40 A 40 40 0 0 1 80 120 L 80 80 Z" fill="none" fill-rule="evenodd" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1"></path></svg>"##,
         },
         TestCase {
             desc: "Skip when rx/ry is zero",
@@ -64,8 +58,7 @@ fn meta_chord_svg_table_test() {
                 top_rect: 40,
                 left_rect: 40,
             },
-            expected_svg: r###"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-</svg>"###,
+            expected_svg: r#"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"></svg>"#,
         },
     ];
 

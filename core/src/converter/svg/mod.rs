@@ -845,7 +845,7 @@ impl crate::converter::Player for SVGPlayer {
             .set("fill", self.context_current.text_color_as_css_color());
 
         if record.dx.len() <= 1 {
-            text = text.add(Node::new_text(text_content))
+            text = text.add(Node::new_text(text_content));
         } else {
             // https://cgit.freedesktop.org/libreoffice/core/tree/emfio/source/reader/wmfreader.cxx?id=c0b14ab9aa4d713a6b718ef07b9e0379b88e97d3#n693
             for (i, s) in text_content.graphemes(true).enumerate() {
@@ -858,7 +858,8 @@ impl crate::converter::Player for SVGPlayer {
                 let mut tspan = Node::new("tspan").add(Node::new_text(s));
 
                 if dx != 0 {
-                    let excess_dx = (font.height.abs() / 2) * s.width() as i16;
+                    let excess_dx = (font.height.abs() / 2)
+                        * i16::try_from(s.width()).unwrap_or(0);
                     let dx = core::cmp::max(dx - excess_dx, 0);
 
                     tspan = tspan.set("dx", dx);

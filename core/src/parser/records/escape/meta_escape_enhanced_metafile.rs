@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 impl crate::parser::META_ESCAPE {
     pub(super) fn parse_as_META_ESCAPE_ENHANCED_METAFILE<R: crate::Read>(
         buf: &mut R,
@@ -42,12 +40,7 @@ impl crate::parser::META_ESCAPE {
                 + enhanced_metafile_data_size_bytes,
         );
 
-        let expected_byte_count =
-            u32::try_from(enhanced_metafile_data_size + 34).map_err(|err| {
-                crate::parser::ParseError::UnexpectedPattern {
-                    cause: err.to_string(),
-                }
-            })?;
+        let expected_byte_count = enhanced_metafile_data_size + 34;
 
         if u32::from(byte_count) != expected_byte_count {
             return Err(crate::parser::ParseError::UnexpectedPattern {

@@ -13,6 +13,7 @@ enum NodeType {
     Text(String),
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl Node {
     pub fn new(name: impl ToString) -> Self {
         Self {
