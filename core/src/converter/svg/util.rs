@@ -93,28 +93,16 @@ impl From<Brush> for Fill {
                 let image = Node::new("image")
                     .set("x", "0")
                     .set("y", "0")
-                    .set(
-                        "width",
-                        brush_hatch.dib_header_info.width().to_string(),
-                    )
-                    .set(
-                        "height",
-                        brush_hatch.dib_header_info.height().to_string(),
-                    )
+                    .set("width", brush_hatch.dib_header_info.width())
+                    .set("height", brush_hatch.dib_header_info.height())
                     .set("href", data);
                 let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
                     .set("x", "0")
                     .set("y", "0")
-                    .set(
-                        "width",
-                        brush_hatch.dib_header_info.width().to_string(),
-                    )
-                    .set(
-                        "height",
-                        brush_hatch.dib_header_info.height().to_string(),
-                    )
+                    .set("width", brush_hatch.dib_header_info.width())
+                    .set("height", brush_hatch.dib_header_info.height())
                     .add(image);
 
                 Fill::Pattern { pattern }
@@ -126,28 +114,28 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                     HatchStyle::HS_VERTICAL => {
                         let data = Data::new().move_to("0 0").line_to("0 10");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                     HatchStyle::HS_FDIAGONAL => {
                         let data = Data::new().move_to("0 10").line_to("10 0");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                     HatchStyle::HS_BDIAGONAL => {
                         let data = Data::new().move_to("0 0").line_to("10 10");
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                     HatchStyle::HS_CROSS => {
                         let data = Data::new()
@@ -158,7 +146,7 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                     HatchStyle::HS_DIAGCROSS => {
                         let data = Data::new()
@@ -169,7 +157,7 @@ impl From<Brush> for Fill {
 
                         Node::new("path")
                             .set("stroke", css_color_from_color_ref(&color_ref))
-                            .set("d", data.to_string())
+                            .set("d", data)
                     }
                 };
 
@@ -192,16 +180,16 @@ impl From<Brush> for Fill {
                 let image = Node::new("image")
                     .set("x", "0")
                     .set("y", "0")
-                    .set("width", brush_hatch.width.to_string())
-                    .set("height", brush_hatch.height.to_string())
+                    .set("width", brush_hatch.width)
+                    .set("height", brush_hatch.height)
                     .set("href", data);
                 let pattern = Node::new("pattern")
                     .set("patternUnits", "userSpaceOnUse")
                     .set("patternContentUnits", "userSpaceOnUse")
                     .set("x", "0")
                     .set("y", "0")
-                    .set("width", brush_hatch.width.to_string())
-                    .set("height", brush_hatch.height.to_string())
+                    .set("width", brush_hatch.width)
+                    .set("height", brush_hatch.height)
                     .add(image);
 
                 Fill::Pattern { pattern }
@@ -364,7 +352,7 @@ impl Stroke {
             .set("stroke-linecap", self.line_cap())
             .set("stroke-linejoin", self.line_join())
             .set("stroke-opacity", self.opacity())
-            .set("stroke-width", self.width().to_string())
+            .set("stroke-width", self.width())
     }
 }
 
@@ -400,7 +388,7 @@ impl Font {
             let ori = self.orientation - self.escapement;
 
             if ori != 0 {
-                elem = elem.set("rotate", (-ori / 10).to_string());
+                elem = elem.set("rotate", -ori / 10);
             }
         }
 
@@ -416,10 +404,17 @@ impl Font {
             );
         }
 
+        let mut font_family: Vec<&str> = vec![];
+
+        font_family.push(self.facename.as_str());
+        self.fallback_facename.iter().for_each(|f| {
+            font_family.push(f.as_str());
+        });
+
         elem = elem
-            .set("font-family", self.facename.as_str())
-            .set("font-size", self.height.abs().to_string())
-            .set("font-weight", self.weight.to_string());
+            .set("font-family", format!("'{}'", font_family.join("','")))
+            .set("font-size", self.height.abs())
+            .set("font-weight", self.weight);
 
         (elem, styles)
     }

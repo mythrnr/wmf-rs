@@ -328,12 +328,12 @@ impl DeviceIndependentBitmap {
 
         let new_bit_count = crate::parser::BitCount::BI_BITCOUNT_5;
         let new_line_bits = dib_header_info.width() * (new_bit_count as usize);
-        let new_line_bytes = ((new_line_bits + 31).div_ceil(32)) * 4;
+        let new_line_bytes = ((new_line_bits + 31) / 32) * 4;
         let new_line_padding = new_line_bytes
             - dib_header_info.width() * (new_bit_count as usize / 8);
 
         let line_bits = dib_header_info.width() * (bit_count as usize);
-        let line_bytes = ((line_bits + 31).div_ceil(32)) * 4;
+        let line_bytes = ((line_bits + 31) / 32) * 4;
         let mut position = 0;
         let mut new_data = vec![];
 

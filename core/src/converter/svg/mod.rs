@@ -481,12 +481,21 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         header: MetafileHeader,
     ) -> Result<Self, PlayError> {
-        let (_placeable, header) = match header {
+        let (placeable, header) = match header {
             MetafileHeader::StartsWithHeader(header) => (None, header),
             MetafileHeader::StartsWithPlaceable(placeable, header) => {
                 (Some(placeable), header)
             }
         };
+
+        if let Some(placeable) = placeable {
+            let Rect { left, top, right, bottom } = placeable.bounding_box;
+
+            self.context_current = self
+                .context_current
+                .window_origin(left, top)
+                .window_ext(right - left, bottom - top);
+        }
 
         self.context_current =
             self.context_current.create_object_table(header.number_of_objects);
@@ -722,6 +731,7 @@ impl crate::converter::Player for SVGPlayer {
         record: META_EXTTEXTOUT,
     ) -> Result<Self, PlayError> {
         use unicode_segmentation::UnicodeSegmentation;
+        use unicode_width::UnicodeWidthStr;
 
         let font = &self.object_selected.font;
         let text_content = record.into_utf8(font.charset).map_err(|err| {
@@ -832,39 +842,47 @@ impl crate::converter::Player for SVGPlayer {
                 "dominant-baseline",
                 self.context_current.as_css_text_align_vertical(),
             )
-            .set("fill", self.context_current.text_color_as_css_color())
-            .add(Node::new_text(text_content.clone()));
+            .set("fill", self.context_current.text_color_as_css_color());
 
-        // https://opengrok.libreoffice.org/xref/core/emfio/source/reader/wmfreader.cxx?r=07a3dd72f3eb79c03297aa9af9d77326b07458b6#693-826
-        if !record.dx.is_empty()
-            && text_content.graphemes(true).count() == record.dx.len()
-        {
-            let mut dx = Vec::with_capacity(record.dx.len() + 1);
+        if record.dx.len() <= 1 {
+            text = text.add(Node::new_text(text_content))
+        } else {
+            // https://cgit.freedesktop.org/libreoffice/core/tree/emfio/source/reader/wmfreader.cxx?id=c0b14ab9aa4d713a6b718ef07b9e0379b88e97d3#n693
+            for (i, s) in text_content.graphemes(true).enumerate() {
+                let dx = if i == 0 {
+                    0
+                } else {
+                    *record.dx.get(i - 1).unwrap_or(&0)
+                };
 
-            dx.push(0);
-            dx.extend(record.dx);
+                let mut tspan = Node::new("tspan").add(Node::new_text(s));
 
-            text = text.set(
-                "dx",
-                dx.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            );
+                if dx != 0 {
+                    let excess_dx = (font.height.abs() / 2) * s.width() as i16;
+                    let dx = core::cmp::max(dx - excess_dx, 0);
+
+                    tspan = tspan.set("dx", dx);
+                }
+
+                text = text.add(tspan);
+            }
         }
 
-        let (text, mut styles) =
+        let (mut text, mut styles) =
             self.object_selected.font.set_props(text, &point);
 
         if let Some(shape_inside) = shape_inside {
             styles.push(shape_inside);
         }
 
-        let mut text = text.set("style", styles.join(""));
+        if !styles.is_empty() {
+            text = text.set("style", styles.join(""));
+        }
 
         if self.context_current.text_align_update_cp {
-            self.context_current =
-                self.context_current.drawing_position(point.clone());
+            let dx = (font.height.abs() / 2) * record.string_length;
+            let point = PointS { x: point.x + dx, y: point.y };
+            self.context_current = self.context_current.drawing_position(point);
         }
 
         // HACK: background color
