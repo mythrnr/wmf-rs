@@ -67,6 +67,7 @@ impl Default for SelectedGraphicsObject {
                     pitch: PitchFont::DEFAULT_PITCH,
                 },
                 facename: "System".to_owned(),
+                fallback_facename: vec!["System".to_owned()],
             },
             palette: None,
             pen: Pen {

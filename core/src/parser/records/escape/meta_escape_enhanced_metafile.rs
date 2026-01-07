@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 impl crate::parser::META_ESCAPE {
     pub(super) fn parse_as_META_ESCAPE_ENHANCED_METAFILE<R: crate::Read>(
         buf: &mut R,
@@ -42,18 +40,13 @@ impl crate::parser::META_ESCAPE {
                 + enhanced_metafile_data_size_bytes,
         );
 
-        let expected_byte_count =
-            u16::try_from(enhanced_metafile_data_size + 34).map_err(|err| {
-                crate::parser::ParseError::UnexpectedPattern {
-                    cause: err.to_string(),
-                }
-            })?;
+        let expected_byte_count = enhanced_metafile_data_size + 34;
 
-        if byte_count != expected_byte_count {
+        if u32::from(byte_count) != expected_byte_count {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{byte_count:#06X}` field must be same as \
-                     `{expected_byte_count:#06X}`",
+                    "The byte_count `{byte_count:#010X}` field must be same \
+                     as `{expected_byte_count:#010X}`",
                 ),
             });
         }
@@ -61,8 +54,8 @@ impl crate::parser::META_ESCAPE {
         if comment_identifier != 0x43464D57 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{comment_identifier:#010X}` field must \
-                     be `0x43464D57`",
+                    "The comment_identifier `{comment_identifier:#010X}` \
+                     field must be `0x43464D57`",
                 ),
             });
         }
@@ -70,7 +63,7 @@ impl crate::parser::META_ESCAPE {
         if comment_type != 0x00000001 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{comment_type:#010X}` field must be \
+                    "The comment_type `{comment_type:#010X}` field must be \
                      `0x00000001`",
                 ),
             });
@@ -79,8 +72,7 @@ impl crate::parser::META_ESCAPE {
         if version != 0x00010000 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{version:#010X}` field must be \
-                     `0x00010000`",
+                    "The version `{version:#010X}` field must be `0x00010000`"
                 ),
             });
         }
@@ -88,8 +80,7 @@ impl crate::parser::META_ESCAPE {
         if flags != 0x00000000 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{version:#010X}` field must be \
-                     `0x00000000`",
+                    "The flags `{version:#010X}` field must be `0x00000000`",
                 ),
             });
         }
@@ -97,8 +88,8 @@ impl crate::parser::META_ESCAPE {
         if current_record_size > 8192 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The byte_count `{current_record_size}` field must be \
-                     less than or equal to `8192`",
+                    "The current_record_size `{current_record_size}` field \
+                     must be less than or equal to `8192`",
                 ),
             });
         }

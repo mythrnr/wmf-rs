@@ -43,14 +43,15 @@ impl Default for DeviceContext {
     }
 }
 
+// mutations
 impl DeviceContext {
-    pub fn create_object_table(mut self, length: u16) -> Self {
-        self.object_table = GraphicsObjects::new(length as usize);
+    pub fn bk_mode(mut self, bk_mode: MixMode) -> Self {
+        self.bk_mode = bk_mode;
         self
     }
 
-    pub fn bk_mode(mut self, bk_mode: MixMode) -> Self {
-        self.bk_mode = bk_mode;
+    pub fn create_object_table(mut self, length: u16) -> Self {
+        self.object_table = GraphicsObjects::new(length as usize);
         self
     }
 
@@ -79,6 +80,24 @@ impl DeviceContext {
         self
     }
 
+    pub fn extend_window(self, p: &PointS) -> Self {
+        let (mut x, mut y) = (0, 0);
+
+        if self.window.x < p.x {
+            x = p.x;
+        }
+
+        if self.window.y < p.y {
+            y = p.y;
+        }
+
+        if x > 0 && y > 0 {
+            self.window_ext(x, y)
+        } else {
+            self
+        }
+    }
+
     pub fn map_mode(mut self, map_mode: MapMode) -> Self {
         self.map_mode = map_mode;
         self
@@ -87,14 +106,6 @@ impl DeviceContext {
     pub fn poly_fill_mode(mut self, poly_fill_mode: PolyFillMode) -> Self {
         self.poly_fill_mode = poly_fill_mode;
         self
-    }
-
-    pub fn poly_fill_rule(&self) -> String {
-        match self.poly_fill_mode {
-            PolyFillMode::ALTERNATE => "evenodd",
-            PolyFillMode::WINDING => "nonzero",
-        }
-        .to_owned()
     }
 
     pub fn text_align_horizontal(
@@ -118,23 +129,6 @@ impl DeviceContext {
         self
     }
 
-    pub fn as_css_text_align(&self) -> String {
-        match self.text_align_horizontal {
-            TextAlignmentMode::TA_CENTER => "middle".to_owned(),
-            TextAlignmentMode::TA_RIGHT => "end".to_owned(),
-            _ => "start".to_owned(),
-        }
-    }
-
-    pub fn as_css_text_align_vertical(&self) -> String {
-        match self.text_align_vertical {
-            VerticalTextAlignmentMode::VTA_BOTTOM => "text-bottom".to_owned(),
-            VerticalTextAlignmentMode::VTA_TOP => "text-top".to_owned(),
-            VerticalTextAlignmentMode::VTA_CENTER => "central".to_owned(),
-            _ => "auto".to_owned(),
-        }
-    }
-
     pub fn text_bk_color(mut self, text_bk_color: ColorRef) -> Self {
         self.text_bk_color = text_bk_color;
         self
@@ -143,10 +137,6 @@ impl DeviceContext {
     pub fn text_color(mut self, text_color: ColorRef) -> Self {
         self.text_color = text_color;
         self
-    }
-
-    pub fn text_color_as_css_color(&self) -> String {
-        css_color_from_color_ref(&self.text_color)
     }
 
     pub fn window_ext(mut self, x: i16, y: i16) -> Self {
@@ -162,6 +152,25 @@ impl DeviceContext {
     pub fn window_scale(mut self, x: f32, y: f32) -> Self {
         self.window = self.window.scale(x, y);
         self
+    }
+}
+
+impl DeviceContext {
+    pub fn as_css_text_align(&self) -> String {
+        match self.text_align_horizontal {
+            TextAlignmentMode::TA_CENTER => "middle".to_owned(),
+            TextAlignmentMode::TA_RIGHT => "end".to_owned(),
+            _ => "start".to_owned(),
+        }
+    }
+
+    pub fn as_css_text_align_vertical(&self) -> String {
+        match self.text_align_vertical {
+            VerticalTextAlignmentMode::VTA_BOTTOM => "text-bottom".to_owned(),
+            VerticalTextAlignmentMode::VTA_TOP => "text-top".to_owned(),
+            VerticalTextAlignmentMode::VTA_CENTER => "central".to_owned(),
+            _ => "auto".to_owned(),
+        }
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
@@ -184,22 +193,16 @@ impl DeviceContext {
         PointS { x, y }
     }
 
-    pub fn extend_window(self, p: &PointS) -> Self {
-        let (mut x, mut y) = (0, 0);
-
-        if self.window.x < p.x {
-            x = p.x;
+    pub fn poly_fill_rule(&self) -> String {
+        match self.poly_fill_mode {
+            PolyFillMode::ALTERNATE => "evenodd",
+            PolyFillMode::WINDING => "nonzero",
         }
+        .to_owned()
+    }
 
-        if self.window.y < p.y {
-            y = p.y;
-        }
-
-        if x > 0 && y > 0 {
-            self.window_ext(x, y)
-        } else {
-            self
-        }
+    pub fn text_color_as_css_color(&self) -> String {
+        css_color_from_color_ref(&self.text_color)
     }
 }
 

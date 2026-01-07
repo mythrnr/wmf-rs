@@ -64,29 +64,8 @@ crate::parser::constants::impl_parser!(CharacterSet, u8);
 
 impl From<CharacterSet> for &'static encoding_rs::Encoding {
     fn from(v: CharacterSet) -> Self {
-        match v {
-            CharacterSet::DEFAULT_CHARSET | CharacterSet::ANSI_CHARSET => {
-                encoding_rs::WINDOWS_1252
-            }
-            CharacterSet::ARABIC_CHARSET => encoding_rs::WINDOWS_1256,
-            CharacterSet::BALTIC_CHARSET => encoding_rs::WINDOWS_1257,
-            CharacterSet::CHINESEBIG5_CHARSET => encoding_rs::BIG5,
-            CharacterSet::EASTEUROPE_CHARSET => encoding_rs::WINDOWS_1250,
-            CharacterSet::GB2312_CHARSET => encoding_rs::GB18030,
-            CharacterSet::GREEK_CHARSET => encoding_rs::WINDOWS_1253,
-            CharacterSet::HANGUL_CHARSET => encoding_rs::EUC_KR,
-            CharacterSet::HEBREW_CHARSET => encoding_rs::WINDOWS_1255,
-            CharacterSet::RUSSIAN_CHARSET => encoding_rs::WINDOWS_1251,
-            CharacterSet::SHIFTJIS_CHARSET => encoding_rs::SHIFT_JIS,
-            CharacterSet::THAI_CHARSET => encoding_rs::WINDOWS_874,
-            CharacterSet::TURKISH_CHARSET => encoding_rs::WINDOWS_1254,
-            CharacterSet::VIETNAMESE_CHARSET => encoding_rs::WINDOWS_1258,
-            // not defined in encoding_rs crate.
-            CharacterSet::JOHAB_CHARSET
-            | CharacterSet::MAC_CHARSET
-            | CharacterSet::OEM_CHARSET
-            | CharacterSet::SYMBOL_CHARSET => encoding_rs::WINDOWS_1252,
-        }
+        let codepage_id = codepage_table().get(&v).copied().unwrap_or(1252);
+        codepage::to_encoding(codepage_id).unwrap_or(encoding_rs::REPLACEMENT)
     }
 }
 
@@ -171,4 +150,45 @@ pub(in crate::parser) fn symbol_charset_table(
     // initialized.
     #[allow(clippy::deref_addrof)]
     unsafe { &*&raw const SYMBOL_CHARSET_TABLE }
+}
+
+static CODEPAGE_TABLE_INITIALIZED: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(false);
+static mut CODEPAGE_TABLE: BTreeMap<CharacterSet, u16> = BTreeMap::new();
+
+fn codepage_table() -> &'static BTreeMap<CharacterSet, u16> {
+    if !CODEPAGE_TABLE_INITIALIZED.load(core::sync::atomic::Ordering::Acquire) {
+        CODEPAGE_TABLE_INITIALIZED
+            .store(true, core::sync::atomic::Ordering::Release);
+
+        unsafe {
+            // via: https://en.wikipedia.org/wiki/Code_page
+            CODEPAGE_TABLE = BTreeMap::from_iter([
+                (CharacterSet::ANSI_CHARSET, 1252),
+                (CharacterSet::SYMBOL_CHARSET, 42),
+                (CharacterSet::SHIFTJIS_CHARSET, 932),
+                (CharacterSet::HANGUL_CHARSET, 949),
+                (CharacterSet::JOHAB_CHARSET, 1361),
+                (CharacterSet::GB2312_CHARSET, 936),
+                (CharacterSet::CHINESEBIG5_CHARSET, 950),
+                (CharacterSet::GREEK_CHARSET, 1253),
+                (CharacterSet::TURKISH_CHARSET, 1254),
+                (CharacterSet::VIETNAMESE_CHARSET, 1258),
+                (CharacterSet::HEBREW_CHARSET, 1255),
+                (CharacterSet::ARABIC_CHARSET, 1256),
+                (CharacterSet::BALTIC_CHARSET, 1257),
+                (CharacterSet::RUSSIAN_CHARSET, 1251),
+                (CharacterSet::THAI_CHARSET, 874),
+                (CharacterSet::EASTEUROPE_CHARSET, 1250),
+                (CharacterSet::OEM_CHARSET, 437),
+            ]);
+        }
+    }
+
+    // SAFETY: Mutable access is not possible after state has been
+    // initialized.
+    #[allow(clippy::deref_addrof)]
+    unsafe {
+        &*&raw const CODEPAGE_TABLE
+    }
 }

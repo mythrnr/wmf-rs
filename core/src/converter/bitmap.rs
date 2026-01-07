@@ -182,7 +182,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(profile_size.to_le_bytes());
                 info_header.extend(reserved.to_le_bytes());
             }
-        };
+        }
 
         // write pixel data
         let data = dib.bitmap_buffer.a_data;
@@ -204,6 +204,100 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         };
 
         Self(data)
+    }
+}
+
+impl From<(ColorRef, HatchStyle)> for Bitmap {
+    fn from((color_ref, brush_hatch): (ColorRef, HatchStyle)) -> Self {
+        let mut a_data = Vec::with_capacity(100);
+
+        match brush_hatch {
+            HatchStyle::HS_HORIZONTAL => {
+                for i in 0..10 {
+                    if i == 0 {
+                        a_data.extend([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+                    } else {
+                        a_data.extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                    }
+                }
+            }
+            HatchStyle::HS_VERTICAL => {
+                a_data.extend(
+                    vec![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0]; 10]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>(),
+                );
+            }
+            HatchStyle::HS_FDIAGONAL => {
+                for i in 0..10 {
+                    for j in 0..10 {
+                        if i + j == 9 {
+                            a_data.push(1);
+                        } else {
+                            a_data.push(0);
+                        }
+                    }
+                }
+            }
+            HatchStyle::HS_BDIAGONAL => {
+                for i in 0..10 {
+                    for j in 0..10 {
+                        if i == j {
+                            a_data.push(1);
+                        } else {
+                            a_data.push(0);
+                        }
+                    }
+                }
+            }
+            HatchStyle::HS_CROSS => {
+                for i in 0..10 {
+                    if i == 0 {
+                        a_data.extend([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+                    } else {
+                        a_data.extend([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                    }
+                }
+            }
+            HatchStyle::HS_DIAGCROSS => {
+                for i in 0..10 {
+                    for j in 0..10 {
+                        if i == j || i + j == 9 {
+                            a_data.push(1);
+                        } else {
+                            a_data.push(0);
+                        }
+                    }
+                }
+            }
+        }
+
+        DeviceIndependentBitmap {
+            dib_header_info: BitmapInfoHeader::Info(BitmapInfoHeaderInfo {
+                header_size: 40,
+                width: 10,
+                height: 10,
+                planes: 1,
+                bit_count: BitCount::BI_BITCOUNT_5,
+                compression: Compression::BI_RGB,
+                image_size: 0,
+                x_pels_per_meter: 0,
+                y_pels_per_meter: 0,
+                color_used: 0,
+                color_important: 0,
+            }),
+            colors: Colors::RGBTriple(vec![
+                RGBTriple { red: 0, green: 0, blue: 0 },
+                RGBTriple {
+                    red: color_ref.red,
+                    green: color_ref.green,
+                    blue: color_ref.blue,
+                },
+            ]),
+            bitmap_buffer: BitmapBuffer { undefined_space: vec![], a_data },
+        }
+        .into()
     }
 }
 

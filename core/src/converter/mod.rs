@@ -207,12 +207,10 @@ where
                     player = player.ext_flood_fill(record_number, record)?;
                 }
                 RecordType::META_EXTTEXTOUT => {
-                    let font = player.selected_font()?;
                     let record = META_EXTTEXTOUT::parse(
                         buf,
                         record_size,
                         record_function,
-                        font.charset,
                     )?;
 
                     debug!(%record_number, ?record);
@@ -347,13 +345,8 @@ where
                     player = player.set_pixel(record_number, record)?;
                 }
                 RecordType::META_TEXTOUT => {
-                    let font = player.selected_font()?;
-                    let record = META_TEXTOUT::parse(
-                        buf,
-                        record_size,
-                        record_function,
-                        font.charset,
-                    )?;
+                    let record =
+                        META_TEXTOUT::parse(buf, record_size, record_function)?;
 
                     debug!(%record_number, ?record);
                     player = player.text_out(record_number, record)?;
@@ -794,16 +787,25 @@ where
                 }
                 // escape record
                 RecordType::META_ESCAPE => {
-                    let r = read_variable(buf, record_size.remaining_bytes());
-                    debug!(?r, "META_ESCAPE skipped");
-                    // let record =
-                    //     META_ESCAPE::parse(buf, record_size,
-                    // record_function)?;
+                    let (buf, _) =
+                        read_variable(buf, record_size.remaining_bytes())
+                            .map_err(ParseError::from)?;
 
-                    // debug!(%record_number, ?record);
-                    // player = player.escape(record_number, record)?;
+                    match META_ESCAPE::parse(
+                        &mut buf.as_slice(),
+                        record_size,
+                        record_function,
+                    ) {
+                        Ok(record) => {
+                            debug!(%record_number, ?record);
+                            player = player.escape(record_number, record)?;
+                        }
+                        Err(err) => {
+                            error!(%record_number, ?err, "META_ESCAPE parse error");
+                        }
+                    }
                 }
-            };
+            }
         }
 
         Ok(player.generate()?)

@@ -33,10 +33,10 @@ fn check_lower_byte_matches(
 fn consume_remaining_bytes<R: crate::Read>(
     buf: &mut R,
     record_size: crate::parser::RecordSize,
-) -> Result<(), crate::parser::ParseError> {
-    let _ = crate::parser::read_variable(buf, record_size.remaining_bytes())?;
-
-    Ok(())
+) -> Result<(crate::imports::Vec<u8>, usize), crate::parser::ParseError> {
+    crate::parser::read_variable(buf, record_size.remaining_bytes()).map_err(
+        |err| crate::parser::ParseError::FailedReadBuffer { cause: err },
+    )
 }
 
 /// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,

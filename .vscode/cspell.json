@@ -220,6 +220,7 @@
     "stretchblt",
     "stretchdib",
     "textout",
+    "tspan",
     "twip",
     "twips",
     "udeps",

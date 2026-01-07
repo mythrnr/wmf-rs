@@ -2,6 +2,9 @@ ifndef VERBOSE
 MAKEFLAGS += --silent
 endif
 
+.PHONY: ci-suite
+ci-suite: spell-check fix fmt lint udeps test
+
 .PHONY: check
 check:
 	cargo check --workspace --all-targets --all-features

@@ -96,6 +96,9 @@ pub struct Font {
     /// [ISO/IEC-8859-1] ANSI characters that specifies the typeface name of
     /// the font. Any characters following the terminating null are ignored.
     pub facename: String,
+    /// Fallback facename: The facename interpreted according to the
+    /// specified charset. This is extra field to help with font matching.
+    pub fallback_facename: Vec<String>,
 }
 
 impl Font {
@@ -159,7 +162,7 @@ impl Font {
             + quality_bytes
             + pitch_and_family_bytes;
 
-        let facename = {
+        let (facename, facename_as_charset) = {
             let mut bytes = vec![0; 32];
             let c = buf.read(&mut bytes).map_err(|err| {
                 crate::parser::ParseError::UnexpectedPattern {
@@ -170,14 +173,40 @@ impl Font {
 
             // Find the position of the first null byte (0)
             let len = bytes.iter().position(|&c| c == 0).unwrap_or(32);
-            let encoding: &'static encoding_rs::Encoding = charset.into();
 
-            let (cow, _, had_errors) = encoding.decode(&bytes[..len]);
-            if had_errors {
-                "undecodable facename".to_owned()
-            } else {
-                cow.trim_end().to_owned()
+            // Convert bytes to UTF-8 string from Latin-1
+            let as_latin1 = crate::parser::bytes_into_utf8(
+                &bytes[..len],
+                crate::parser::CharacterSet::ANSI_CHARSET,
+            )?;
+
+            // Convert bytes to UTF-8 string from specified charset
+            let as_charset =
+                crate::parser::bytes_into_utf8(&bytes[..len], charset)?;
+
+            (as_latin1, as_charset)
+        };
+
+        let mut fallback_facename = Vec::new();
+
+        if facename != facename_as_charset {
+            fallback_facename.push(facename_as_charset);
+        }
+
+        // if facename is `Symbol`, set charset `SYMBOL_CHARSET`.
+        let charset = if facename.to_ascii_lowercase().contains("symbol")
+            || fallback_facename
+                .iter()
+                .any(|f| f.to_ascii_lowercase().contains("symbol"))
+        {
+            let symbol = "Symbol".to_string();
+            if facename != symbol && !fallback_facename.contains(&symbol) {
+                fallback_facename.push(symbol);
             }
+
+            crate::parser::CharacterSet::SYMBOL_CHARSET
+        } else {
+            charset
         };
 
         Ok((
@@ -196,6 +225,7 @@ impl Font {
                 quality,
                 pitch_and_family,
                 facename,
+                fallback_facename,
             },
             consumed_bytes,
         ))

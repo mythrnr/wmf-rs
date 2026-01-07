@@ -63,7 +63,7 @@ impl TernaryRasterOperator {
                     self.operation,
                 ),
             });
-        };
+        }
 
         if self.operation.use_source() && self.source.is_none() {
             return Err(TernaryRasterOperationError::NoSource {
@@ -72,14 +72,14 @@ impl TernaryRasterOperator {
                     self.operation,
                 ),
             });
-        };
+        }
 
         let result: Node = match self.operation {
             TernaryRasterOperation::BLACKNESS => Node::new("rect")
-                .set("x", self.x.to_string())
-                .set("y", self.y.to_string())
-                .set("width", self.width.to_string())
-                .set("height", self.height.to_string())
+                .set("x", self.x)
+                .set("y", self.y)
+                .set("width", self.width)
+                .set("height", self.height)
                 .set("stroke", "none")
                 .set("fill", "black"),
             TernaryRasterOperation::SRCCOPY => {
@@ -93,10 +93,10 @@ impl TernaryRasterOperator {
                 };
 
                 Node::new("image")
-                    .set("x", self.x.to_string())
-                    .set("y", self.y.to_string())
-                    .set("width", self.width.to_string())
-                    .set("height", self.height.to_string())
+                    .set("x", self.x)
+                    .set("y", self.y)
+                    .set("width", self.width)
+                    .set("height", self.height)
                     .set("href", bitmap.as_data_url())
             }
             TernaryRasterOperation::PATCOPY => {
@@ -110,17 +110,17 @@ impl TernaryRasterOperator {
                 };
 
                 Node::new("rect")
-                    .set("x", self.x.to_string())
-                    .set("y", self.y.to_string())
-                    .set("width", self.width.to_string())
-                    .set("height", self.height.to_string())
+                    .set("x", self.x)
+                    .set("y", self.y)
+                    .set("width", self.width)
+                    .set("height", self.height)
                     .set("fill", fill.as_str())
             }
             TernaryRasterOperation::WHITENESS => Node::new("rect")
-                .set("x", self.x.to_string())
-                .set("y", self.y.to_string())
-                .set("width", self.width.to_string())
-                .set("height", self.height.to_string())
+                .set("x", self.x)
+                .set("y", self.y)
+                .set("width", self.width)
+                .set("height", self.height)
                 .set("stroke", "none")
                 .set("fill", "white"),
             operation => {
