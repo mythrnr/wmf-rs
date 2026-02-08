@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
-clap = { version = "4.5.56", features = ["derive", "env"] }
+clap = { version = "4.5.57", features = ["derive", "env"] }
 codepage = "0.1.2"
 embedded-io = "0.7.1"
 encoding_rs = "0.8.35"
