@@ -14,7 +14,7 @@ strum = { version = "0.27.2", default-features = false, features = ["derive"] }
 tracing = { version = "0.1.44", default-features = false, features = [
   "attributes",
 ] }
-tracing-subscriber = { version = "0.3.22", default-features = false, features = [
+tracing-subscriber = { version = "0.3.23", default-features = false, features = [
   "time",
 ] }
 tracing-wasm = "0.2.1"
