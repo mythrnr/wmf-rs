@@ -47,11 +47,10 @@ impl META_POLYGON {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
-        if number_of_points < 0 {
+        if number_of_points < 2 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "number_of_points must be non-negative, got \
-                     {number_of_points}",
+                    "number_of_points must be >= 2, got {number_of_points}",
                 ),
             });
         }
@@ -77,15 +76,20 @@ mod tests {
     use crate::parser::records::test_helpers::*;
 
     #[test]
-    fn parse_negative_number_of_points() {
-        let payload = (-1_i16).to_le_bytes();
-        let data = build_record(
-            4,
-            crate::parser::RecordType::META_POLYGON as u16,
-            &payload,
-        );
-        let (rs, rf, mut reader) = parse_record_header(&data);
-        assert!(META_POLYGON::parse(&mut reader, rs, rf).is_err());
+    fn parse_rejects_number_of_points_less_than_2() {
+        for n in [-1_i16, 0, 1] {
+            let payload = n.to_le_bytes();
+            let data = build_record(
+                4,
+                crate::parser::RecordType::META_POLYGON as u16,
+                &payload,
+            );
+            let (rs, rf, mut reader) = parse_record_header(&data);
+            assert!(
+                META_POLYGON::parse(&mut reader, rs, rf).is_err(),
+                "number_of_points={n} should be rejected"
+            );
+        }
     }
 
     #[test]

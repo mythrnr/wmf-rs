@@ -34,6 +34,16 @@ fn consume_remaining_bytes<R: crate::Read>(
     buf: &mut R,
     record_size: crate::parser::RecordSize,
 ) -> Result<(crate::imports::Vec<u8>, usize), crate::parser::ParseError> {
+    if record_size.consumed_bytes() > record_size.byte_count() {
+        return Err(crate::parser::ParseError::UnexpectedPattern {
+            cause: alloc::format!(
+                "consumed bytes ({}) exceeds record byte count ({})",
+                record_size.consumed_bytes(),
+                record_size.byte_count(),
+            ),
+        });
+    }
+
     crate::parser::read_variable(buf, record_size.remaining_bytes()).map_err(
         |err| crate::parser::ParseError::FailedReadBuffer { cause: err },
     )
@@ -89,7 +99,7 @@ impl core::fmt::Debug for RecordSize {
 
 impl RecordSize {
     pub fn byte_count(&self) -> usize {
-        (self.0 * 2) as usize
+        (self.0 as usize).saturating_mul(2)
     }
 
     pub fn word_size(&self) -> usize {
@@ -148,16 +158,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn record_size_remaining_bytes_no_underflow() {
+    fn record_size_remaining_bytes_saturates() {
         let data = 3_u32.to_le_bytes();
         let mut reader = &data[..];
         let mut rs = RecordSize::parse(&mut reader).unwrap();
         assert_eq!(rs.byte_count(), 6);
         rs.consume(6);
         assert_eq!(rs.remaining_bytes(), 0);
-        // Over-consume: should saturate to 0 instead of panicking.
+        // Over-consume: remaining_bytes saturates to 0.
         rs.consume(10);
         assert_eq!(rs.remaining_bytes(), 0);
+    }
+
+    #[test]
+    fn consume_remaining_bytes_detects_overrun() {
+        let data = 3_u32.to_le_bytes(); // byte_count = 6
+        let mut reader = &data[..];
+        let mut rs = RecordSize::parse(&mut reader).unwrap();
+        // Simulate consuming more than byte_count.
+        rs.consume(100);
+        let mut empty: &[u8] = &[];
+        assert!(
+            super::consume_remaining_bytes(&mut empty, rs).is_err(),
+            "overrun should be detected as ParseError"
+        );
+    }
+
+    #[test]
+    fn byte_count_does_not_panic_for_large_word_count() {
+        let rs = RecordSize::from(u32::MAX);
+        // Should not panic regardless of platform pointer width.
+        let bc = rs.byte_count();
+        assert!(bc >= u32::MAX as usize);
     }
 
     #[test]

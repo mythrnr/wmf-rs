@@ -39,7 +39,7 @@ impl PolyPolygon {
             a_points_per_polygon.push(v);
         }
 
-        let mut a_points = Vec::with_capacity(number_of_points as usize);
+        let mut a_points = Vec::new();
 
         for _ in 0..number_of_points {
             let (v, c) = crate::parser::PointS::parse(buf)?;

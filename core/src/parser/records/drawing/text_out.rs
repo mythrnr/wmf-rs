@@ -67,14 +67,15 @@ impl META_TEXTOUT {
         }
 
         // Pad to 2-byte boundary if string_length is odd.
-        let string_len = string_length + (string_length % 2);
+        // Compute in usize to avoid i16 overflow (e.g. 32767 + 1).
+        let string_len = string_length as usize + (string_length as usize % 2);
 
         let (
             (string, string_bytes),
             (y_start, y_start_bytes),
             (x_start, x_start_bytes),
         ) = (
-            crate::parser::read_variable(buf, string_len as usize)?,
+            crate::parser::read_variable(buf, string_len)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
         );
