@@ -46,3 +46,29 @@ impl META_POLYPOLYGON {
         Ok(Self { record_size, record_function, poly_polygon })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{imports::*, parser::records::test_helpers::*};
+
+    #[test]
+    fn parse_ok() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&1_u16.to_le_bytes());
+        payload.extend_from_slice(&3_u16.to_le_bytes());
+        for (x, y) in [(0_i16, 0_i16), (100, 0), (50, 100)] {
+            payload.extend_from_slice(&x.to_le_bytes());
+            payload.extend_from_slice(&y.to_le_bytes());
+        }
+        let data = build_record(
+            11,
+            crate::parser::RecordType::META_POLYPOLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYPOLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.poly_polygon.number_of_polygons, 1);
+        assert_eq!(record.poly_polygon.a_points.len(), 3);
+    }
+}

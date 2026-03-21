@@ -79,3 +79,41 @@ impl META_RECTANGLE {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{imports::*, parser::records::test_helpers::*};
+
+    #[test]
+    fn parse_ok() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&200_i16.to_le_bytes());
+        payload.extend_from_slice(&300_i16.to_le_bytes());
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            7,
+            crate::parser::RecordType::META_RECTANGLE as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_RECTANGLE::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.bottom_rect, 200);
+        assert_eq!(record.right_rect, 300);
+        assert_eq!(record.top_rect, 10);
+        assert_eq!(record.left_rect, 20);
+    }
+
+    #[test]
+    fn parse_insufficient_buffer() {
+        let payload = [200_i16.to_le_bytes(), 300_i16.to_le_bytes()].concat();
+        let data = build_record(
+            7,
+            crate::parser::RecordType::META_RECTANGLE as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_RECTANGLE::parse(&mut reader, rs, rf).is_err());
+    }
+}

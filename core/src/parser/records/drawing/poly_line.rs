@@ -44,6 +44,15 @@ impl META_POLYLINE {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
+        if number_of_points < 0 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "number_of_points must be non-negative, got \
+                     {number_of_points}",
+                ),
+            });
+        }
+
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
@@ -56,5 +65,43 @@ impl META_POLYLINE {
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
         Ok(Self { record_size, record_function, number_of_points, a_points })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::records::test_helpers::*;
+
+    #[test]
+    fn parse_negative_number_of_points() {
+        let payload = (-5_i16).to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYLINE as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_POLYLINE::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_two_points() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&2_i16.to_le_bytes());
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        payload.extend_from_slice(&30_i16.to_le_bytes());
+        payload.extend_from_slice(&40_i16.to_le_bytes());
+        let data = build_record(
+            8,
+            crate::parser::RecordType::META_POLYLINE as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYLINE::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 2);
+        assert_eq!(record.a_points[0].x, 10);
+        assert_eq!(record.a_points[1].y, 40);
     }
 }

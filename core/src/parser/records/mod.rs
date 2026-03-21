@@ -109,6 +109,77 @@ impl RecordSize {
     }
 
     pub fn remaining_bytes(&self) -> usize {
-        self.byte_count() - self.1
+        self.byte_count().saturating_sub(self.1)
+    }
+}
+
+/// Test helpers for record parsing tests.
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use crate::imports::*;
+
+    /// Build a record binary payload.
+    pub fn build_record(
+        word_count: u32,
+        record_function: u16,
+        payload: &[u8],
+    ) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&word_count.to_le_bytes());
+        data.extend_from_slice(&record_function.to_le_bytes());
+        data.extend_from_slice(payload);
+        data
+    }
+
+    /// Parse RecordSize and record_function from a pre-built buffer,
+    /// consuming both (matching the converter's actual flow).
+    pub fn parse_record_header(data: &[u8]) -> (super::RecordSize, u16, &[u8]) {
+        let mut reader = data;
+        let mut record_size = super::RecordSize::parse(&mut reader).unwrap();
+        let (record_function, c) =
+            crate::parser::read_u16_from_le_bytes(&mut reader).unwrap();
+        record_size.consume(c);
+        (record_size, record_function, reader)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn record_size_remaining_bytes_no_underflow() {
+        let data = 3_u32.to_le_bytes();
+        let mut reader = &data[..];
+        let mut rs = RecordSize::parse(&mut reader).unwrap();
+        assert_eq!(rs.byte_count(), 6);
+        rs.consume(6);
+        assert_eq!(rs.remaining_bytes(), 0);
+        // Over-consume: should saturate to 0 instead of panicking.
+        rs.consume(10);
+        assert_eq!(rs.remaining_bytes(), 0);
+    }
+
+    #[test]
+    fn record_size_remaining_returns_correct_value() {
+        let data = 5_u32.to_le_bytes(); // 10 bytes total
+        let mut reader = &data[..];
+        let mut rs = RecordSize::parse(&mut reader).unwrap();
+        assert_eq!(rs.consumed_bytes(), 4);
+        rs.consume(2); // record_function
+        assert_eq!(rs.remaining_bytes(), 4);
+        rs.consume(4);
+        assert!(!rs.remaining());
+    }
+
+    #[test]
+    fn record_function_lower_byte_mismatch() {
+        let payload = [0u8; 8];
+        let data = test_helpers::build_record(7, 0x04FF, &payload);
+        let (rs, rf, mut reader) = test_helpers::parse_record_header(&data);
+        assert!(
+            crate::parser::META_RECTANGLE::parse(&mut reader, rs, rf).is_err(),
+            "lower byte mismatch should be rejected"
+        );
     }
 }

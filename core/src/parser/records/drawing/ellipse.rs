@@ -80,3 +80,29 @@ impl META_ELLIPSE {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{imports::*, parser::records::test_helpers::*};
+
+    #[test]
+    fn parse_ok() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&150_i16.to_le_bytes());
+        payload.extend_from_slice(&200_i16.to_le_bytes());
+        payload.extend_from_slice(&50_i16.to_le_bytes());
+        payload.extend_from_slice(&60_i16.to_le_bytes());
+        let data = build_record(
+            7,
+            crate::parser::RecordType::META_ELLIPSE as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_ELLIPSE::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.bottom_rect, 150);
+        assert_eq!(record.right_rect, 200);
+        assert_eq!(record.top_rect, 50);
+        assert_eq!(record.left_rect, 60);
+    }
+}

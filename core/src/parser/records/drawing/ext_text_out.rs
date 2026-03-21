@@ -118,6 +118,14 @@ impl META_EXTTEXTOUT {
             None
         };
 
+        if string_length < 0 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "string_length must be non-negative, got {string_length}",
+                ),
+            });
+        }
+
         let (string, string_bytes) =
             crate::parser::read_variable(buf, string_length as usize)?;
         record_size.consume(string_bytes);
@@ -172,5 +180,75 @@ impl META_EXTTEXTOUT {
         charset: crate::parser::CharacterSet,
     ) -> Result<String, crate::parser::ParseError> {
         crate::parser::bytes_into_utf8(&self.string, charset)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::records::test_helpers::*;
+
+    #[test]
+    fn parse_negative_string_length() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&50_i16.to_le_bytes());
+        payload.extend_from_slice(&100_i16.to_le_bytes());
+        payload.extend_from_slice(&(-1_i16).to_le_bytes());
+        payload.extend_from_slice(&0_u16.to_le_bytes());
+        let data = build_record(
+            7,
+            crate::parser::RecordType::META_EXTTEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_EXTTEXTOUT::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_without_rect_without_dx() {
+        let text = b"AB";
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&50_i16.to_le_bytes());
+        payload.extend_from_slice(&100_i16.to_le_bytes());
+        payload.extend_from_slice(&2_i16.to_le_bytes());
+        payload.extend_from_slice(&0_u16.to_le_bytes());
+        payload.extend_from_slice(text);
+        let data = build_record(
+            8,
+            crate::parser::RecordType::META_EXTTEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_EXTTEXTOUT::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.x, 100);
+        assert_eq!(record.y, 50);
+        assert_eq!(record.string_length, 2);
+        assert!(record.rectangle.is_none());
+        assert!(record.dx.is_empty());
+    }
+
+    #[test]
+    fn parse_with_clipped_rect_and_dx() {
+        let text = b"AB";
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&50_i16.to_le_bytes());
+        payload.extend_from_slice(&100_i16.to_le_bytes());
+        payload.extend_from_slice(&2_i16.to_le_bytes());
+        payload.extend_from_slice(&0x0004_u16.to_le_bytes()); // ETO_CLIPPED
+        for v in [0_i16, 0, 200, 100] {
+            payload.extend_from_slice(&v.to_le_bytes());
+        }
+        payload.extend_from_slice(text);
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            14,
+            crate::parser::RecordType::META_EXTTEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_EXTTEXTOUT::parse(&mut reader, rs, rf).unwrap();
+        assert!(record.rectangle.is_some());
+        assert_eq!(record.dx, vec![10, 20]);
     }
 }

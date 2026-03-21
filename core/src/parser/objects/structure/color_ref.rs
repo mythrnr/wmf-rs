@@ -61,3 +61,31 @@ impl ColorRef {
         Self { red: 255, green: 255, blue: 255, reserved: 0 }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ok() {
+        let data = [0xFF, 0x80, 0x00, 0x00];
+        let mut reader = &data[..];
+        let (color, consumed) = ColorRef::parse(&mut reader).unwrap();
+        assert_eq!(color.red, 255);
+        assert_eq!(color.green, 128);
+        assert_eq!(color.blue, 0);
+        assert_eq!(color.reserved, 0);
+        assert_eq!(consumed, 4);
+    }
+
+    #[test]
+    fn parse_reserved_nonzero_is_replaced() {
+        let data = [0x10, 0x20, 0x30, 0xFF];
+        let mut reader = &data[..];
+        let (color, _) = ColorRef::parse(&mut reader).unwrap();
+        assert_eq!(
+            color.reserved, 0x00,
+            "reserved field should be replaced with 0x00"
+        );
+    }
+}

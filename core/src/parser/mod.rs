@@ -86,6 +86,118 @@ macro_rules! impl_from_le_bytes {
 
 impl_from_le_bytes! {(i8, 1), (i16, 2), (i32, 4), (u8, 1), (u16, 2), (u32, 4) }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn read_i16_from_le_bytes_ok() {
+        let data = (-1234_i16).to_le_bytes();
+        let mut reader = &data[..];
+        let (val, consumed) =
+            super::read_i16_from_le_bytes(&mut reader).unwrap();
+        assert_eq!(val, -1234);
+        assert_eq!(consumed, 2);
+    }
+
+    #[test]
+    fn read_u16_from_le_bytes_ok() {
+        let data = 0xABCD_u16.to_le_bytes();
+        let mut reader = &data[..];
+        let (val, consumed) =
+            super::read_u16_from_le_bytes(&mut reader).unwrap();
+        assert_eq!(val, 0xABCD);
+        assert_eq!(consumed, 2);
+    }
+
+    #[test]
+    fn read_u32_from_le_bytes_ok() {
+        let data = 0xDEADBEEF_u32.to_le_bytes();
+        let mut reader = &data[..];
+        let (val, consumed) =
+            super::read_u32_from_le_bytes(&mut reader).unwrap();
+        assert_eq!(val, 0xDEADBEEF);
+        assert_eq!(consumed, 4);
+    }
+
+    #[test]
+    fn read_i32_from_le_bytes_ok() {
+        let data = (-99999_i32).to_le_bytes();
+        let mut reader = &data[..];
+        let (val, consumed) =
+            super::read_i32_from_le_bytes(&mut reader).unwrap();
+        assert_eq!(val, -99999);
+        assert_eq!(consumed, 4);
+    }
+
+    #[test]
+    fn read_u8_from_le_bytes_ok() {
+        let data = [0xFF];
+        let mut reader = &data[..];
+        let (val, consumed) =
+            super::read_u8_from_le_bytes(&mut reader).unwrap();
+        assert_eq!(val, 0xFF);
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn read_variable_exact() {
+        let data = [1, 2, 3, 4, 5];
+        let mut reader = &data[..];
+        let (result, consumed) = super::read_variable(&mut reader, 5).unwrap();
+        assert_eq!(result, vec![1, 2, 3, 4, 5]);
+        assert_eq!(consumed, 5);
+    }
+
+    #[test]
+    fn read_variable_partial_read_fails() {
+        let data = [1, 2, 3];
+        let mut reader = &data[..];
+        assert!(super::read_variable(&mut reader, 5).is_err());
+    }
+
+    #[test]
+    fn read_variable_zero_length() {
+        let mut reader: &[u8] = &[];
+        let (data, consumed) = super::read_variable(&mut reader, 0).unwrap();
+        assert!(data.is_empty());
+        assert_eq!(consumed, 0);
+    }
+
+    #[test]
+    fn read_fixed_exact_boundary() {
+        let data = [0xAA, 0xBB];
+        let mut reader = &data[..];
+        let (bytes, consumed) = super::read::<&[u8], 2>(&mut reader).unwrap();
+        assert_eq!(bytes, [0xAA, 0xBB]);
+        assert_eq!(consumed, 2);
+    }
+
+    #[test]
+    fn read_fixed_empty_buffer() {
+        let mut reader: &[u8] = &[];
+        assert!(super::read::<&[u8], 2>(&mut reader).is_err());
+    }
+
+    #[test]
+    fn read_u16_from_empty_buffer() {
+        let mut reader: &[u8] = &[];
+        assert!(super::read_u16_from_le_bytes(&mut reader).is_err());
+    }
+
+    #[test]
+    fn read_u32_from_short_buffer() {
+        let data = [0u8; 2];
+        let mut reader = &data[..];
+        assert!(super::read_u32_from_le_bytes(&mut reader).is_err());
+    }
+
+    #[test]
+    fn read_variable_insufficient_data() {
+        let data = [0u8; 3];
+        let mut reader = &data[..];
+        assert!(super::read_variable(&mut reader, 10).is_err());
+    }
+}
+
 /// Converts the given byte slice to a UTF-8 string using the specified
 /// character set.
 ///

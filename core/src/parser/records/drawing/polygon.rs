@@ -47,6 +47,15 @@ impl META_POLYGON {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
+        if number_of_points < 0 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "number_of_points must be non-negative, got \
+                     {number_of_points}",
+                ),
+            });
+        }
+
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
@@ -59,5 +68,59 @@ impl META_POLYGON {
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
         Ok(Self { record_size, record_function, number_of_points, a_points })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::records::test_helpers::*;
+
+    #[test]
+    fn parse_negative_number_of_points() {
+        let payload = (-1_i16).to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_POLYGON::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_triangle() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&3_i16.to_le_bytes());
+        for (x, y) in [(0_i16, 0_i16), (100, 0), (50, 100)] {
+            payload.extend_from_slice(&x.to_le_bytes());
+            payload.extend_from_slice(&y.to_le_bytes());
+        }
+        let data = build_record(
+            10,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 3);
+        assert_eq!(record.a_points.len(), 3);
+        assert_eq!(record.a_points[2].x, 50);
+        assert_eq!(record.a_points[2].y, 100);
+    }
+
+    #[test]
+    fn parse_insufficient_points() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&3_i16.to_le_bytes());
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            10,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_POLYGON::parse(&mut reader, rs, rf).is_err());
     }
 }
