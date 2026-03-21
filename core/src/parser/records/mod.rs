@@ -44,15 +44,50 @@ fn consume_remaining_bytes<R: crate::Read>(
         });
     }
 
-    crate::parser::read_variable(buf, record_size.remaining_bytes()).map_err(
-        |err| crate::parser::ParseError::FailedReadBuffer { cause: err },
-    )
+    let remaining = record_size.remaining_bytes();
+    if remaining == 0 {
+        return Ok((crate::imports::Vec::new(), 0));
+    }
+
+    // Discard remaining bytes in fixed-size chunks to avoid
+    // large allocations from crafted RecordSize values.
+    let mut discarded = 0;
+    let mut chunk = [0u8; 4096];
+
+    while discarded < remaining {
+        let to_read = core::cmp::min(remaining - discarded, chunk.len());
+
+        match buf.read(&mut chunk[..to_read]) {
+            Ok(n) if n == to_read => discarded += n,
+            Ok(n) => {
+                return Err(crate::parser::ParseError::FailedReadBuffer {
+                    cause: crate::parser::ReadError::new(alloc::format!(
+                        "expected {to_read} bytes read, but {n} bytes read"
+                    )),
+                });
+            }
+            Err(err) => {
+                return Err(crate::parser::ParseError::FailedReadBuffer {
+                    cause: crate::parser::ReadError::new(alloc::format!(
+                        "{err:?}"
+                    )),
+                });
+            }
+        }
+    }
+
+    Ok((crate::imports::Vec::new(), discarded))
 }
 
 /// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,
 /// defined in [MS-DTYP] section 2.2.61, in the record.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RecordSize(u32, usize);
+
+/// Maximum allowed record size in WORDs.
+/// 32 MW (64 MB) is far beyond any practical WMF record and guards
+/// against crafted inputs that would cause excessive resource usage.
+const MAX_RECORD_WORDS: u32 = 32 * 1024 * 1024;
 
 impl RecordSize {
     #[cfg_attr(feature = "tracing", tracing::instrument(
@@ -64,6 +99,15 @@ impl RecordSize {
         buf: &mut R,
     ) -> Result<Self, crate::parser::ParseError> {
         let (v, c) = crate::parser::read_u32_from_le_bytes(buf)?;
+
+        if v > MAX_RECORD_WORDS {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: alloc::format!(
+                    "record size {v:#010X} exceeds maximum \
+                     ({MAX_RECORD_WORDS:#010X})",
+                ),
+            });
+        }
 
         Ok(Self(v, c))
     }
@@ -185,11 +229,13 @@ mod tests {
     }
 
     #[test]
-    fn byte_count_does_not_panic_for_large_word_count() {
-        let rs = RecordSize::from(u32::MAX);
-        // Should not panic regardless of platform pointer width.
-        let bc = rs.byte_count();
-        assert!(bc >= u32::MAX as usize);
+    fn parse_rejects_oversized_word_count() {
+        let data = u32::MAX.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(
+            RecordSize::parse(&mut reader).is_err(),
+            "oversized RecordSize should be rejected"
+        );
     }
 
     #[test]
