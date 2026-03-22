@@ -141,9 +141,13 @@ impl META_EXTTEXTOUT {
         // The Dx array has one entry per character, not per byte.
         // For multi-byte character sets, the number of characters
         // can be less than string_length. Read based on remaining
-        // record bytes instead.
+        // record bytes, but cap at string_length to avoid excessive
+        // allocation from corrupted record sizes.
         if record_size.remaining() {
-            let dx_count = record_size.remaining_bytes() / 2;
+            let dx_count = core::cmp::min(
+                record_size.remaining_bytes() / 2,
+                string_length as usize,
+            );
             dx.reserve_exact(dx_count);
 
             for _ in 0..dx_count {
