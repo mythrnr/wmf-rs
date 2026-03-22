@@ -245,8 +245,14 @@ impl Window {
     pub fn ext(&mut self, x: i16, y: i16) {
         self.flip_x = x < 0;
         self.flip_y = y < 0;
-        self.x = i16::try_from(x.unsigned_abs()).unwrap_or(i16::MAX);
-        self.y = i16::try_from(y.unsigned_abs()).unwrap_or(i16::MAX);
+
+        let mag_x = i16::try_from(x.unsigned_abs()).unwrap_or(i16::MAX);
+        let mag_y = i16::try_from(y.unsigned_abs()).unwrap_or(i16::MAX);
+
+        // Preserve any previously tracked larger extents to avoid
+        // shrinking the viewBox and clipping already rendered content.
+        self.x = self.x.max(mag_x);
+        self.y = self.y.max(mag_y);
     }
 
     pub fn origin(&mut self, origin_x: i16, origin_y: i16) {
