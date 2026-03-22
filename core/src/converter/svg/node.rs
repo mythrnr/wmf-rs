@@ -93,40 +93,56 @@ impl Data {
         Self::default()
     }
 
-    fn push_command(&mut self, cmd: &str, param: &str) {
+    fn push_command(
+        &mut self,
+        cmd: &str,
+        param: impl core::fmt::Display,
+    ) {
+        use core::fmt::Write;
+
         if !self.0.is_empty() {
             self.0.push(' ');
         }
 
         self.0.push_str(cmd);
-
-        if !param.is_empty() {
-            self.0.push(' ');
-            self.0.push_str(param);
-        }
+        self.0.push(' ');
+        let _ = write!(self.0, "{param}");
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataClosePathCommand
     pub fn close(mut self) -> Self {
-        self.push_command("Z", "");
+        if !self.0.is_empty() {
+            self.0.push(' ');
+        }
+
+        self.0.push('Z');
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
-    pub fn elliptical_arc_to(mut self, param: impl core::fmt::Display) -> Self {
-        self.push_command("A", &param.to_string());
+    pub fn elliptical_arc_to(
+        mut self,
+        param: impl core::fmt::Display,
+    ) -> Self {
+        self.push_command("A", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataLinetoCommands
-    pub fn line_to(mut self, param: impl core::fmt::Display) -> Self {
-        self.push_command("L", &param.to_string());
+    pub fn line_to(
+        mut self,
+        param: impl core::fmt::Display,
+    ) -> Self {
+        self.push_command("L", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
-    pub fn move_to(mut self, param: impl core::fmt::Display) -> Self {
-        self.push_command("M", &param.to_string());
+    pub fn move_to(
+        mut self,
+        param: impl core::fmt::Display,
+    ) -> Self {
+        self.push_command("M", param);
         self
     }
 }
