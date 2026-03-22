@@ -40,7 +40,16 @@ impl crate::parser::META_ESCAPE {
                 + enhanced_metafile_data_size_bytes,
         );
 
-        let expected_byte_count = enhanced_metafile_data_size + 34;
+        let Some(expected_byte_count) =
+            enhanced_metafile_data_size.checked_add(34)
+        else {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "enhanced_metafile_data_size \
+                     `{enhanced_metafile_data_size:#010X}` is too large",
+                ),
+            });
+        };
 
         if u32::from(byte_count) != expected_byte_count {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -80,7 +89,7 @@ impl crate::parser::META_ESCAPE {
         if flags != 0x00000000 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "The flags `{version:#010X}` field must be `0x00000000`",
+                    "The flags `{flags:#010X}` field must be `0x00000000`",
                 ),
             });
         }

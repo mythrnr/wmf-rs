@@ -27,18 +27,19 @@ impl PolyPolygon {
     ) -> Result<(Self, usize), crate::parser::ParseError> {
         let (number_of_polygons, mut consumed_bytes) =
             crate::parser::read_u16_from_le_bytes(buf)?;
-        let mut number_of_points = 0;
+        let mut number_of_points: u32 = 0;
         let mut a_points_per_polygon =
             Vec::with_capacity(number_of_polygons as usize);
-        let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_polygons {
             let (v, c) = crate::parser::read_u16_from_le_bytes(buf)?;
 
             consumed_bytes += c;
-            number_of_points += v;
+            number_of_points += u32::from(v);
             a_points_per_polygon.push(v);
         }
+
+        let mut a_points = Vec::new();
 
         for _ in 0..number_of_points {
             let (v, c) = crate::parser::PointS::parse(buf)?;
@@ -51,5 +52,39 @@ impl PolyPolygon {
             Self { number_of_polygons, a_points_per_polygon, a_points },
             consumed_bytes,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_two_triangles() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&2_u16.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        for i in 0..6_i16 {
+            data.extend_from_slice(&i.to_le_bytes());
+            data.extend_from_slice(&(i * 10).to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let (poly, _) = PolyPolygon::parse(&mut reader).unwrap();
+        assert_eq!(poly.number_of_polygons, 2);
+        assert_eq!(poly.a_points_per_polygon, vec![3, 3]);
+        assert_eq!(poly.a_points.len(), 6);
+    }
+
+    #[test]
+    fn parse_large_point_count_no_overflow() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&30000_u16.to_le_bytes());
+        data.extend_from_slice(&30000_u16.to_le_bytes());
+        data.extend_from_slice(&30000_u16.to_le_bytes());
+        let mut reader = &data[..];
+        // Should fail with read error (not panic from overflow).
+        assert!(PolyPolygon::parse(&mut reader).is_err());
     }
 }

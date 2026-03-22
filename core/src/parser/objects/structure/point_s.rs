@@ -26,3 +26,43 @@ impl PointS {
         Ok((Self { x, y }, x_bytes + y_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_positive() {
+        let data = [100_i16.to_le_bytes(), 200_i16.to_le_bytes()].concat();
+        let mut reader = &data[..];
+        let (point, consumed) = PointS::parse(&mut reader).unwrap();
+        assert_eq!(point.x, 100);
+        assert_eq!(point.y, 200);
+        assert_eq!(consumed, 4);
+    }
+
+    #[test]
+    fn parse_negative() {
+        let data = [(-50_i16).to_le_bytes(), (-100_i16).to_le_bytes()].concat();
+        let mut reader = &data[..];
+        let (point, _) = PointS::parse(&mut reader).unwrap();
+        assert_eq!(point.x, -50);
+        assert_eq!(point.y, -100);
+    }
+
+    #[test]
+    fn parse_zero() {
+        let data = [0_i16.to_le_bytes(), 0_i16.to_le_bytes()].concat();
+        let mut reader = &data[..];
+        let (point, _) = PointS::parse(&mut reader).unwrap();
+        assert_eq!(point.x, 0);
+        assert_eq!(point.y, 0);
+    }
+
+    #[test]
+    fn parse_insufficient_buffer() {
+        let data = [100_i16.to_le_bytes()].concat();
+        let mut reader = &data[..];
+        assert!(PointS::parse(&mut reader).is_err());
+    }
+}

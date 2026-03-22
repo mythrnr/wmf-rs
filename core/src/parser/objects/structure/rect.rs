@@ -56,3 +56,33 @@ impl Rect {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ok() {
+        let data = [
+            10_i16.to_le_bytes(),
+            20_i16.to_le_bytes(),
+            100_i16.to_le_bytes(),
+            200_i16.to_le_bytes(),
+        ]
+        .concat();
+        let mut reader = &data[..];
+        let (rect, consumed) = Rect::parse(&mut reader).unwrap();
+        assert_eq!(rect.left, 10);
+        assert_eq!(rect.top, 20);
+        assert_eq!(rect.right, 100);
+        assert_eq!(rect.bottom, 200);
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_insufficient_buffer() {
+        let data = [10_i16.to_le_bytes(), 20_i16.to_le_bytes()].concat();
+        let mut reader = &data[..];
+        assert!(Rect::parse(&mut reader).is_err());
+    }
+}

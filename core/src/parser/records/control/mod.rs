@@ -49,3 +49,91 @@ impl MetafileHeader {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_with_placeable() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x9AC6CDD7_u32.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&1024_i16.to_le_bytes());
+        data.extend_from_slice(&768_i16.to_le_bytes());
+        data.extend_from_slice(&1440_u16.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&[0u8; 2]);
+        // META_HEADER
+        data.extend_from_slice(&0x0001_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&0x0300_u16.to_le_bytes());
+        data.extend_from_slice(&100_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&5_u16.to_le_bytes());
+        data.extend_from_slice(&50_u32.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+
+        let mut reader = &data[..];
+        let (header, _) = MetafileHeader::parse(&mut reader).unwrap();
+        match header {
+            MetafileHeader::StartsWithPlaceable(placeable, header) => {
+                assert_eq!(placeable.key, 0x9AC6CDD7);
+                assert_eq!(placeable.bounding_box.right, 1024);
+                assert_eq!(header.number_of_objects, 5);
+            }
+            MetafileHeader::StartsWithHeader(_) => {
+                panic!("expected StartsWithPlaceable");
+            }
+        }
+    }
+
+    #[test]
+    fn parse_without_placeable() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0001_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&0x0300_u16.to_le_bytes());
+        data.extend_from_slice(&50_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&20_u32.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+
+        let mut reader = &data[..];
+        let (header, _) = MetafileHeader::parse(&mut reader).unwrap();
+        match header {
+            MetafileHeader::StartsWithHeader(header) => {
+                assert_eq!(header.number_of_objects, 3);
+            }
+            MetafileHeader::StartsWithPlaceable(..) => {
+                panic!("expected StartsWithHeader");
+            }
+        }
+    }
+
+    #[test]
+    fn parse_invalid_number_of_members() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0001_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&0x0300_u16.to_le_bytes());
+        data.extend_from_slice(&50_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&20_u32.to_le_bytes());
+        data.extend_from_slice(&1_u16.to_le_bytes()); // invalid
+
+        let mut reader = &data[..];
+        assert!(MetafileHeader::parse(&mut reader).is_err());
+    }
+
+    #[test]
+    fn parse_empty_buffer() {
+        let mut reader: &[u8] = &[];
+        assert!(MetafileHeader::parse(&mut reader).is_err());
+    }
+}

@@ -58,14 +58,24 @@ impl META_TEXTOUT {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(string_length_bytes);
 
-        let string_len = string_length + (string_length % 2);
+        if string_length < 0 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "string_length must be non-negative, got {string_length}",
+                ),
+            });
+        }
+
+        // Pad to 2-byte boundary if string_length is odd.
+        // Compute in usize to avoid i16 overflow (e.g. 32767 + 1).
+        let string_len = string_length as usize + (string_length as usize % 2);
 
         let (
             (string, string_bytes),
             (y_start, y_start_bytes),
             (x_start, x_start_bytes),
         ) = (
-            crate::parser::read_variable(buf, string_len as usize)?,
+            crate::parser::read_variable(buf, string_len)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
             crate::parser::read_i16_from_le_bytes(buf)?,
         );
@@ -97,5 +107,65 @@ impl META_TEXTOUT {
         charset: crate::parser::CharacterSet,
     ) -> Result<String, crate::parser::ParseError> {
         crate::parser::bytes_into_utf8(&self.string, charset)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::records::test_helpers::*;
+
+    #[test]
+    fn parse_negative_string_length() {
+        let payload = (-1_i16).to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_TEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_TEXTOUT::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_even_length_string() {
+        let text = b"Hi";
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&2_i16.to_le_bytes());
+        payload.extend_from_slice(text);
+        payload.extend_from_slice(&50_i16.to_le_bytes());
+        payload.extend_from_slice(&100_i16.to_le_bytes());
+        let data = build_record(
+            7,
+            crate::parser::RecordType::META_TEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_TEXTOUT::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.string_length, 2);
+        assert_eq!(&record.string, text);
+        assert_eq!(record.y_start, 50);
+        assert_eq!(record.x_start, 100);
+    }
+
+    #[test]
+    fn parse_odd_length_string() {
+        let text = b"ABC";
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&3_i16.to_le_bytes());
+        payload.extend_from_slice(text);
+        payload.push(0x00); // padding
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            8,
+            crate::parser::RecordType::META_TEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_TEXTOUT::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.string_length, 3);
+        assert_eq!(record.string.len(), 4);
+        assert_eq!(&record.string[..3], text);
     }
 }

@@ -109,3 +109,27 @@ impl META_ARC {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{imports::*, parser::records::test_helpers::*};
+
+    #[test]
+    fn parse_ok() {
+        let mut payload = Vec::new();
+        for v in [80_i16, 120, 80, 40, 120, 120, 40, 40] {
+            payload.extend_from_slice(&v.to_le_bytes());
+        }
+        let data = build_record(
+            11,
+            crate::parser::RecordType::META_ARC as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_ARC::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.y_end_arc, 80);
+        assert_eq!(record.x_end_arc, 120);
+        assert_eq!(record.left_rect, 40);
+    }
+}

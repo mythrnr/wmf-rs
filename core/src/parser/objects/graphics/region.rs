@@ -57,6 +57,20 @@ impl Region {
             crate::parser::Rect::parse(buf)?,
         );
 
+        if object_type != 0x0006 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: "The object_type field must be 0x0006".to_owned(),
+            });
+        }
+
+        if scan_count < 0 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "scan_count must be non-negative, got {scan_count}",
+                ),
+            });
+        }
+
         let mut consumed_bytes = next_in_chain_bytes
             + object_type_bytes
             + object_count_bytes
@@ -73,12 +87,6 @@ impl Region {
             a_scans.push(v);
         }
 
-        if object_type != 0x0006 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The object_type field must be 0x0006".to_owned(),
-            });
-        }
-
         Ok((
             Self {
                 next_in_chain,
@@ -92,5 +100,63 @@ impl Region {
             },
             consumed_bytes,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_negative_scan_count() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0x0006_i16.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&(-1_i16).to_le_bytes()); // negative scan_count
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&[0u8; 8]);
+        let mut reader = &data[..];
+        assert!(
+            Region::parse(&mut reader).is_err(),
+            "negative scan_count should be rejected"
+        );
+    }
+
+    #[test]
+    fn parse_bad_object_type() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0x0005_i16.to_le_bytes()); // wrong
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&[0u8; 8]);
+        let mut reader = &data[..];
+        assert!(
+            Region::parse(&mut reader).is_err(),
+            "object_type != 0x0006 should be rejected before reading scans"
+        );
+    }
+
+    #[test]
+    fn parse_zero_scans() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0x0006_i16.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&20_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes()); // scan_count = 0
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes());
+        data.extend_from_slice(&100_i16.to_le_bytes());
+        data.extend_from_slice(&100_i16.to_le_bytes());
+        let mut reader = &data[..];
+        let (region, _) = Region::parse(&mut reader).unwrap();
+        assert_eq!(region.scan_count, 0);
+        assert!(region.a_scans.is_empty());
     }
 }

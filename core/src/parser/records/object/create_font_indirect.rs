@@ -33,12 +33,29 @@ impl META_CREATEFONTINDIRECT {
             crate::parser::RecordType::META_CREATEFONTINDIRECT,
         )?;
 
-        let (b, c) =
-            crate::parser::read_variable(buf, record_size.remaining_bytes())?;
+        // Font consists of a fixed 50-byte structure (18-byte header +
+        // 32-byte facename field). Cap the read to a reasonable upper bound
+        // to avoid large allocations, and read into a bounded buffer so
+        // that a crafted too-small RecordSize cannot cause Font::parse to
+        // consume bytes from subsequent records.
+        const FONT_RECORD_MAX: usize = 256;
+        let remaining = record_size.remaining_bytes();
+
+        if remaining < 50 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "remaining bytes ({remaining}) is too small for Font \
+                     (minimum 50 bytes)",
+                ),
+            });
+        }
+
+        let read_len = core::cmp::min(remaining, FONT_RECORD_MAX);
+        let (b, c) = crate::parser::read_variable(buf, read_len)?;
         record_size.consume(c);
 
-        let mut buffer = &b[..];
-        let (font, _) = crate::parser::Font::parse(&mut buffer)?;
+        let mut bounded = &b[..];
+        let (font, _) = crate::parser::Font::parse(&mut bounded)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
