@@ -91,11 +91,7 @@ impl DeviceContext {
             y = p.y;
         }
 
-        if x > 0 && y > 0 {
-            self.window_ext(x, y)
-        } else {
-            self
-        }
+        if x > 0 && y > 0 { self.window_ext(x, y) } else { self }
     }
 
     pub fn map_mode(mut self, map_mode: MapMode) -> Self {

@@ -18,7 +18,7 @@ pub fn as_point_string(point: &PointS) -> String {
 
 impl crate::converter::Bitmap {
     pub fn as_data_url(&self) -> String {
-        use base64::{engine::general_purpose::STANDARD, Engine};
+        use base64::{Engine, engine::general_purpose::STANDARD};
         format!("data:image/bmp;base64,{}", STANDARD.encode(self.as_slice()))
     }
 }

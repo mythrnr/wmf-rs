@@ -6,6 +6,7 @@
   ],
   "enableGlobDot": true,
   "ignorePaths": [
+    ".claude/*.local.*",
     ".git",
     "*.lock",
     "target",
@@ -222,6 +223,7 @@
     "stretchblt",
     "stretchdib",
     "textout",
+    "tlsv",
     "tspan",
     "twip",
     "twips",

@@ -104,8 +104,8 @@ impl RecordSize {
         if v < 3 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: alloc::format!(
-                    "record size {v:#010X} is smaller than minimum \
-                     header size (0x00000003)",
+                    "record size {v:#010X} is smaller than minimum header \
+                     size (0x00000003)",
                 ),
             });
         }

@@ -1,5 +1,5 @@
 use crate::converter::{
-    svg::{node::Node, util::url_string, Fill},
+    svg::{Fill, node::Node, util::url_string},
     *,
 };
 

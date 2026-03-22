@@ -23,7 +23,7 @@ mod scan;
 mod size_l;
 
 pub use self::{
-    bitmap16::*, bitmap_info_header::*, ciexyz::*, ciexyz_triple::*,
+    bitmap_info_header::*, bitmap16::*, ciexyz::*, ciexyz_triple::*,
     color_ref::*, device_independent_bitmap::*, log_brush::*,
     log_color_space::*, log_color_space_w::*, palette_entry::*,
     pitch_and_family::*, point_l::*, point_s::*, poly_polygon::*, rect::*,
