@@ -33,6 +33,16 @@ impl META_CREATEFONTINDIRECT {
             crate::parser::RecordType::META_CREATEFONTINDIRECT,
         )?;
 
+        if record_size.is_overrun() {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "consumed bytes ({}) exceeds record byte count ({})",
+                    record_size.consumed_bytes(),
+                    record_size.byte_count(),
+                ),
+            });
+        }
+
         let (b, c) =
             crate::parser::read_variable(buf, record_size.remaining_bytes())?;
         record_size.consume(c);

@@ -158,12 +158,18 @@ impl RecordSize {
         self.1
     }
 
+    /// Returns true if consumed_bytes has exceeded byte_count,
+    /// indicating a malformed record or a parser bug.
+    pub fn is_overrun(&self) -> bool {
+        self.1 > self.byte_count()
+    }
+
     pub fn remaining(&self) -> bool {
-        self.remaining_bytes() > 0
+        !self.is_overrun() && self.remaining_bytes() > 0
     }
 
     pub fn remaining_bytes(&self) -> usize {
-        self.byte_count().saturating_sub(self.1)
+        self.byte_count().checked_sub(self.1).unwrap_or(0)
     }
 }
 
