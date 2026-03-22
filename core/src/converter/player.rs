@@ -205,7 +205,7 @@ pub trait Player: Sized {
         self,
         record_number: usize,
         record: META_TEXTOUT,
-    ) -> Result<Self, crate::converter::PlayError>;
+    ) -> Result<Self, PlayError>;
 
     // .
     // .
@@ -249,7 +249,7 @@ pub trait Player: Sized {
         self,
         record_number: usize,
         record: META_CREATEREGION,
-    ) -> Result<Self, crate::converter::PlayError>;
+    ) -> Result<Self, PlayError>;
     /// Render [`META_DELETEOBJECT`](crate::parser::META_DELETEOBJECT) record.
     fn delete_object(
         self,

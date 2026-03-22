@@ -45,113 +45,108 @@ impl Default for DeviceContext {
 
 // mutations
 impl DeviceContext {
-    pub fn bk_mode(mut self, bk_mode: MixMode) -> Self {
+    pub fn bk_mode(&mut self, bk_mode: MixMode) {
         self.bk_mode = bk_mode;
-        self
     }
 
-    pub fn create_object_table(mut self, length: u16) -> Self {
+    pub fn create_object_table(&mut self, length: u16) {
         self.object_table = GraphicsObjects::new(length as usize);
-        self
     }
 
-    pub fn clipping_region(mut self, clipping_region: Rect) -> Self {
-        let clipping_region = if let Some(ref existing) = self.clipping_region {
-            if let Some(overlap_region) = existing.overlap(&clipping_region) {
-                overlap_region
-            } else {
-                clipping_region
-            }
+    pub fn clipping_region(&mut self, clipping_region: Rect) {
+        self.clipping_region = if let Some(ref existing) = self.clipping_region
+        {
+            existing.overlap(&clipping_region).unwrap_or(clipping_region)
         } else {
             clipping_region
-        };
-
-        self.clipping_region = clipping_region.into();
-        self
+        }
+        .into();
     }
 
-    pub fn drawing_position(mut self, drawing_position: PointS) -> Self {
+    pub fn drawing_position(&mut self, drawing_position: PointS) {
         self.drawing_position = drawing_position;
-        self
     }
 
-    pub fn draw_mode(mut self, draw_mode: BinaryRasterOperation) -> Self {
+    pub fn draw_mode(&mut self, draw_mode: BinaryRasterOperation) {
         self.draw_mode = draw_mode.into();
-        self
     }
 
-    pub fn extend_window(self, p: &PointS) -> Self {
-        let (mut x, mut y) = (0, 0);
+    pub fn extend_window(&mut self, p: &PointS) {
+        // Track minimum coordinates for viewBox expansion
+        self.window.min_x = self.window.min_x.min(p.x);
+        self.window.min_y = self.window.min_y.min(p.y);
 
+        // Track maximum coordinates (extend x and y independently)
         if self.window.x < p.x {
-            x = p.x;
+            self.window.x = p.x;
         }
 
         if self.window.y < p.y {
-            y = p.y;
+            self.window.y = p.y;
         }
-
-        if x > 0 && y > 0 { self.window_ext(x, y) } else { self }
     }
 
-    pub fn map_mode(mut self, map_mode: MapMode) -> Self {
+    pub fn map_mode(&mut self, map_mode: MapMode) {
         self.map_mode = map_mode;
-        self
     }
 
-    pub fn poly_fill_mode(mut self, poly_fill_mode: PolyFillMode) -> Self {
+    pub fn poly_fill_mode(&mut self, poly_fill_mode: PolyFillMode) {
         self.poly_fill_mode = poly_fill_mode;
-        self
     }
 
     pub fn text_align_horizontal(
-        mut self,
+        &mut self,
         text_align_horizontal: TextAlignmentMode,
-    ) -> Self {
+    ) {
         self.text_align_horizontal = text_align_horizontal;
-        self
     }
 
     pub fn text_align_vertical(
-        mut self,
+        &mut self,
         text_align_vertical: VerticalTextAlignmentMode,
-    ) -> Self {
+    ) {
         self.text_align_vertical = text_align_vertical;
-        self
     }
 
-    pub fn text_align_update_cp(mut self, text_align_update_cp: bool) -> Self {
+    pub fn text_align_update_cp(&mut self, text_align_update_cp: bool) {
         self.text_align_update_cp = text_align_update_cp;
-        self
     }
 
-    pub fn text_bk_color(mut self, text_bk_color: ColorRef) -> Self {
+    pub fn text_bk_color(&mut self, text_bk_color: ColorRef) {
         self.text_bk_color = text_bk_color;
-        self
     }
 
-    pub fn text_color(mut self, text_color: ColorRef) -> Self {
+    pub fn text_color(&mut self, text_color: ColorRef) {
         self.text_color = text_color;
-        self
     }
 
-    pub fn window_ext(mut self, x: i16, y: i16) -> Self {
-        self.window = self.window.ext(x, y);
-        self
+    pub fn window_ext(&mut self, x: i16, y: i16) {
+        self.window.ext(x, y);
     }
 
-    pub fn window_origin(mut self, x: i16, y: i16) -> Self {
-        self.window = self.window.origin(x, y);
-        self
+    pub fn window_origin(&mut self, x: i16, y: i16) {
+        self.window.origin(x, y);
     }
 
-    pub fn window_scale(mut self, x: f32, y: f32) -> Self {
-        self.window = self.window.scale(x, y);
-        self
+    pub fn window_scale(&mut self, x: f32, y: f32) {
+        self.window.scale(x, y);
     }
 }
 
 impl DeviceContext {
+    pub fn text_y_offset(&self, font_height: i16) -> i16 {
+        if matches!(
+            self.text_align_vertical,
+            VerticalTextAlignmentMode::VTA_BASELINE
+                | VerticalTextAlignmentMode::VTA_BOTTOM
+        ) && font_height < 0
+        {
+            -font_height
+        } else {
+            0
+        }
+    }
+
     pub fn as_css_text_align(&self) -> String {
         match self.text_align_horizontal {
             TextAlignmentMode::TA_CENTER => "middle".to_owned(),
@@ -170,31 +165,37 @@ impl DeviceContext {
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
-        let x = (f32::from((point.x - self.window.origin_x).abs())
-            / self.window.scale_x) as i16;
-        let y = (f32::from((point.y - self.window.origin_y).abs())
-            / self.window.scale_y) as i16;
+        let dx =
+            f32::from(point.x - self.window.origin_x) / self.window.scale_x;
+        let dy =
+            f32::from(point.y - self.window.origin_y) / self.window.scale_y;
+
+        // Negative extent means the axis is flipped
+        let x = (if self.window.flip_x { -dx } else { dx }) as i16;
+        let y = (if self.window.flip_y { -dy } else { dy }) as i16;
 
         PointS { x, y }
     }
 
     pub fn point_s_to_relative_point(&self, point: &PointS) -> PointS {
-        let x = (f32::from((point.x - self.window.origin_x).abs())
-            / self.window.scale_x) as i16
+        let dx =
+            f32::from(point.x - self.window.origin_x) / self.window.scale_x;
+        let dy =
+            f32::from(point.y - self.window.origin_y) / self.window.scale_y;
+
+        let x = (if self.window.flip_x { -dx } else { dx }) as i16
             + self.drawing_position.x;
-        let y = (f32::from((point.y - self.window.origin_y).abs())
-            / self.window.scale_y) as i16
+        let y = (if self.window.flip_y { -dy } else { dy }) as i16
             + self.drawing_position.y;
 
         PointS { x, y }
     }
 
-    pub fn poly_fill_rule(&self) -> String {
+    pub fn poly_fill_rule(&self) -> &'static str {
         match self.poly_fill_mode {
             PolyFillMode::ALTERNATE => "evenodd",
             PolyFillMode::WINDING => "nonzero",
         }
-        .to_owned()
     }
 
     pub fn text_color_as_css_color(&self) -> String {
@@ -210,6 +211,13 @@ pub struct Window {
     pub origin_y: i16,
     pub scale_x: f32,
     pub scale_y: f32,
+    /// Minimum rendered coordinates for viewBox expansion
+    pub min_x: i16,
+    pub min_y: i16,
+    /// Flip the axis when the extent is negative
+    /// (in WMF, a negative extent reverses the axis direction)
+    pub flip_x: bool,
+    pub flip_y: bool,
 }
 
 impl Default for Window {
@@ -221,6 +229,10 @@ impl Default for Window {
             origin_y: 0,
             scale_x: 1.0,
             scale_y: 1.0,
+            min_x: 0,
+            min_y: 0,
+            flip_x: false,
+            flip_y: false,
         }
     }
 }
@@ -230,25 +242,28 @@ impl Window {
         Self::default()
     }
 
-    pub fn ext(mut self, x: i16, y: i16) -> Self {
+    pub fn ext(&mut self, x: i16, y: i16) {
+        self.flip_x = x < 0;
+        self.flip_y = y < 0;
         self.x = x.abs();
         self.y = y.abs();
-        self
     }
 
-    pub fn origin(mut self, origin_x: i16, origin_y: i16) -> Self {
+    pub fn origin(&mut self, origin_x: i16, origin_y: i16) {
         self.origin_x = origin_x;
         self.origin_y = origin_y;
-        self
     }
 
-    pub fn scale(mut self, scale_x: f32, scale_y: f32) -> Self {
+    pub fn scale(&mut self, scale_x: f32, scale_y: f32) {
         self.scale_x = scale_x;
         self.scale_y = scale_y;
-        self
     }
 
     pub fn as_view_box(&self) -> (i16, i16, i16, i16) {
-        (0, 0, self.x.abs(), self.y.abs())
+        // Expand viewBox to include negative coordinates if any
+        let min_x = self.min_x.min(0);
+        let min_y = self.min_y.min(0);
+
+        (min_x, min_y, self.x - min_x, self.y - min_y)
     }
 }
