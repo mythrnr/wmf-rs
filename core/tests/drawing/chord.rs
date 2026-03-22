@@ -65,15 +65,12 @@ fn meta_chord_svg_table_test() {
     for (i, case) in cases.iter().enumerate() {
         let player = SVGPlayer::new();
         let player = player
-            .set_window_ext(
-                0,
-                META_SETWINDOWEXT {
-                    record_size: 0.into(),
-                    record_function: 0,
-                    y: 1024,
-                    x: 1024,
-                },
-            )
+            .set_window_ext(0, META_SETWINDOWEXT {
+                record_size: 0.into(),
+                record_function: 0,
+                y: 1024,
+                x: 1024,
+            })
             .expect("set_window_ext failed");
         let result = player.chord(1, case.record.clone());
 
