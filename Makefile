@@ -25,6 +25,13 @@ fix:
 fmt:
 	cargo +nightly fmt --all
 
+.PHONY: install-tools
+install-tools:
+	curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+	cargo binstall -y cargo-machete
+	cargo binstall -y cargo-udeps
+	cargo binstall -y wasm-pack
+
 .PHONY: lint
 lint:
 	cargo clippy --workspace --all-targets --all-features \
@@ -46,9 +53,7 @@ serve: wasm
 
 .PHONY: spell-check
 spell-check:
-	docker pull ghcr.io/streetsidesoftware/cspell:latest > /dev/null \
-	&& docker run --rm \
-		-v $(shell pwd):/workdir \
+	docker run --pull always --rm -v "$(shell pwd):/workdir" \
 		ghcr.io/streetsidesoftware/cspell:latest \
 			--config .vscode/cspell.json "**"
 

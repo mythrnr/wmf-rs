@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.84.1
+FROM rust:1.85.0
 
 ARG WORK_DIR="/rust"
 

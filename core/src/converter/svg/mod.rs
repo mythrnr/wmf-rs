@@ -5,13 +5,13 @@ mod util;
 
 use crate::{
     converter::{
+        GraphicsObject, PlayError, SelectedGraphicsObject,
         svg::{
             device_context::DeviceContext,
             node::{Data, Node},
             ternary_raster_operator::TernaryRasterOperator,
-            util::{as_point_string, url_string, Fill, Stroke},
+            util::{Fill, Stroke, as_point_string, url_string},
         },
-        GraphicsObject, PlayError, SelectedGraphicsObject,
     },
     imports::*,
     parser::*,
@@ -1700,7 +1700,7 @@ impl crate::converter::Player for SVGPlayer {
             GraphicsObject::Null => {
                 return Err(PlayError::UnexpectedGraphicsObject {
                     cause: "Graphics Object is null".to_owned(),
-                })
+                });
             }
         };
 

@@ -26,12 +26,12 @@ pub enum ClipPrecision {
     /// This value is used to control font rotation, as follows:
     ///
     /// - If set, the rotation for all fonts SHOULD be determined by the
-    ///   orientation of the coordinate system; that is, whether the
-    ///   orientation is left-handed or right-handed.
+    ///   orientation of the coordinate system; that is, whether the orientation
+    ///   is left-handed or right-handed.
     ///
     /// - If clear, device fonts SHOULD rotate counterclockwise, but the
-    ///   rotation of other fonts SHOULD be determined by the orientation of
-    ///   the coordinate system.
+    ///   rotation of other fonts SHOULD be determined by the orientation of the
+    ///   coordinate system.
     CLIP_LH_ANGLES = 0x00000010,
     /// This value SHOULD NOT be used. (This value is supported in the
     /// following Windows versions: Windows NT 3.1, Windows NT 3.5, Windows NT

@@ -163,6 +163,9 @@ impl Font {
             + pitch_and_family_bytes;
 
         let (facename, facename_as_charset) = {
+            // The spec defines facename as a 32-byte field, but
+            // real-world records may have fewer remaining bytes.
+            // Read up to 32 bytes from the buffer.
             let mut bytes = vec![0; 32];
             let c = buf.read(&mut bytes).map_err(|err| {
                 crate::parser::ParseError::UnexpectedPattern {
@@ -172,7 +175,7 @@ impl Font {
             consumed_bytes += c;
 
             // Find the position of the first null byte (0)
-            let len = bytes.iter().position(|&c| c == 0).unwrap_or(32);
+            let len = bytes[..c].iter().position(|&b| b == 0).unwrap_or(c);
 
             // Convert bytes to UTF-8 string from Latin-1
             let as_latin1 = crate::parser::bytes_into_utf8(

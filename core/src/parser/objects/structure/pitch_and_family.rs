@@ -31,11 +31,18 @@ impl PitchAndFamily {
         };
 
         let pitch = byte & 0b00000011;
-        let Some(pitch) = crate::parser::PitchFont::from_repr(pitch) else {
-            return Err(crate::parser::ParseError::UnexpectedEnumValue {
-                cause: format!("unexpected value as PitchFont: {pitch:#04X}"),
+        // The PitchFont field is 2 bits, but values beyond the
+        // defined range (0-2) appear in real-world WMF files.
+        // Fall back to DEFAULT_PITCH for undefined values.
+        let pitch =
+            crate::parser::PitchFont::from_repr(pitch).unwrap_or_else(|| {
+                warn!(
+                    pitch = format!("{pitch:#04X}"),
+                    "undefined PitchFont value, falling back to DEFAULT_PITCH",
+                );
+
+                crate::parser::PitchFont::DEFAULT_PITCH
             });
-        };
 
         Ok((Self { family, pitch }, consumed_bytes))
     }

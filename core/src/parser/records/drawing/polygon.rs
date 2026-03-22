@@ -47,10 +47,13 @@ impl META_POLYGON {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
-        if number_of_points < 2 {
+        // The spec requires number_of_points >= 2, but real-world
+        // WMF files may contain degenerate polygons (0 or 1 points).
+        // Treat these as a no-op; only reject negative values.
+        if number_of_points < 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "number_of_points must be >= 2, got {number_of_points}",
+                    "number_of_points must be >= 0, got {number_of_points}",
                 ),
             });
         }
@@ -76,20 +79,49 @@ mod tests {
     use crate::parser::records::test_helpers::*;
 
     #[test]
-    fn parse_rejects_number_of_points_less_than_2() {
-        for n in [-1_i16, 0, 1] {
-            let payload = n.to_le_bytes();
-            let data = build_record(
-                4,
-                crate::parser::RecordType::META_POLYGON as u16,
-                &payload,
-            );
-            let (rs, rf, mut reader) = parse_record_header(&data);
-            assert!(
-                META_POLYGON::parse(&mut reader, rs, rf).is_err(),
-                "number_of_points={n} should be rejected"
-            );
-        }
+    fn parse_rejects_negative_number_of_points() {
+        let payload = (-1_i16).to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_POLYGON::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_accepts_zero_points() {
+        let payload = 0_i16.to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 0);
+        assert!(record.a_points.is_empty());
+    }
+
+    #[test]
+    fn parse_single_point() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&1_i16.to_le_bytes());
+        // Single PointS (x = 10, y = 20)
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            6,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 1);
+        assert_eq!(record.a_points.len(), 1);
+        assert_eq!(record.a_points[0].x, 10);
+        assert_eq!(record.a_points[0].y, 20);
     }
 
     #[test]

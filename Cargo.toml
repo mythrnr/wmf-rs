@@ -1,27 +1,27 @@
 [workspace]
 members = ["cli", "core", "wasm"]
-resolver = "2"
+resolver = "3"
 
 [workspace.dependencies]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
-clap = { version = "4.5.58", features = ["derive", "env"] }
+clap = { version = "4.6.0", features = ["derive", "env"] }
 codepage = "0.1.2"
 embedded-io = "0.7.1"
 encoding_rs = "0.8.35"
 paste = "1.0.15"
-snafu = "0.8.9"
-strum = { version = "0.27.2", default-features = false, features = ["derive"] }
+snafu = "0.9.0"
+strum = { version = "0.28.0", default-features = false, features = ["derive"] }
 tracing = { version = "0.1.44", default-features = false, features = [
   "attributes",
 ] }
-tracing-subscriber = { version = "0.3.22", default-features = false, features = [
+tracing-subscriber = { version = "0.3.23", default-features = false, features = [
   "time",
 ] }
 tracing-wasm = "0.2.1"
 unicode-segmentation = "1.12.0"
 unicode-width = "0.2.2"
-wasm-bindgen = "0.2.106"
-wasm-bindgen-test = "0.3.56"
+wasm-bindgen = "0.2.114"
+wasm-bindgen-test = "0.3.64"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -45,8 +45,8 @@ must_use_candidate = "allow"
 similar_names = "allow"
 
 [workspace.package]
-edition = "2021"
-rust-version = "1.84.1"
+edition = "2024"
+rust-version = "1.85.0"
 version = "0.1.0"
 
 [profile.release]

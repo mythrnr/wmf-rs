@@ -55,36 +55,57 @@
   <script type="module">
     import init, { convertWmf2Svg, setLogLevel } from "./wmf_wasm.js";
 
+    function handleFile(file) {
+      const fileReader = new FileReader();
+      const filename = file.name;
+
+      fileReader.onload = (e) => {
+        const start = Date.now();
+        const bytes = new Uint8Array(e.target.result);
+
+        try {
+          const output = convertWmf2Svg(bytes);
+          document.getElementById("output").innerHTML = output;
+        } catch (e) {
+          document.getElementById("output").innerText = `${e}`;
+        }
+
+        document.getElementById("time").innerText = `${filename} / ${Date.now() - start}ms`;
+      };
+
+      fileReader.readAsArrayBuffer(file);
+    }
+
     async function run() {
       await init();
       setLogLevel("info");
 
-      document.getElementById("input").addEventListener("change", () => {
-        const input = document.getElementById("input");
+      const input = document.getElementById("input");
+      const uploader = document.querySelector(".uploader");
+
+      input.addEventListener("change", () => {
         const files = input.files;
 
         if (files === null || files.length === 0) {
           return;
         }
 
-        const fileReader = new FileReader();
-        const filename = files[0].name;
+        handleFile(files[0]);
+      });
 
-        fileReader.onload = (e) => {
-          const start = Date().getTime();
-          const bytes = new Uint8Array(e.target.result);
+      uploader.addEventListener("dragover", (e) => {
+        e.preventDefault();
+      });
 
-          try {
-            const output = convertWmf2Svg(bytes);
-            document.getElementById("output").innerHTML = output;
-          } catch (e) {
-            document.getElementById("output").innerText = `${e}`;
-          }
+      uploader.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
 
-          document.getElementById("time").innerText = `${filename} / ${Date().getTime() - start}ms`;
-        };
+        if (files.length === 0) {
+          return;
+        }
 
-        fileReader.readAsArrayBuffer(files[0]);
+        handleFile(files[0]);
       });
     }
 
