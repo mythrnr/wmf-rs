@@ -48,8 +48,8 @@ impl META_POLYGON {
         record_size.consume(number_of_points_bytes);
 
         // The spec requires number_of_points >= 2, but real-world
-        // WMF files may contain empty polygons (0 points).
-        // Allow 0 points as a no-op instead of returning an error.
+        // WMF files may contain degenerate polygons (0 or 1 points).
+        // Treat these as a no-op; only reject negative values.
         if number_of_points < 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
