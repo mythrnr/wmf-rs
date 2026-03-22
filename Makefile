@@ -25,6 +25,13 @@ fix:
 fmt:
 	cargo +nightly fmt --all
 
+.PHONY: install-tools
+install-tools:
+	curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+	cargo binstall cargo-machete
+	cargo binstall cargo-udeps
+	cargo binstall wasm-pack
+
 .PHONY: lint
 lint:
 	cargo clippy --workspace --all-targets --all-features \

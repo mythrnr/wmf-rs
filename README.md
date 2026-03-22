@@ -1,41 +1,101 @@
 # wmf-rs
 
-Library to parse WMF and convert to SVG (WIP).
+A Rust library for parsing [WMF (Windows Metafile)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2) binaries and converting them to SVG.
 
-## crates
+> **Note:** This project is a work in progress. Some WMF records are not yet fully implemented.
 
-- `wmf-core`
-  - `parser` module ... Parsing according to [MS-WMF](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2) specifications.
-  - `converter` module ... Converting parsed records to SVG.
-- `wmf-cli` ... An example runner for `wmf-core`.
+## Features
 
-## Requirements
-
-- Rust 1.85.0+ (For Development)
-- [wasm-pack](https://github.com/rustwasm/wasm-pack)
-- Yarn 1.22.22+ (To run example)
-
-### Optionals
-
-- Docker
-- [cargo-machete](https://github.com/bnjbvr/cargo-machete)
-- [cargo-udeps](https://github.com/est31/cargo-udeps)
+- Parses WMF binary format according to the MS-WMF specification
+- Converts WMF records to SVG output
+- `no_std` compatible (uses `alloc`)
+- Works in WebAssembly environments via `wmf-wasm`
+- Extensible conversion via the `Player` trait
 
 ## Installation
 
+Add `wmf-core` to your `Cargo.toml`:
+
 ```toml
 [dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.1", package = "wmf-core" }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core" }
 ```
 
-## Examples
+### Feature Flags
 
-### Run as CLI
+| Feature | Default | Description |
+| --- | --- | --- |
+| `svg` | Yes | Enables SVG conversion (`SVGPlayer`) |
+| `tracing` | Yes | Enables log output via the `tracing` crate |
 
-More details, see `wmf-cli` crate.
+To use with minimal dependencies:
 
-```bash
-$ cargo run --package wmf-cli -- --help
+```toml
+[dependencies]
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core", default-features = false }
+```
+
+## Usage
+
+### As a Rust Library
+
+```rust
+use std::fs;
+
+fn main() {
+    let wmf_data = fs::read("input.wmf").expect("failed to read file");
+
+    let player = wmf_core::converter::SVGPlayer::new();
+    let converter = wmf_core::converter::WMFConverter::new(
+        wmf_data.as_slice(),
+        player,
+    );
+
+    match converter.run() {
+        Ok(svg_bytes) => {
+            let svg = String::from_utf8_lossy(&svg_bytes);
+            println!("{svg}");
+        }
+        Err(err) => {
+            eprintln!("conversion failed: {err}");
+        }
+    }
+}
+```
+
+### Custom Player
+
+The conversion process is abstracted through the `Player` trait.
+You can implement your own `Player` to produce output formats other than SVG:
+
+```rust
+use wmf_core::converter::{Player, PlayError};
+use wmf_core::parser::*;
+
+struct MyPlayer { /* ... */ }
+
+impl Player for MyPlayer {
+    fn generate(self) -> Result<Vec<u8>, PlayError> {
+        // Produce your output format here
+        todo!()
+    }
+
+    // Implement all required record handler methods...
+    // See `wmf_core::converter::Player` for the full list.
+    # fn bit_blt(self, _: usize, _: META_BITBLT) -> Result<Self, PlayError> { Ok(self) }
+    // ...
+}
+```
+
+### As a CLI Tool
+
+The `wmf-cli` crate provides a command-line converter:
+
+```sh
+cargo run --package wmf-cli -- --input sample.wmf --output out.svg
+```
+
+```
 Usage: wmf-cli [OPTIONS] --input <INPUT>
 
 Options:
@@ -47,19 +107,9 @@ Options:
   -V, --version          Print version
 ```
 
-### Run as WASM on browser
+### As WASM in the Browser
 
-- Run example in http://localhost:8080
-
-```bash
-make serve
-```
-
-- Enable to set log level by running `setLogLevel(level: "trace" | "debug" | "info" | "warn" | "error")`
-  - Default is `info` level.
-  - **NOTE: trace and debug levels are very slow to execute.**
-- If you want more small WASM, disable `tracing` feature. But no logs will be out in console.
-  - Running `setLogLevel` has no effect.
+The `wmf-wasm` crate provides WebAssembly bindings built with `wasm-pack`.
 
 ```html
 <script type="module">
@@ -67,7 +117,7 @@ import init, { convertWmf2Svg, setLogLevel } from "./wmf_wasm.js";
 
 async function run() {
   await init();
-  setLogLevel("debug");
+  setLogLevel("info");
 
   document.getElementById("input").addEventListener("change", () => {
     const input = document.getElementById("input");
@@ -81,9 +131,9 @@ async function run() {
 
     fileReader.onload = function (e) {
       const bytes = new Uint8Array(e.target.result);
-      const output = convertWmf2Svg(bytes);
+      const svg = convertWmf2Svg(bytes);
 
-      document.getElementById("output").innerHTML = output;
+      document.getElementById("output").innerHTML = svg;
     };
 
     fileReader.readAsArrayBuffer(files[0]);
@@ -93,3 +143,43 @@ async function run() {
 run();
 </script>
 ```
+
+To build and run the WASM demo locally:
+
+```sh
+make serve
+# Open http://localhost:8080
+```
+
+#### WASM API
+
+- `convertWmf2Svg(buf: Uint8Array): string` - Converts WMF binary data to an SVG string.
+- `setLogLevel(level: "trace" | "debug" | "info" | "warn" | "error")` - Sets the log level (default: `info`).
+  - **Note:** `trace` and `debug` levels are very slow to execute.
+  - If the `tracing` feature is disabled, `setLogLevel` has no effect.
+
+## Crate Overview
+
+| Crate | Description |
+| --- | --- |
+| `wmf-core` | Core library: WMF parser and SVG converter (`no_std`) |
+| `wmf-cli` | CLI tool for WMF to SVG conversion |
+| `wmf-wasm` | WASM bindings for browser usage (`no_std`) |
+
+## Requirements (for Development)
+
+- Rust 1.85.0+
+- Rust nightly toolchain (for `rustfmt` and `cargo-udeps`)
+- Docker (for spell-check)
+- [wasm-pack](https://github.com/rustwasm/wasm-pack) (for WASM builds)
+- Yarn 1.22.22+ (to run the WASM demo)
+
+Optional tools can be installed with:
+
+```sh
+make install-tools
+```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

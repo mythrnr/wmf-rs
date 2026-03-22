@@ -1,4 +1,157 @@
-let wasm;
+/* @ts-self-types="./wmf_wasm.d.ts" */
+
+/**
+ * Converts WMF binary data to an SVG string.
+ *
+ * # Arguments
+ *
+ * - `buf` - Byte array of a WMF file
+ *
+ * # Returns
+ *
+ * - SVG string (UTF-8)
+ * - On failure, returns a JsValue containing error details
+ *
+ * # Example
+ *
+ * ```js
+ * import { convertWmf2Svg } from "wmf-wasm";
+ *
+ * // svg is a string containing SVG data
+ * const svg = convertWmf2Svg(wmfBytes);
+ * ```
+ * @param {Uint8Array} buf
+ * @returns {string}
+ */
+export function convertWmf2Svg(buf) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(buf, wasm.__wbindgen_export3);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.convertWmf2Svg(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr2 = r0;
+        var len2 = r1;
+        if (r3) {
+            ptr2 = 0; len2 = 0;
+            throw takeObject(r2);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Sets the log level (only when the `tracing` feature is enabled).
+ *
+ * # Arguments
+ *
+ * - `level` - e.g. "info", "debug", etc.
+ *
+ * # Example
+ *
+ * ```js
+ * import { setLogLevel } from "wmf-wasm";
+ * setLogLevel("debug");
+ * // Now debug logs will be shown in the browser console (if tracing feature is enabled)
+ * ```
+ * @param {string} level
+ */
+export function setLogLevel(level) {
+    const ptr0 = passStringToWasm0(level, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.setLogLevel(ptr0, len0);
+}
+
+function __wbg_get_imports() {
+    const import0 = {
+        __proto__: null,
+        __wbg_error_a6fa202b58aa1cd3: function(arg0, arg1) {
+            let deferred0_0;
+            let deferred0_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                console.error(getStringFromWasm0(arg0, arg1));
+            } finally {
+                wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+            }
+        },
+        __wbg_log_0c201ade58bb55e1: function(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+            let deferred0_0;
+            let deferred0_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                console.log(getStringFromWasm0(arg0, arg1), getStringFromWasm0(arg2, arg3), getStringFromWasm0(arg4, arg5), getStringFromWasm0(arg6, arg7));
+            } finally {
+                wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+            }
+        },
+        __wbg_log_ce2c4456b290c5e7: function(arg0, arg1) {
+            let deferred0_0;
+            let deferred0_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                console.log(getStringFromWasm0(arg0, arg1));
+            } finally {
+                wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+            }
+        },
+        __wbg_mark_b4d943f3bc2d2404: function(arg0, arg1) {
+            performance.mark(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_measure_84362959e621a2c1: function() { return handleError(function (arg0, arg1, arg2, arg3) {
+            let deferred0_0;
+            let deferred0_1;
+            let deferred1_0;
+            let deferred1_1;
+            try {
+                deferred0_0 = arg0;
+                deferred0_1 = arg1;
+                deferred1_0 = arg2;
+                deferred1_1 = arg3;
+                performance.measure(getStringFromWasm0(arg0, arg1), getStringFromWasm0(arg2, arg3));
+            } finally {
+                wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+                wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+            }
+        }, arguments); },
+        __wbg_new_227d7c05414eb861: function() {
+            const ret = new Error();
+            return addHeapObject(ret);
+        },
+        __wbg_stack_3b0d974bbf31e44f: function(arg0, arg1) {
+            const ret = getObject(arg1).stack;
+            const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+            const len1 = WASM_VECTOR_LEN;
+            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
+        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(String) -> Externref`.
+            const ret = getStringFromWasm0(arg0, arg1);
+            return addHeapObject(ret);
+        },
+        __wbindgen_object_drop_ref: function(arg0) {
+            takeObject(arg0);
+        },
+    };
+    return {
+        __proto__: null,
+        "./wmf_wasm_bg.js": import0,
+    };
+}
 
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
@@ -10,7 +163,7 @@ function addHeapObject(obj) {
 }
 
 function dropObject(idx) {
-    if (idx < 132) return;
+    if (idx < 1028) return;
     heap[idx] = heap_next;
     heap_next = idx;
 }
@@ -46,7 +199,7 @@ function handleError(f, args) {
     }
 }
 
-let heap = new Array(128).fill(undefined);
+let heap = new Array(1024).fill(undefined);
 heap.push(undefined, null, true, false);
 
 let heap_next = heap.length;
@@ -125,84 +278,19 @@ if (!('encodeInto' in cachedTextEncoder)) {
             read: arg.length,
             written: buf.length
         };
-    }
+    };
 }
 
 let WASM_VECTOR_LEN = 0;
 
-/**
- * Converts WMF binary data to an SVG string.
- *
- * # Arguments
- *
- * - `buf` - Byte array of a WMF file
- *
- * # Returns
- *
- * - SVG string (UTF-8)
- * - On failure, returns a JsValue containing error details
- *
- * # Example
- *
- * ```js
- * import { convertWmf2Svg } from "wmf-wasm";
- *
- * // svg is a string containing SVG data
- * const svg = convertWmf2Svg(wmfBytes);
- * ```
- * @param {Uint8Array} buf
- * @returns {string}
- */
-export function convertWmf2Svg(buf) {
-    let deferred3_0;
-    let deferred3_1;
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passArray8ToWasm0(buf, wasm.__wbindgen_export3);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.convertWmf2Svg(retptr, ptr0, len0);
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr2 = r0;
-        var len2 = r1;
-        if (r3) {
-            ptr2 = 0; len2 = 0;
-            throw takeObject(r2);
-        }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export(deferred3_0, deferred3_1, 1);
-    }
+let wasmModule, wasm;
+function __wbg_finalize_init(instance, module) {
+    wasm = instance.exports;
+    wasmModule = module;
+    cachedDataViewMemory0 = null;
+    cachedUint8ArrayMemory0 = null;
+    return wasm;
 }
-
-/**
- * Sets the log level (only when the `tracing` feature is enabled).
- *
- * # Arguments
- *
- * - `level` - e.g. "info", "debug", etc.
- *
- * # Example
- *
- * ```js
- * import { setLogLevel } from "wmf-wasm";
- * setLogLevel("debug");
- * // Now debug logs will be shown in the browser console (if tracing feature is enabled)
- * ```
- * @param {string} level
- */
-export function setLogLevel(level) {
-    const ptr0 = passStringToWasm0(level, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
-    const len0 = WASM_VECTOR_LEN;
-    wasm.setLogLevel(ptr0, len0);
-}
-
-const EXPECTED_RESPONSE_TYPES = new Set(['basic', 'cors', 'default']);
 
 async function __wbg_load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
@@ -210,14 +298,12 @@ async function __wbg_load(module, imports) {
             try {
                 return await WebAssembly.instantiateStreaming(module, imports);
             } catch (e) {
-                const validResponse = module.ok && EXPECTED_RESPONSE_TYPES.has(module.type);
+                const validResponse = module.ok && expectedResponseType(module.type);
 
                 if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
                     console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
 
-                } else {
-                    throw e;
-                }
+                } else { throw e; }
             }
         }
 
@@ -232,102 +318,20 @@ async function __wbg_load(module, imports) {
             return instance;
         }
     }
-}
 
-function __wbg_get_imports() {
-    const imports = {};
-    imports.wbg = {};
-    imports.wbg.__wbg_error_7534b8e9a36f1ab4 = function(arg0, arg1) {
-        let deferred0_0;
-        let deferred0_1;
-        try {
-            deferred0_0 = arg0;
-            deferred0_1 = arg1;
-            console.error(getStringFromWasm0(arg0, arg1));
-        } finally {
-            wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+    function expectedResponseType(type) {
+        switch (type) {
+            case 'basic': case 'cors': case 'default': return true;
         }
-    };
-    imports.wbg.__wbg_log_0cc1b7768397bcfe = function(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
-        let deferred0_0;
-        let deferred0_1;
-        try {
-            deferred0_0 = arg0;
-            deferred0_1 = arg1;
-            console.log(getStringFromWasm0(arg0, arg1), getStringFromWasm0(arg2, arg3), getStringFromWasm0(arg4, arg5), getStringFromWasm0(arg6, arg7));
-        } finally {
-            wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
-        }
-    };
-    imports.wbg.__wbg_log_cb9e190acc5753fb = function(arg0, arg1) {
-        let deferred0_0;
-        let deferred0_1;
-        try {
-            deferred0_0 = arg0;
-            deferred0_1 = arg1;
-            console.log(getStringFromWasm0(arg0, arg1));
-        } finally {
-            wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
-        }
-    };
-    imports.wbg.__wbg_mark_7438147ce31e9d4b = function(arg0, arg1) {
-        performance.mark(getStringFromWasm0(arg0, arg1));
-    };
-    imports.wbg.__wbg_measure_fb7825c11612c823 = function() { return handleError(function (arg0, arg1, arg2, arg3) {
-        let deferred0_0;
-        let deferred0_1;
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            deferred0_0 = arg0;
-            deferred0_1 = arg1;
-            deferred1_0 = arg2;
-            deferred1_1 = arg3;
-            performance.measure(getStringFromWasm0(arg0, arg1), getStringFromWasm0(arg2, arg3));
-        } finally {
-            wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
-            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
-        }
-    }, arguments) };
-    imports.wbg.__wbg_new_8a6f238a6ece86ea = function() {
-        const ret = new Error();
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbg_stack_0ed75d68575b0f3c = function(arg0, arg1) {
-        const ret = getObject(arg1).stack;
-        const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
-        const len1 = WASM_VECTOR_LEN;
-        getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-        getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-    };
-    imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
-        // Cast intrinsic for `Ref(String) -> Externref`.
-        const ret = getStringFromWasm0(arg0, arg1);
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
-
-    return imports;
-}
-
-function __wbg_finalize_init(instance, module) {
-    wasm = instance.exports;
-    __wbg_init.__wbindgen_wasm_module = module;
-    cachedDataViewMemory0 = null;
-    cachedUint8ArrayMemory0 = null;
-
-
-
-    return wasm;
+        return false;
+    }
 }
 
 function initSync(module) {
     if (wasm !== undefined) return wasm;
 
 
-    if (typeof module !== 'undefined') {
+    if (module !== undefined) {
         if (Object.getPrototypeOf(module) === Object.prototype) {
             ({module} = module)
         } else {
@@ -347,7 +351,7 @@ async function __wbg_init(module_or_path) {
     if (wasm !== undefined) return wasm;
 
 
-    if (typeof module_or_path !== 'undefined') {
+    if (module_or_path !== undefined) {
         if (Object.getPrototypeOf(module_or_path) === Object.prototype) {
             ({module_or_path} = module_or_path)
         } else {
@@ -355,7 +359,7 @@ async function __wbg_init(module_or_path) {
         }
     }
 
-    if (typeof module_or_path === 'undefined') {
+    if (module_or_path === undefined) {
         module_or_path = new URL('wmf_wasm_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
@@ -369,5 +373,4 @@ async function __wbg_init(module_or_path) {
     return __wbg_finalize_init(instance, module);
 }
 
-export { initSync };
-export default __wbg_init;
+export { initSync, __wbg_init as default };
