@@ -47,10 +47,13 @@ impl META_POLYGON {
             crate::parser::read_i16_from_le_bytes(buf)?;
         record_size.consume(number_of_points_bytes);
 
-        if number_of_points < 2 {
+        // The spec requires number_of_points >= 2, but real-world
+        // WMF files may contain empty polygons (0 points).
+        // Allow 0 points as a no-op instead of returning an error.
+        if number_of_points < 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "number_of_points must be >= 2, got {number_of_points}",
+                    "number_of_points must be >= 0, got {number_of_points}",
                 ),
             });
         }
@@ -76,20 +79,29 @@ mod tests {
     use crate::parser::records::test_helpers::*;
 
     #[test]
-    fn parse_rejects_number_of_points_less_than_2() {
-        for n in [-1_i16, 0, 1] {
-            let payload = n.to_le_bytes();
-            let data = build_record(
-                4,
-                crate::parser::RecordType::META_POLYGON as u16,
-                &payload,
-            );
-            let (rs, rf, mut reader) = parse_record_header(&data);
-            assert!(
-                META_POLYGON::parse(&mut reader, rs, rf).is_err(),
-                "number_of_points={n} should be rejected"
-            );
-        }
+    fn parse_rejects_negative_number_of_points() {
+        let payload = (-1_i16).to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        assert!(META_POLYGON::parse(&mut reader, rs, rf).is_err());
+    }
+
+    #[test]
+    fn parse_accepts_zero_points() {
+        let payload = 0_i16.to_le_bytes();
+        let data = build_record(
+            4,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 0);
+        assert!(record.a_points.is_empty());
     }
 
     #[test]

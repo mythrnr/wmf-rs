@@ -138,10 +138,15 @@ impl META_EXTTEXTOUT {
 
         let mut dx = vec![];
 
+        // The Dx array has one entry per character, not per byte.
+        // For multi-byte character sets, the number of characters
+        // can be less than string_length. Read based on remaining
+        // record bytes instead.
         if record_size.remaining() {
-            dx.reserve_exact(string_length as usize);
+            let dx_count = record_size.remaining_bytes() / 2;
+            dx.reserve_exact(dx_count);
 
-            for _ in 0..string_length {
+            for _ in 0..dx_count {
                 let (v, c) = crate::parser::read_i16_from_le_bytes(buf)?;
 
                 record_size.consume(c);
@@ -250,5 +255,37 @@ mod tests {
         let record = META_EXTTEXTOUT::parse(&mut reader, rs, rf).unwrap();
         assert!(record.rectangle.is_some());
         assert_eq!(record.dx, vec![10, 20]);
+    }
+
+    /// Verifies that multi-byte strings where the Dx entry count
+    /// is less than string_length are parsed correctly.
+    #[test]
+    fn parse_multibyte_string_with_fewer_dx_entries() {
+        // "Test" (4 bytes) + 2 Big5 chars (4 bytes) = 8 bytes,
+        // but Dx only has 6 entries (one per character)
+        let string: &[u8] = &[84, 101, 115, 116, 180, 250, 184, 213];
+        let dx_values: &[i16] = &[24, 24, 24, 24, 48, 48];
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&50_i16.to_le_bytes()); // y
+        payload.extend_from_slice(&100_i16.to_le_bytes()); // x
+        payload.extend_from_slice(&8_i16.to_le_bytes()); // string_length
+        payload.extend_from_slice(&0_u16.to_le_bytes()); // fw_opts
+        payload.extend_from_slice(string);
+        for &v in dx_values {
+            payload.extend_from_slice(&v.to_le_bytes());
+        }
+        // record_size = 3 (header) + 4 (y,x,strlen,fwopts)
+        //             + 4 (string 8 bytes = 4 WORDs)
+        //             + 6 (dx 12 bytes = 6 WORDs) = 17
+        let data = build_record(
+            17,
+            crate::parser::RecordType::META_EXTTEXTOUT as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_EXTTEXTOUT::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.string_length, 8);
+        assert_eq!(record.string, string);
+        assert_eq!(record.dx, dx_values);
     }
 }
