@@ -105,6 +105,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_single_point() {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&1_i16.to_le_bytes());
+        // Single PointS (x = 10, y = 20)
+        payload.extend_from_slice(&10_i16.to_le_bytes());
+        payload.extend_from_slice(&20_i16.to_le_bytes());
+        let data = build_record(
+            6,
+            crate::parser::RecordType::META_POLYGON as u16,
+            &payload,
+        );
+        let (rs, rf, mut reader) = parse_record_header(&data);
+        let record = META_POLYGON::parse(&mut reader, rs, rf).unwrap();
+        assert_eq!(record.number_of_points, 1);
+        assert_eq!(record.a_points.len(), 1);
+        assert_eq!(record.a_points[0].x, 10);
+        assert_eq!(record.a_points[0].y, 20);
+    }
+
+    #[test]
     fn parse_triangle() {
         let mut payload = Vec::new();
         payload.extend_from_slice(&3_i16.to_le_bytes());
