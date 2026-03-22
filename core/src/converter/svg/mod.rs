@@ -938,15 +938,20 @@ impl crate::converter::Player for SVGPlayer {
 
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
+        let p1 = self.convert_point(record.x_left, record.y_left);
+        let p2 = self.convert_point(
+            record.x_left + record.width,
+            record.y_left + record.height,
+        );
 
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule)
             .set("stroke", "none")
-            .set("x", record.x_left)
-            .set("y", record.y_left)
-            .set("height", record.height)
-            .set("width", record.width);
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
+            .set("height", (p2.y - p1.y).abs())
+            .set("width", (p2.x - p1.x).abs());
 
         self.push_element(record_number, rect);
 
@@ -1153,16 +1158,16 @@ impl crate::converter::Player for SVGPlayer {
         let stroke = Stroke::from(self.selected_pen());
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let tl = self.convert_point(record.left_rect, record.top_rect);
-        let br = self.convert_point(record.right_rect, record.bottom_rect);
+        let p1 = self.convert_point(record.left_rect, record.top_rect);
+        let p2 = self.convert_point(record.right_rect, record.bottom_rect);
 
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule)
-            .set("x", tl.x)
-            .set("y", tl.y)
-            .set("height", br.y - tl.y)
-            .set("width", br.x - tl.x);
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
+            .set("height", (p2.y - p1.y).abs())
+            .set("width", (p2.x - p1.x).abs());
         let rect = stroke.set_props(rect);
 
         self.push_element(record_number, rect);
@@ -1180,10 +1185,14 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_ROUNDRECT,
     ) -> Result<Self, PlayError> {
-        let (width, height) = (
-            record.right_rect - record.left_rect,
-            record.bottom_rect - record.top_rect,
-        );
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
+        let fill_rule = self.context_current.poly_fill_rule();
+        let p1 = self.convert_point(record.left_rect, record.top_rect);
+        let p2 = self.convert_point(record.right_rect, record.bottom_rect);
+
+        let width = (p2.x - p1.x).abs();
+        let height = (p2.y - p1.y).abs();
 
         if width == 0 || height == 0 {
             info!(
@@ -1194,16 +1203,11 @@ impl crate::converter::Player for SVGPlayer {
             return Ok(self);
         }
 
-        let stroke = Stroke::from(self.selected_pen());
-        let fill = self.resolve_fill();
-        let fill_rule = self.context_current.poly_fill_rule();
-        let point = self.convert_point(record.left_rect, record.top_rect);
-
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
             .set("fill-rule", fill_rule)
-            .set("x", point.x)
-            .set("y", point.y)
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
             .set("height", height)
             .set("width", width)
             .set("rx", record.width)
