@@ -169,7 +169,7 @@ impl RecordSize {
     }
 
     pub fn remaining_bytes(&self) -> usize {
-        self.byte_count().checked_sub(self.1).unwrap_or(0)
+        self.byte_count().saturating_sub(self.1)
     }
 }
 
