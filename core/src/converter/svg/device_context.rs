@@ -245,10 +245,8 @@ impl Window {
     pub fn ext(&mut self, x: i16, y: i16) {
         self.flip_x = x < 0;
         self.flip_y = y < 0;
-        self.x = i16::try_from(x.unsigned_abs())
-            .unwrap_or(i16::MAX);
-        self.y = i16::try_from(y.unsigned_abs())
-            .unwrap_or(i16::MAX);
+        self.x = i16::try_from(x.unsigned_abs()).unwrap_or(i16::MAX);
+        self.y = i16::try_from(y.unsigned_abs()).unwrap_or(i16::MAX);
     }
 
     pub fn origin(&mut self, origin_x: i16, origin_y: i16) {
@@ -265,12 +263,9 @@ impl Window {
         // Expand viewBox to include negative coordinates if any
         let min_x = i32::from(self.min_x).min(0);
         let min_y = i32::from(self.min_y).min(0);
+        let max_x = i32::from(self.x);
+        let max_y = i32::from(self.y);
 
-        (
-            min_x,
-            min_y,
-            i32::from(self.x) - min_x,
-            i32::from(self.y) - min_y,
-        )
+        (min_x, min_y, max_x - min_x, max_y - min_y)
     }
 }

@@ -93,11 +93,7 @@ impl Data {
         Self::default()
     }
 
-    fn push_command(
-        &mut self,
-        cmd: &str,
-        param: impl core::fmt::Display,
-    ) {
+    fn push_command(&mut self, cmd: &str, param: impl core::fmt::Display) {
         use core::fmt::Write;
 
         if !self.0.is_empty() {
@@ -120,28 +116,19 @@ impl Data {
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
-    pub fn elliptical_arc_to(
-        mut self,
-        param: impl core::fmt::Display,
-    ) -> Self {
+    pub fn elliptical_arc_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("A", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataLinetoCommands
-    pub fn line_to(
-        mut self,
-        param: impl core::fmt::Display,
-    ) -> Self {
+    pub fn line_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("L", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
-    pub fn move_to(
-        mut self,
-        param: impl core::fmt::Display,
-    ) -> Self {
+    pub fn move_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("M", param);
         self
     }
