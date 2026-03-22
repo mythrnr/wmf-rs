@@ -100,6 +100,16 @@ impl RecordSize {
     ) -> Result<Self, crate::parser::ParseError> {
         let (v, c) = crate::parser::read_u32_from_le_bytes(buf)?;
 
+        // Minimum record is 3 WORDs (RecordSize: 2 + RecordFunction: 1).
+        if v < 3 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: alloc::format!(
+                    "record size {v:#010X} is smaller than minimum \
+                     header size (0x00000003)",
+                ),
+            });
+        }
+
         if v > MAX_RECORD_WORDS {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: alloc::format!(
