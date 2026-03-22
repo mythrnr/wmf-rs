@@ -1,6 +1,9 @@
 {
   "permissions": {
     "allow": [
+      "Bash(gh api repos/mythrnr/wmf-rs/pulls/*/comments)",
+      "Bash(gh api repos/mythrnr/wmf-rs/pulls/*/reviews)",
+      "Bash(gh pr view *)",
       "Bash(make check)",
       "Bash(make clean)",
       "Bash(make fix)",
