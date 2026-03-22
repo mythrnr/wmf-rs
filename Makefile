@@ -46,9 +46,7 @@ serve: wasm
 
 .PHONY: spell-check
 spell-check:
-	docker pull ghcr.io/streetsidesoftware/cspell:latest > /dev/null \
-	&& docker run --rm \
-		-v $(shell pwd):/workdir \
+	docker run --pull always --rm -v "$(shell pwd):/workdir" \
 		ghcr.io/streetsidesoftware/cspell:latest \
 			--config .vscode/cspell.json "**"
 
