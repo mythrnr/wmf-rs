@@ -165,10 +165,12 @@ impl DeviceContext {
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
-        let dx =
-            f32::from(point.x - self.window.origin_x) / self.window.scale_x;
-        let dy =
-            f32::from(point.y - self.window.origin_y) / self.window.scale_y;
+        // Widen to f32 before subtraction to avoid i16 overflow.
+        // i16 values fit in f32 without precision loss.
+        let dx = (f32::from(point.x) - f32::from(self.window.origin_x))
+            / self.window.scale_x;
+        let dy = (f32::from(point.y) - f32::from(self.window.origin_y))
+            / self.window.scale_y;
 
         // Negative extent means the axis is flipped
         let x = (if self.window.flip_x { -dx } else { dx }) as i16;
@@ -178,10 +180,12 @@ impl DeviceContext {
     }
 
     pub fn point_s_to_relative_point(&self, point: &PointS) -> PointS {
-        let dx =
-            f32::from(point.x - self.window.origin_x) / self.window.scale_x;
-        let dy =
-            f32::from(point.y - self.window.origin_y) / self.window.scale_y;
+        // Widen to f32 before subtraction to avoid i16 overflow.
+        // i16 values fit in f32 without precision loss.
+        let dx = (f32::from(point.x) - f32::from(self.window.origin_x))
+            / self.window.scale_x;
+        let dy = (f32::from(point.y) - f32::from(self.window.origin_y))
+            / self.window.scale_y;
 
         let x = (if self.window.flip_x { -dx } else { dx }) as i16
             + self.drawing_position.x;
@@ -223,8 +227,8 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Self {
         Self {
-            x: 1024,
-            y: 1024,
+            x: 0,
+            y: 0,
             origin_x: 0,
             origin_y: 0,
             scale_x: 1.0,
