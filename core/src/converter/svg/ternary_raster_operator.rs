@@ -100,7 +100,7 @@ impl TernaryRasterOperator {
                     .set("href", bitmap.as_data_url())
             }
             TernaryRasterOperation::PATCOPY => {
-                let fill = match Fill::from(self.brush.clone().unwrap()) {
+                let fill = match Fill::from(self.brush.as_ref().unwrap()) {
                     Fill::Pattern { pattern } => {
                         let id = Self::issue_id(definitions);
                         definitions.push(pattern.set("id", id.as_str()));

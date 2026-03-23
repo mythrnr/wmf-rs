@@ -26,7 +26,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
         let dib = dib.expand_color_palette();
 
         let mut info_header = vec![];
-        let mut file_size: u32 = 0;
 
         // write info header
         match dib.dib_header_info {
@@ -37,7 +36,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 planes,
                 bit_count,
             }) => {
-                file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
@@ -57,7 +55,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 color_used,
                 color_important,
             }) => {
-                file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
@@ -92,7 +89,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 gamma_green,
                 gamma_blue,
             }) => {
-                file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
@@ -148,7 +144,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 profile_size,
                 reserved,
             }) => {
-                file_size += header_size;
                 info_header.extend(header_size.to_le_bytes());
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
@@ -186,16 +181,20 @@ impl From<DeviceIndependentBitmap> for Bitmap {
 
         // write pixel data
         let data = dib.bitmap_buffer.a_data;
-        let data_len = u32::try_from(data.len()).expect("should be as u32");
-        file_size += data_len;
 
-        // write file headers
+        // BMP file header (14 bytes) + info header + pixel data
+        let bmp_file_header_size: u32 = 14;
+        let info_header_len =
+            u32::try_from(info_header.len()).expect("should be as u32");
+        let data_len = u32::try_from(data.len()).expect("should be as u32");
+        let file_size = bmp_file_header_size + info_header_len + data_len;
+        let data_offset = bmp_file_header_size + info_header_len;
+
         let mut file_header = vec![];
-        file_size += 14;
         file_header.extend(b"BM");
         file_header.extend(file_size.to_le_bytes());
         file_header.extend(0u32.to_le_bytes());
-        file_header.extend((file_size - data_len).to_le_bytes());
+        file_header.extend(data_offset.to_le_bytes());
 
         let data = {
             file_header.extend(info_header);
@@ -314,15 +313,13 @@ impl DeviceIndependentBitmap {
 
         let Self { dib_header_info, colors, bitmap_buffer } = self;
         let bit_count = dib_header_info.bit_count();
-        let palette: Vec<_> = match colors {
-            Colors::RGBTriple(values) => values
-                .into_iter()
-                .map(|v| vec![v.red, v.green, v.blue])
-                .collect(),
-            Colors::RGBQuad(values) => values
-                .into_iter()
-                .map(|v| vec![v.red, v.green, v.blue])
-                .collect(),
+        let palette: Vec<[u8; 3]> = match colors {
+            Colors::RGBTriple(values) => {
+                values.into_iter().map(|v| [v.red, v.green, v.blue]).collect()
+            }
+            Colors::RGBQuad(values) => {
+                values.into_iter().map(|v| [v.red, v.green, v.blue]).collect()
+            }
             _ => unreachable!(),
         };
 
@@ -349,8 +346,8 @@ impl DeviceIndependentBitmap {
 
                 let rgb = palette
                     .get(idx as usize)
-                    .cloned()
-                    .unwrap_or_else(|| vec![0xFF, 0xFF, 0xFF]);
+                    .copied()
+                    .unwrap_or([0xFF, 0xFF, 0xFF]);
 
                 new_data.extend(rgb);
             }

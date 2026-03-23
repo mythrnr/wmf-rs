@@ -68,9 +68,11 @@ where
 
             let mut record_size = RecordSize::parse(buf)?;
             if record_size.byte_count() == 0 {
-                debug!(%record_size, "skip parsing zero-sized record");
-
-                continue;
+                return Err(ConvertError::ParseError {
+                    source: ParseError::UnexpectedPattern {
+                        cause: "record size is zero".to_owned(),
+                    },
+                });
             }
 
             let (record_function, c) =
@@ -791,6 +793,9 @@ where
                         read_variable(buf, record_size.remaining_bytes())
                             .map_err(ParseError::from)?;
 
+                    // META_ESCAPE contains vendor-specific data that
+                    // does not affect rendering. Parse failures are
+                    // logged but intentionally not propagated.
                     match META_ESCAPE::parse(
                         &mut buf.as_slice(),
                         record_size,

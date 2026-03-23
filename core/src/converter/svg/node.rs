@@ -64,21 +64,19 @@ impl core::fmt::Display for Node {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self.typ {
             NodeType::Node(name) => {
-                write!(
-                    f,
-                    "<{name} {}>{}</{name}>",
-                    self.attrs
-                        .iter()
-                        .map(|(k, v)| {
-                            format!(r#"{k}="{}""#, Self::escape_attr(v))
-                        })
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                    self.inner
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<String>()
-                )
+                write!(f, "<{name}")?;
+
+                for (k, v) in &self.attrs {
+                    write!(f, r#" {k}="{}""#, Self::escape_attr(v))?;
+                }
+
+                write!(f, ">")?;
+
+                for child in &self.inner {
+                    write!(f, "{child}")?;
+                }
+
+                write!(f, "</{name}>")
             }
             NodeType::Text(value) => {
                 write!(f, "{}", Self::escape_text(value))
@@ -88,63 +86,56 @@ impl core::fmt::Display for Node {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Data {
-    commands: Vec<String>,
-}
+pub struct Data(String);
 
 impl Data {
     pub fn new() -> Self {
         Self::default()
     }
 
+    fn push_command(&mut self, cmd: &str, param: impl core::fmt::Display) {
+        use core::fmt::Write;
+
+        if !self.0.is_empty() {
+            self.0.push(' ');
+        }
+
+        self.0.push_str(cmd);
+        self.0.push(' ');
+        let _ = write!(self.0, "{param}");
+    }
+
     /// https://www.w3.org/TR/SVG/paths.html#PathDataClosePathCommand
     pub fn close(mut self) -> Self {
-        self.commands.push("Z".to_string());
+        if !self.0.is_empty() {
+            self.0.push(' ');
+        }
+
+        self.0.push('Z');
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
-    pub fn elliptical_arc_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("A {}", param.into().0));
+    pub fn elliptical_arc_to(mut self, param: impl core::fmt::Display) -> Self {
+        self.push_command("A", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataLinetoCommands
-    pub fn line_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("L {}", param.into().0));
+    pub fn line_to(mut self, param: impl core::fmt::Display) -> Self {
+        self.push_command("L", param);
         self
     }
 
     /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
-    pub fn move_to(mut self, param: impl Into<Parameters>) -> Self {
-        self.commands.push(format!("M {}", param.into().0));
+    pub fn move_to(mut self, param: impl core::fmt::Display) -> Self {
+        self.push_command("M", param);
         self
     }
 }
 
 impl core::fmt::Display for Data {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.commands.join(" "))
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Parameters(String);
-
-impl From<String> for Parameters {
-    fn from(v: String) -> Self {
-        Self(v)
-    }
-}
-
-impl From<&str> for Parameters {
-    fn from(v: &str) -> Self {
-        Self(v.to_owned())
-    }
-}
-
-impl From<Vec<String>> for Parameters {
-    fn from(v: Vec<String>) -> Self {
-        Self(v.join(" "))
+        f.write_str(&self.0)
     }
 }

@@ -5,7 +5,7 @@ mod util;
 
 use crate::{
     converter::{
-        GraphicsObject, PlayError, SelectedGraphicsObject,
+        GraphicsObject, GraphicsObjects, PlayError, SelectedGraphicsObject,
         svg::{
             device_context::DeviceContext,
             node::{Data, Node},
@@ -56,6 +56,52 @@ impl SVGPlayer {
 
     fn selected_pen(&self) -> &Pen {
         &self.object_selected.pen
+    }
+
+    fn resolve_fill(&mut self) -> String {
+        match Fill::from(self.selected_brush()) {
+            Fill::Pattern { pattern } => {
+                let id = self.issue_definition_id();
+                self.definitions.push(pattern.set("id", id.as_str()));
+                url_string(format!("#{id}").as_str())
+            }
+            Fill::Value { value } => value,
+        }
+    }
+
+    fn run_raster_operator(
+        &mut self,
+        record_number: usize,
+        operator: TernaryRasterOperator,
+    ) -> Result<(), PlayError> {
+        let Some(elem) =
+            operator.run(&mut self.definitions).map_err(|err| {
+                PlayError::InvalidRecord { cause: err.to_string() }
+            })?
+        else {
+            return Ok(());
+        };
+
+        self.push_element(record_number, elem);
+        Ok(())
+    }
+
+    fn convert_point(&mut self, x: i16, y: i16) -> PointS {
+        let point =
+            self.context_current.point_s_to_absolute_point(&PointS { x, y });
+        self.context_current.extend_window(&point);
+        point
+    }
+
+    fn convert_point_for_text(&mut self, x: i16, y: i16) -> PointS {
+        let src = PointS { x, y };
+        let point = if self.context_current.text_align_update_cp {
+            self.context_current.point_s_to_relative_point(&src)
+        } else {
+            self.context_current.point_s_to_absolute_point(&src)
+        };
+        self.context_current.extend_window(&point);
+        point
     }
 }
 
@@ -156,16 +202,7 @@ impl crate::converter::Player for SVGPlayer {
             }
         };
 
-        let Some(elem) =
-            operator.run(&mut self.definitions).map_err(|err| {
-                PlayError::InvalidRecord { cause: err.to_string() }
-            })?
-        else {
-            return Ok(self);
-        };
-
-        self.push_element(record_number, elem);
-
+        self.run_raster_operator(record_number, operator)?;
         Ok(self)
     }
 
@@ -231,16 +268,7 @@ impl crate::converter::Player for SVGPlayer {
             }
         };
 
-        let Some(elem) =
-            operator.run(&mut self.definitions).map_err(|err| {
-                PlayError::InvalidRecord { cause: err.to_string() }
-            })?
-        else {
-            return Ok(self);
-        };
-
-        self.push_element(record_number, elem);
-
+        self.run_raster_operator(record_number, operator)?;
         Ok(self)
     }
 
@@ -306,16 +334,7 @@ impl crate::converter::Player for SVGPlayer {
             }
         };
 
-        let Some(elem) =
-            operator.run(&mut self.definitions).map_err(|err| {
-                PlayError::InvalidRecord { cause: err.to_string() }
-            })?
-        else {
-            return Ok(self);
-        };
-
-        self.push_element(record_number, elem);
-
+        self.run_raster_operator(record_number, operator)?;
         Ok(self)
     }
 
@@ -395,16 +414,7 @@ impl crate::converter::Player for SVGPlayer {
             }
         };
 
-        let Some(elem) =
-            operator.run(&mut self.definitions).map_err(|err| {
-                PlayError::InvalidRecord { cause: err.to_string() }
-            })?
-        else {
-            return Ok(self);
-        };
-
-        self.push_element(record_number, elem);
-
+        self.run_raster_operator(record_number, operator)?;
         Ok(self)
     }
 
@@ -444,16 +454,7 @@ impl crate::converter::Player for SVGPlayer {
             operator = operator.source_bitmap(dib);
         }
 
-        let Some(elem) =
-            operator.run(&mut self.definitions).map_err(|err| {
-                PlayError::InvalidRecord { cause: err.to_string() }
-            })?
-        else {
-            return Ok(self);
-        };
-
-        self.push_element(record_number, elem);
-
+        self.run_raster_operator(record_number, operator)?;
         Ok(self)
     }
 
@@ -491,14 +492,11 @@ impl crate::converter::Player for SVGPlayer {
         if let Some(placeable) = placeable {
             let Rect { left, top, right, bottom } = placeable.bounding_box;
 
-            self.context_current = self
-                .context_current
-                .window_origin(left, top)
-                .window_ext(right - left, bottom - top);
+            self.context_current.window_origin(left, top);
+            self.context_current.window_ext(right - left, bottom - top);
         }
 
-        self.context_current =
-            self.context_current.create_object_table(header.number_of_objects);
+        self.context_current.create_object_table(header.number_of_objects);
 
         Ok(self)
     }
@@ -519,27 +517,9 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_ARC,
     ) -> Result<Self, PlayError> {
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let start = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.x_start_arc,
-                    y: record.y_start_arc,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
-        let end = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.x_end_arc,
-                    y: record.y_end_arc,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let start = self.convert_point(record.x_start_arc, record.y_start_arc);
+        let end = self.convert_point(record.x_end_arc, record.y_end_arc);
         let (rx, ry) = (
             (record.right_rect - record.left_rect) / 2,
             (record.bottom_rect - record.top_rect) / 2,
@@ -571,7 +551,7 @@ impl crate::converter::Player for SVGPlayer {
         let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
-        self.context_current = self.context_current.drawing_position(end);
+        self.context_current.drawing_position(end);
         self.push_element(record_number, path);
 
         Ok(self)
@@ -612,16 +592,9 @@ impl crate::converter::Player for SVGPlayer {
 
         // Build SVG path for chord: move to first radial, draw arc, line to
         // center, close path
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let stroke = Stroke::from(self.selected_pen().clone());
+        let stroke = Stroke::from(self.selected_pen());
 
         // SVG arc parameters:
         // - always small arc (large_arc=0)
@@ -638,7 +611,7 @@ impl crate::converter::Player for SVGPlayer {
             .close();
         let path = Node::new("path")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
+            .set("fill-rule", fill_rule)
             .set("d", data);
         let path = stroke.set_props(path);
 
@@ -671,30 +644,15 @@ impl crate::converter::Player for SVGPlayer {
             return Ok(self);
         }
 
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let point = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.left_rect + rx,
-                    y: record.top_rect + ry,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let point =
+            self.convert_point(record.left_rect + rx, record.top_rect + ry);
 
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
+            .set("fill-rule", fill_rule)
             .set("cx", point.x)
             .set("cy", point.y)
             .set("rx", rx)
@@ -733,10 +691,12 @@ impl crate::converter::Player for SVGPlayer {
         use unicode_segmentation::UnicodeSegmentation;
         use unicode_width::UnicodeWidthStr;
 
-        let font = &self.object_selected.font;
-        let text_content = record.into_utf8(font.charset).map_err(|err| {
+        let font_charset = self.object_selected.font.charset;
+        let font_height = self.object_selected.font.height;
+        let text_content = record.into_utf8(font_charset).map_err(|err| {
             PlayError::InvalidRecord { cause: err.to_string() }
         })?;
+        let y_offset = self.context_current.text_y_offset(font_height);
         let point = {
             let point = PointS {
                 x: if self.context_current.text_align_update_cp {
@@ -748,25 +708,17 @@ impl crate::converter::Player for SVGPlayer {
                     self.context_current.drawing_position.y
                 } else {
                     record.y
-                } + (if matches!(
-                    self.context_current.text_align_vertical,
-                    VerticalTextAlignmentMode::VTA_BASELINE
-                        | VerticalTextAlignmentMode::VTA_BOTTOM
-                ) && font.height < 0
-                {
-                    -font.height
-                } else {
-                    0
-                }),
+                } + y_offset,
             };
 
+            // update_cp == true: already in SVG space, no conversion
             let point = if self.context_current.text_align_update_cp {
                 point
             } else {
                 self.context_current.point_s_to_absolute_point(&point)
             };
 
-            self.context_current = self.context_current.extend_window(&point);
+            self.context_current.extend_window(&point);
             point
         };
         let text_align = self.context_current.as_css_text_align();
@@ -774,54 +726,10 @@ impl crate::converter::Player for SVGPlayer {
             record.fw_opts.contains(&ExtTextOutOptions::ETO_CLIPPED),
             record.rectangle,
         ) {
-            let tl = {
-                let point = PointS { x: rect.left, y: rect.top };
-                let point = if self.context_current.text_align_update_cp {
-                    self.context_current.point_s_to_relative_point(&point)
-                } else {
-                    self.context_current.point_s_to_absolute_point(&point)
-                };
-
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
-            let tr = {
-                let point = PointS { x: rect.right, y: rect.top };
-                let point = if self.context_current.text_align_update_cp {
-                    self.context_current.point_s_to_relative_point(&point)
-                } else {
-                    self.context_current.point_s_to_absolute_point(&point)
-                };
-
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
-            let bl = {
-                let point = PointS { x: rect.left, y: rect.bottom };
-                let point = if self.context_current.text_align_update_cp {
-                    self.context_current.point_s_to_relative_point(&point)
-                } else {
-                    self.context_current.point_s_to_absolute_point(&point)
-                };
-
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
-            let br = {
-                let point = PointS { x: rect.right, y: rect.bottom };
-                let point = if self.context_current.text_align_update_cp {
-                    self.context_current.point_s_to_relative_point(&point)
-                } else {
-                    self.context_current.point_s_to_absolute_point(&point)
-                };
-
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
+            let tl = self.convert_point_for_text(rect.left, rect.top);
+            let tr = self.convert_point_for_text(rect.right, rect.top);
+            let bl = self.convert_point_for_text(rect.left, rect.bottom);
+            let br = self.convert_point_for_text(rect.right, rect.bottom);
 
             Some(format!(
                 "shape-inside: polygon({} {} {} {});",
@@ -858,7 +766,7 @@ impl crate::converter::Player for SVGPlayer {
                 let mut tspan = Node::new("tspan").add(Node::new_text(s));
 
                 if dx != 0 {
-                    let excess_dx = (font.height.abs() / 2)
+                    let excess_dx = (font_height.abs() / 2)
                         * i16::try_from(s.width()).unwrap_or(0);
                     let dx = core::cmp::max(dx - excess_dx, 0);
 
@@ -881,10 +789,10 @@ impl crate::converter::Player for SVGPlayer {
         }
 
         if self.context_current.text_align_update_cp {
-            let dx = (font.height.abs() / 2)
+            let dx = (font_height.abs() / 2)
                 * i16::try_from(text_content.width()).unwrap_or(0);
             let point = PointS { x: point.x + dx, y: point.y };
-            self.context_current = self.context_current.drawing_position(point);
+            self.context_current.drawing_position(point);
         }
 
         // HACK: background color
@@ -975,17 +883,8 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_LINETO,
     ) -> Result<Self, PlayError> {
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let point = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.x,
-                    y: record.y,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let point = self.convert_point(record.x, record.y);
 
         let data = Data::new()
             .move_to(format!(
@@ -997,7 +896,7 @@ impl crate::converter::Player for SVGPlayer {
         let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
-        self.context_current = self.context_current.drawing_position(point);
+        self.context_current.drawing_position(point);
         self.push_element(record_number, path);
 
         Ok(self)
@@ -1037,24 +936,22 @@ impl crate::converter::Player for SVGPlayer {
             return Ok(self);
         }
 
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
+        let p1 = self.convert_point(record.x_left, record.y_left);
+        let p2 = self.convert_point(
+            record.x_left + record.width,
+            record.y_left + record.height,
+        );
 
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
+            .set("fill-rule", fill_rule)
             .set("stroke", "none")
-            .set("x", record.x_left)
-            .set("y", record.y_left)
-            .set("height", record.height)
-            .set("width", record.width);
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
+            .set("height", (p2.y - p1.y).abs())
+            .set("width", (p2.x - p1.x).abs());
 
         self.push_element(record_number, rect);
 
@@ -1071,16 +968,8 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_PIE,
     ) -> Result<Self, PlayError> {
-        let brush = self.selected_brush();
-        let stroke = Stroke::from(brush.clone());
-        let fill = match Fill::from(brush.clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
         let (rx, ry) = (
             (record.right_rect - record.left_rect) / 2,
@@ -1091,43 +980,16 @@ impl crate::converter::Player for SVGPlayer {
 
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
+            .set("fill-rule", fill_rule)
             .set("cx", center_x)
             .set("cy", center_y)
             .set("rx", rx)
             .set("ry", ry);
         let ellipse = stroke.set_props(ellipse);
 
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let p1 = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.x_radial1,
-                    y: record.y_radial1,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
-        let center = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: center_x,
-                    y: center_y,
-                });
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
-        let p2 = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.x_radial2,
-                    y: record.y_radial2,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let p1 = self.convert_point(record.x_radial1, record.y_radial1);
+        let center = self.convert_point(center_x, center_y);
+        let p2 = self.convert_point(record.x_radial2, record.y_radial2);
 
         let data = Data::new()
             .move_to(format!("{} {}", p1.x, p1.y))
@@ -1136,7 +998,7 @@ impl crate::converter::Player for SVGPlayer {
         let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
-        self.context_current = self.context_current.drawing_position(p2);
+        self.context_current.drawing_position(p2);
         self.push_element(record_number, ellipse);
         self.push_element(record_number, path);
 
@@ -1153,18 +1015,14 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_POLYLINE,
     ) -> Result<Self, PlayError> {
-        let stroke = Stroke::from(self.selected_pen().clone());
+        let stroke = Stroke::from(self.selected_pen());
         let Some(point) = record.a_points.first() else {
             return Err(PlayError::InvalidRecord {
                 cause: "aPoints[0] is not defined".to_owned(),
             });
         };
 
-        let mut coordinate = {
-            let point = self.context_current.point_s_to_absolute_point(point);
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let mut coordinate = self.convert_point(point.x, point.y);
 
         let mut data =
             Data::new().move_to(format!("{} {}", coordinate.x, coordinate.y));
@@ -1176,13 +1034,7 @@ impl crate::converter::Player for SVGPlayer {
                 });
             };
 
-            coordinate = {
-                let point =
-                    self.context_current.point_s_to_absolute_point(point);
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
+            coordinate = self.convert_point(point.x, point.y);
 
             data = data.line_to(format!("{} {}", coordinate.x, coordinate.y));
         }
@@ -1190,8 +1042,7 @@ impl crate::converter::Player for SVGPlayer {
         let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
 
-        self.context_current =
-            self.context_current.drawing_position(coordinate);
+        self.context_current.drawing_position(coordinate);
         self.push_element(record_number, path);
 
         Ok(self)
@@ -1212,15 +1063,8 @@ impl crate::converter::Player for SVGPlayer {
             return Ok(self);
         }
 
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
 
         let mut points = Vec::with_capacity(record.number_of_points as usize);
@@ -1232,20 +1076,13 @@ impl crate::converter::Player for SVGPlayer {
                 });
             };
 
-            let point = {
-                let point =
-                    self.context_current.point_s_to_absolute_point(point);
-                self.context_current =
-                    self.context_current.extend_window(&point);
-                point
-            };
-
+            let point = self.convert_point(point.x, point.y);
             points.push(as_point_string(&point));
         }
 
         let polygon = Node::new("polygon")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
+            .set("fill-rule", fill_rule)
             .set("points", points.join(" "));
         let polygon = stroke.set_props(polygon);
 
@@ -1264,19 +1101,12 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_POLYPOLYGON,
     ) -> Result<Self, PlayError> {
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
 
         let mut a_point: VecDeque<_> = record.poly_polygon.a_points.into();
-        let mut current_point_index = 0;
+        let total_points = a_point.len();
 
         for i in 0..record.poly_polygon.number_of_polygons {
             let Some(points_of_polygon) =
@@ -1293,26 +1123,19 @@ impl crate::converter::Player for SVGPlayer {
                 let Some(point) = a_point.pop_front() else {
                     return Err(PlayError::InvalidRecord {
                         cause: format!(
-                            "aPoints[{current_point_index}] is not defined"
+                            "aPoints[{}] is not defined",
+                            total_points - a_point.len(),
                         ),
                     });
                 };
 
-                let point = {
-                    let point =
-                        self.context_current.point_s_to_absolute_point(&point);
-                    self.context_current =
-                        self.context_current.extend_window(&point);
-                    point
-                };
-
+                let point = self.convert_point(point.x, point.y);
                 points.push(as_point_string(&point));
-                current_point_index += 1;
             }
 
             let polygon = Node::new("polygon")
                 .set("fill", fill.as_str())
-                .set("fill-rule", fill_rule.as_str())
+                .set("fill-rule", fill_rule)
                 .set("points", points.join(" "));
             let polygon = stroke.set_props(polygon);
 
@@ -1332,44 +1155,19 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_RECTANGLE,
     ) -> Result<Self, PlayError> {
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let tl = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.left_rect,
-                    y: record.top_rect,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
-        let br = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.right_rect,
-                    y: record.bottom_rect,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let p1 = self.convert_point(record.left_rect, record.top_rect);
+        let p2 = self.convert_point(record.right_rect, record.bottom_rect);
 
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
-            .set("x", tl.x)
-            .set("y", tl.y)
-            .set("height", br.y - tl.y)
-            .set("width", br.x - tl.x);
+            .set("fill-rule", fill_rule)
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
+            .set("height", (p2.y - p1.y).abs())
+            .set("width", (p2.x - p1.x).abs());
         let rect = stroke.set_props(rect);
 
         self.push_element(record_number, rect);
@@ -1387,10 +1185,14 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_ROUNDRECT,
     ) -> Result<Self, PlayError> {
-        let (width, height) = (
-            record.right_rect - record.left_rect,
-            record.bottom_rect - record.top_rect,
-        );
+        let stroke = Stroke::from(self.selected_pen());
+        let fill = self.resolve_fill();
+        let fill_rule = self.context_current.poly_fill_rule();
+        let p1 = self.convert_point(record.left_rect, record.top_rect);
+        let p2 = self.convert_point(record.right_rect, record.bottom_rect);
+
+        let width = (p2.x - p1.x).abs();
+        let height = (p2.y - p1.y).abs();
 
         if width == 0 || height == 0 {
             info!(
@@ -1401,32 +1203,11 @@ impl crate::converter::Player for SVGPlayer {
             return Ok(self);
         }
 
-        let stroke = Stroke::from(self.selected_pen().clone());
-        let fill = match Fill::from(self.selected_brush().clone()) {
-            Fill::Pattern { pattern } => {
-                let id = self.issue_definition_id();
-                self.definitions.push(pattern.set("id", id.as_str()));
-                url_string(format!("#{id}").as_str())
-            }
-            Fill::Value { value } => value,
-        };
-        let fill_rule = self.context_current.poly_fill_rule();
-        let point = {
-            let point =
-                self.context_current.point_s_to_absolute_point(&PointS {
-                    x: record.left_rect,
-                    y: record.top_rect,
-                });
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
-
         let rect = Node::new("rect")
             .set("fill", fill.as_str())
-            .set("fill-rule", fill_rule.as_str())
-            .set("x", point.x)
-            .set("y", point.y)
+            .set("fill-rule", fill_rule)
+            .set("x", p1.x.min(p2.x))
+            .set("y", p1.y.min(p2.y))
             .set("height", height)
             .set("width", width)
             .set("rx", record.width)
@@ -1462,35 +1243,14 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_TEXTOUT,
     ) -> Result<Self, PlayError> {
-        let font = &self.object_selected.font;
-        let text_content = record.into_utf8(font.charset).map_err(|err| {
+        let font_charset = self.object_selected.font.charset;
+        let font_height = self.object_selected.font.height;
+        let text_content = record.into_utf8(font_charset).map_err(|err| {
             PlayError::InvalidRecord { cause: err.to_string() }
         })?;
-        let point = {
-            let point = PointS {
-                x: record.x_start,
-                y: record.y_start
-                    + (if matches!(
-                        self.context_current.text_align_vertical,
-                        VerticalTextAlignmentMode::VTA_BASELINE
-                            | VerticalTextAlignmentMode::VTA_BOTTOM
-                    ) && font.height < 0
-                    {
-                        -font.height
-                    } else {
-                        0
-                    }),
-            };
-
-            let point = if self.context_current.text_align_update_cp {
-                self.context_current.point_s_to_relative_point(&point)
-            } else {
-                self.context_current.point_s_to_absolute_point(&point)
-            };
-
-            self.context_current = self.context_current.extend_window(&point);
-            point
-        };
+        let y_offset = self.context_current.text_y_offset(font_height);
+        let point = self
+            .convert_point_for_text(record.x_start, record.y_start + y_offset);
 
         let text = Node::new("text")
             .set("x", point.x)
@@ -1684,25 +1444,31 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SELECTOBJECT,
     ) -> Result<Self, PlayError> {
-        let object = self
-            .context_current
-            .object_table
-            .get(record.object_index as usize)
-            .clone();
-        let selected = self.object_selected.clone();
+        let object =
+            self.context_current.object_table.get(record.object_index as usize);
 
-        self.object_selected = match object {
-            GraphicsObject::Brush(v) => selected.brush(v),
-            GraphicsObject::Font(v) => selected.font(v),
-            GraphicsObject::Palette(v) => selected.palette(v),
-            GraphicsObject::Pen(v) => selected.pen(v),
-            GraphicsObject::Region(v) => selected.region(v),
+        match object {
+            GraphicsObject::Brush(v) => {
+                self.object_selected.set_brush(v.clone());
+            }
+            GraphicsObject::Font(v) => {
+                self.object_selected.set_font(v.clone());
+            }
+            GraphicsObject::Palette(v) => {
+                self.object_selected.set_palette(v.clone());
+            }
+            GraphicsObject::Pen(v) => {
+                self.object_selected.set_pen(v.clone());
+            }
+            GraphicsObject::Region(v) => {
+                self.object_selected.set_region(v.clone());
+            }
             GraphicsObject::Null => {
                 return Err(PlayError::UnexpectedGraphicsObject {
                     cause: "Graphics Object is null".to_owned(),
                 });
             }
-        };
+        }
 
         Ok(self)
     }
@@ -1726,7 +1492,7 @@ impl crate::converter::Player for SVGPlayer {
             });
         };
 
-        self.object_selected = self.object_selected.palette(palette.clone());
+        self.object_selected.set_palette(palette.clone());
 
         Ok(self)
     }
@@ -1776,12 +1542,7 @@ impl crate::converter::Player for SVGPlayer {
     ) -> Result<Self, PlayError> {
         let META_INTERSECTCLIPRECT { bottom, right, top, left, .. } = record;
 
-        self.context_current = self.context_current.clipping_region(Rect {
-            left,
-            top,
-            right,
-            bottom,
-        });
+        self.context_current.clipping_region(Rect { left, top, right, bottom });
 
         Ok(self)
     }
@@ -1796,11 +1557,8 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_MOVETO,
     ) -> Result<Self, PlayError> {
-        let point = self
-            .context_current
-            .point_s_to_absolute_point(&PointS { x: record.x, y: record.y });
-        self.context_current =
-            self.context_current.extend_window(&point).drawing_position(point);
+        let point = self.convert_point(record.x, record.y);
+        self.context_current.drawing_position(point);
 
         Ok(self)
     }
@@ -1885,16 +1643,49 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_RESTOREDC,
     ) -> Result<Self, PlayError> {
-        let context = if record.n_saved_dc < 0 {
-            self.context_current.clone().into()
-        } else if (record.n_saved_dc as usize) < self.context_stack.len() {
-            self.context_stack.remove(record.n_saved_dc as usize).into()
-        } else {
-            None
+        // MS-WMF spec:
+        // Negative: relative offset from the top of the stack
+        //   (-1 = most recent, -2 = one before that, ...)
+        // Positive: 1-based absolute index
+        // In both cases, all entries saved after the target are discarded
+        let index = match record.n_saved_dc.cmp(&0) {
+            core::cmp::Ordering::Less => {
+                let offset = record.n_saved_dc.unsigned_abs() as usize;
+
+                self.context_stack.len().checked_sub(offset)
+            }
+            core::cmp::Ordering::Greater => {
+                let idx = (record.n_saved_dc as usize) - 1;
+
+                if idx < self.context_stack.len() { Some(idx) } else { None }
+            }
+            core::cmp::Ordering::Equal => None,
         };
 
-        if let Some(ctx) = context {
-            self.context_current = ctx;
+        if let Some(idx) = index {
+            // Object Table is not subject to save/restore
+            let object_table = core::mem::replace(
+                &mut self.context_current.object_table,
+                GraphicsObjects::new(0),
+            );
+            // viewBox tracking values are not subject to save/restore
+            // (preserve the visible bounds of already-rendered elements)
+            let window_min_x = self.context_current.window.min_x;
+            let window_min_y = self.context_current.window.min_y;
+            let window_max_x = self.context_current.window.x;
+            let window_max_y = self.context_current.window.y;
+
+            self.context_current = self.context_stack[idx].clone();
+            self.context_current.object_table = object_table;
+            self.context_current.window.min_x =
+                window_min_x.min(self.context_current.window.min_x);
+            self.context_current.window.min_y =
+                window_min_y.min(self.context_current.window.min_y);
+            self.context_current.window.x =
+                window_max_x.max(self.context_current.window.x);
+            self.context_current.window.y =
+                window_max_y.max(self.context_current.window.y);
+            self.context_stack.truncate(idx);
         }
 
         Ok(self)
@@ -1939,6 +1730,16 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SCALEWINDOWEXT,
     ) -> Result<Self, PlayError> {
+        if record.x_denom == 0 || record.y_denom == 0 {
+            return Err(PlayError::InvalidRecord {
+                cause: format!(
+                    "META_SCALEWINDOWEXT has zero denominator: x_denom={}, \
+                     y_denom={}",
+                    record.x_denom, record.y_denom,
+                ),
+            });
+        }
+
         let scale_x = (self.context_current.window.scale_x
             * f32::from(record.x_num))
             / f32::from(record.x_denom);
@@ -1946,8 +1747,7 @@ impl crate::converter::Player for SVGPlayer {
             * f32::from(record.y_num))
             / f32::from(record.y_denom);
 
-        self.context_current =
-            self.context_current.window_scale(scale_x, scale_y);
+        self.context_current.window_scale(scale_x, scale_y);
 
         Ok(self)
     }
@@ -1962,8 +1762,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETBKCOLOR,
     ) -> Result<Self, PlayError> {
-        self.context_current =
-            self.context_current.text_bk_color(record.color_ref);
+        self.context_current.text_bk_color(record.color_ref);
 
         Ok(self)
     }
@@ -1978,7 +1777,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETBKMODE,
     ) -> Result<Self, PlayError> {
-        self.context_current = self.context_current.bk_mode(record.bk_mode);
+        self.context_current.bk_mode(record.bk_mode);
 
         Ok(self)
     }
@@ -2007,7 +1806,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETMAPMODE,
     ) -> Result<Self, PlayError> {
-        self.context_current = self.context_current.map_mode(record.map_mode);
+        self.context_current.map_mode(record.map_mode);
 
         Ok(self)
     }
@@ -2050,8 +1849,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETPOLYFILLMODE,
     ) -> Result<Self, PlayError> {
-        self.context_current =
-            self.context_current.poly_fill_mode(record.poly_fill_mode);
+        self.context_current.poly_fill_mode(record.poly_fill_mode);
 
         Ok(self)
     }
@@ -2080,7 +1878,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETROP2,
     ) -> Result<Self, PlayError> {
-        self.context_current = self.context_current.draw_mode(record.draw_mode);
+        self.context_current.draw_mode(record.draw_mode);
 
         Ok(self)
     }
@@ -2125,11 +1923,9 @@ impl crate::converter::Player for SVGPlayer {
         .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
         .unwrap_or(VerticalTextAlignmentMode::VTA_BASELINE);
 
-        self.context_current = self
-            .context_current
-            .text_align_update_cp(update_cp)
-            .text_align_horizontal(align_horizontal)
-            .text_align_vertical(align_vertical);
+        self.context_current.text_align_update_cp(update_cp);
+        self.context_current.text_align_horizontal(align_horizontal);
+        self.context_current.text_align_vertical(align_vertical);
 
         Ok(self)
     }
@@ -2158,8 +1954,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETTEXTCOLOR,
     ) -> Result<Self, PlayError> {
-        self.context_current =
-            self.context_current.text_color(record.color_ref);
+        self.context_current.text_color(record.color_ref);
 
         Ok(self)
     }
@@ -2216,8 +2011,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETWINDOWEXT,
     ) -> Result<Self, PlayError> {
-        self.context_current =
-            self.context_current.window_ext(record.x, record.y);
+        self.context_current.window_ext(record.x, record.y);
 
         Ok(self)
     }
@@ -2232,8 +2026,7 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETWINDOWORG,
     ) -> Result<Self, PlayError> {
-        self.context_current =
-            self.context_current.window_origin(record.x, record.y);
+        self.context_current.window_origin(record.x, record.y);
 
         Ok(self)
     }

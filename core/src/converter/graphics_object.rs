@@ -19,7 +19,15 @@ impl GraphicsObjects {
     }
 
     pub fn delete(&mut self, i: usize) {
-        self.0[i] = GraphicsObject::Null;
+        if let Some(slot) = self.0.get_mut(i) {
+            *slot = GraphicsObject::Null;
+        } else {
+            warn!(
+                index = i,
+                capacity = self.0.len(),
+                "object table index out of bounds on delete",
+            );
+        }
     }
 
     pub fn get(&self, i: usize) -> &GraphicsObject {
@@ -30,9 +38,11 @@ impl GraphicsObjects {
         for (i, v) in self.0.iter_mut().enumerate() {
             if matches!(&v, GraphicsObject::Null) {
                 self.0[i] = g;
-                break;
+                return;
             }
         }
+
+        warn!(capacity = self.0.len(), "object table is full, ignoring push");
     }
 }
 
@@ -86,28 +96,23 @@ impl Default for SelectedGraphicsObject {
 }
 
 impl SelectedGraphicsObject {
-    pub fn brush(mut self, brush: Brush) -> Self {
+    pub fn set_brush(&mut self, brush: Brush) {
         self.brush = brush;
-        self
     }
 
-    pub fn font(mut self, font: Font) -> Self {
+    pub fn set_font(&mut self, font: Font) {
         self.font = font;
-        self
     }
 
-    pub fn palette(mut self, palette: Palette) -> Self {
+    pub fn set_palette(&mut self, palette: Palette) {
         self.palette = palette.into();
-        self
     }
 
-    pub fn pen(mut self, pen: Pen) -> Self {
+    pub fn set_pen(&mut self, pen: Pen) {
         self.pen = pen;
-        self
     }
 
-    pub fn region(mut self, region: Region) -> Self {
+    pub fn set_region(&mut self, region: Region) {
         self.region = region.into();
-        self
     }
 }

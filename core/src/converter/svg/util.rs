@@ -84,8 +84,8 @@ pub enum Fill {
     Value { value: String },
 }
 
-impl From<Brush> for Fill {
-    fn from(v: Brush) -> Self {
+impl From<&Brush> for Fill {
+    fn from(v: &Brush) -> Self {
         match v {
             Brush::DIBPatternPT { brush_hatch, .. } => {
                 let data = crate::converter::Bitmap::from(brush_hatch.clone())
@@ -113,28 +113,28 @@ impl From<Brush> for Fill {
                         let data = Data::new().move_to("0 0").line_to("10 0");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                     HatchStyle::HS_VERTICAL => {
                         let data = Data::new().move_to("0 0").line_to("0 10");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                     HatchStyle::HS_FDIAGONAL => {
                         let data = Data::new().move_to("0 10").line_to("10 0");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                     HatchStyle::HS_BDIAGONAL => {
                         let data = Data::new().move_to("0 0").line_to("10 10");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                     HatchStyle::HS_CROSS => {
@@ -145,7 +145,7 @@ impl From<Brush> for Fill {
                             .line_to("0 10");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                     HatchStyle::HS_DIAGCROSS => {
@@ -156,7 +156,7 @@ impl From<Brush> for Fill {
                             .line_to("0 10");
 
                         Node::new("path")
-                            .set("stroke", css_color_from_color_ref(&color_ref))
+                            .set("stroke", css_color_from_color_ref(color_ref))
                             .set("d", data)
                     }
                 };
@@ -195,7 +195,7 @@ impl From<Brush> for Fill {
                 Fill::Pattern { pattern }
             }
             Brush::Solid { color_ref } => {
-                Fill::Value { value: css_color_from_color_ref(&color_ref) }
+                Fill::Value { value: css_color_from_color_ref(color_ref) }
             }
             Brush::Null => Fill::Value { value: "none".to_owned() },
         }
@@ -234,8 +234,8 @@ impl Default for Stroke {
     }
 }
 
-impl From<Pen> for Stroke {
-    fn from(v: Pen) -> Self {
+impl From<&Pen> for Stroke {
+    fn from(v: &Pen) -> Self {
         if v.style.style == PenStyle::PS_NULL {
             return Self { none: true, ..Default::default() };
         }
@@ -296,63 +296,24 @@ impl From<Pen> for Stroke {
             _ => {}
         }
 
-        stroke.color = v.color_ref;
+        stroke.color = v.color_ref.clone();
         stroke.width = if v.width.x == 0 { 1 } else { v.width.x };
         stroke
     }
 }
 
-impl From<Brush> for Stroke {
-    fn from(v: Brush) -> Self {
-        match v {
-            Brush::DIBPatternPT { .. } => {
-                Self { none: true, ..Default::default() }
-            }
-            Brush::Hatched { color_ref, .. } | Brush::Solid { color_ref } => {
-                Self { color: color_ref, ..Default::default() }
-            }
-            Brush::Pattern { .. } => Self { ..Default::default() },
-            Brush::Null => Self { none: true, width: 0, ..Default::default() },
-        }
-    }
-}
-
 impl Stroke {
-    pub fn color(&self) -> String {
-        css_color_from_color_ref(&self.color)
-    }
-
-    pub fn dash_array(&self) -> String {
-        self.dash_array.clone()
-    }
-
-    pub fn line_cap(&self) -> String {
-        self.line_cap.clone()
-    }
-
-    pub fn line_join(&self) -> String {
-        self.line_join.clone()
-    }
-
-    pub fn opacity(&self) -> String {
-        format!("{:.02}", self.opacity)
-    }
-
-    pub fn width(&self) -> i16 {
-        self.width
-    }
-
     pub fn set_props(&self, elem: Node) -> Node {
         if self.none {
             return elem.set("stroke", "none");
         }
 
-        elem.set("stroke", self.color())
-            .set("stroke-dasharray", self.dash_array())
-            .set("stroke-linecap", self.line_cap())
-            .set("stroke-linejoin", self.line_join())
-            .set("stroke-opacity", self.opacity())
-            .set("stroke-width", self.width())
+        elem.set("stroke", css_color_from_color_ref(&self.color))
+            .set("stroke-dasharray", &self.dash_array)
+            .set("stroke-linecap", &self.line_cap)
+            .set("stroke-linejoin", &self.line_join)
+            .set("stroke-opacity", format!("{:.02}", self.opacity))
+            .set("stroke-width", self.width)
     }
 }
 
