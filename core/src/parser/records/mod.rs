@@ -57,23 +57,8 @@ fn consume_remaining_bytes<R: crate::Read>(
     while discarded < remaining {
         let to_read = core::cmp::min(remaining - discarded, chunk.len());
 
-        match buf.read(&mut chunk[..to_read]) {
-            Ok(n) if n == to_read => discarded += n,
-            Ok(n) => {
-                return Err(crate::parser::ParseError::FailedReadBuffer {
-                    cause: crate::parser::ReadError::new(alloc::format!(
-                        "expected {to_read} bytes read, but {n} bytes read"
-                    )),
-                });
-            }
-            Err(err) => {
-                return Err(crate::parser::ParseError::FailedReadBuffer {
-                    cause: crate::parser::ReadError::new(alloc::format!(
-                        "{err:?}"
-                    )),
-                });
-            }
-        }
+        crate::parser::read_exact(buf, &mut chunk[..to_read])?;
+        discarded += to_read;
     }
 
     Ok((crate::imports::Vec::new(), discarded))

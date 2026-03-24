@@ -40,13 +40,9 @@ pub fn read<R: crate::Read, const N: usize>(
 ) -> Result<([u8; N], usize), ReadError> {
     let mut buffer = [0u8; N];
 
-    match buf.read(&mut buffer) {
-        Ok(bytes_read) if bytes_read == N => Ok((buffer, N)),
-        Ok(bytes_read) => Err(ReadError::new(format!(
-            "expected {N} bytes read, but {bytes_read} bytes read"
-        ))),
-        Err(err) => Err(ReadError::new(format!("{err:?}"))),
-    }
+    read_exact(buf, &mut buffer)?;
+
+    Ok((buffer, N))
 }
 
 pub fn read_variable<R: crate::Read>(
@@ -54,18 +50,39 @@ pub fn read_variable<R: crate::Read>(
     len: usize,
 ) -> Result<(Vec<u8>, usize), ReadError> {
     if len == 0 {
-        return Ok((vec![0u8; 0], 0));
+        return Ok((Vec::new(), 0));
     }
 
     let mut buffer = vec![0u8; len];
 
-    match buf.read(&mut buffer) {
-        Ok(bytes_read) if bytes_read == len => Ok((buffer, len)),
-        Ok(bytes_read) => Err(ReadError::new(format!(
-            "expected {len} bytes read, but {bytes_read} bytes read"
-        ))),
-        Err(err) => Err(ReadError::new(format!("{err:?}"))),
+    read_exact(buf, &mut buffer)?;
+
+    Ok((buffer, len))
+}
+
+/// Reads exactly `buffer.len()` bytes from `buf`, looping to handle
+/// short reads that `embedded_io::Read` may return.
+fn read_exact<R: crate::Read>(
+    buf: &mut R,
+    buffer: &mut [u8],
+) -> Result<(), ReadError> {
+    let total = buffer.len();
+    let mut offset = 0;
+
+    while offset < total {
+        match buf.read(&mut buffer[offset..]) {
+            Ok(0) => {
+                return Err(ReadError::new(format!(
+                    "expected {total} bytes read, but {offset} bytes read \
+                     (unexpected end of stream)"
+                )));
+            }
+            Ok(n) => offset += n,
+            Err(err) => return Err(ReadError::new(format!("{err:?}"))),
+        }
     }
+
+    Ok(())
 }
 
 macro_rules! impl_from_le_bytes {

@@ -124,8 +124,16 @@ impl Bitmap16 {
     }
 
     pub fn calc_length(&self) -> usize {
-        ((((self.width * self.bits_pixel as i16 + 15) >> 4) << 1) * self.height)
-            as usize
+        // Widen to i32 to prevent overflow.
+        // Spec: (((Width * BitsPixel + 15) >> 4) << 1) * Height
+        let w = i32::from(self.width);
+        let bp = i32::from(self.bits_pixel as u16);
+        let h = i32::from(self.height);
+
+        let row_words = (w.saturating_mul(bp).saturating_add(15)) >> 4;
+        let row_bytes = row_words << 1;
+
+        row_bytes.saturating_mul(h).unsigned_abs() as usize
     }
 }
 

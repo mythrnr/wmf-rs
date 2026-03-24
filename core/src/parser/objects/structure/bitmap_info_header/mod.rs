@@ -82,10 +82,15 @@ impl BitmapInfoHeader {
                 planes,
                 bit_count,
                 ..
-            }) => u32::from(
-                (((width * planes * (*bit_count as u16) + 31) & !31) / 8)
-                    * height,
-            ),
+            }) => {
+                // Widen to u32 to prevent overflow
+                let bits_per_row = u32::from(*width)
+                    .saturating_mul(u32::from(*planes))
+                    .saturating_mul(*bit_count as u32);
+                let row_bytes = ((bits_per_row.saturating_add(31)) & !31) / 8;
+
+                row_bytes.saturating_mul(u32::from(*height))
+            }
             Self::Info(BitmapInfoHeaderInfo {
                 width,
                 height,
@@ -116,13 +121,13 @@ impl BitmapInfoHeader {
                 crate::parser::Compression::BI_RGB
                 | crate::parser::Compression::BI_BITFIELDS
                 | crate::parser::Compression::BI_CMYK => {
-                    ((((*width as u32)
-                        * u32::from(*planes)
-                        * (*bit_count as u32)
-                        + 31)
-                        & !31)
-                        / 8)
-                        * height.unsigned_abs()
+                    let bits_per_row = (*width as u32)
+                        .saturating_mul(u32::from(*planes))
+                        .saturating_mul(*bit_count as u32);
+                    let row_bytes =
+                        (bits_per_row.saturating_add(31) & !31) / 8;
+
+                    row_bytes.saturating_mul(height.unsigned_abs())
                 }
                 _ => *image_size,
             },
@@ -162,9 +167,12 @@ impl BitmapInfoHeader {
             Self::Core(BitmapInfoHeaderCore { height, .. }) => {
                 usize::from(*height)
             }
+            // Use absolute value for negative height (top-down DIB)
             Self::Info(BitmapInfoHeaderInfo { height, .. })
             | Self::V4(BitmapInfoHeaderV4 { height, .. })
-            | Self::V5(BitmapInfoHeaderV5 { height, .. }) => *height as usize,
+            | Self::V5(BitmapInfoHeaderV5 { height, .. }) => {
+                height.unsigned_abs() as usize
+            }
         }
     }
 
@@ -173,9 +181,12 @@ impl BitmapInfoHeader {
             Self::Core(BitmapInfoHeaderCore { width, .. }) => {
                 usize::from(*width)
             }
+            // Use absolute value for negative width
             Self::Info(BitmapInfoHeaderInfo { width, .. })
             | Self::V4(BitmapInfoHeaderV4 { width, .. })
-            | Self::V5(BitmapInfoHeaderV5 { width, .. }) => *width as usize,
+            | Self::V5(BitmapInfoHeaderV5 { width, .. }) => {
+                width.unsigned_abs() as usize
+            }
         }
     }
 }
