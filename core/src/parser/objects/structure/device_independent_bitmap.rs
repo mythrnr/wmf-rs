@@ -99,10 +99,15 @@ impl Colors {
         color_usage: crate::parser::ColorUsage,
         dib_header_info: &crate::parser::BitmapInfoHeader,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        assert!(matches!(
+        if !matches!(
             dib_header_info,
             crate::parser::BitmapInfoHeader::Core { .. }
-        ));
+        ) {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: "expected BitmapInfoHeader::Core variant"
+                    .to_string(),
+            });
+        }
 
         // core header does not have color_used field.
         if matches!(
@@ -125,15 +130,26 @@ impl Colors {
         color_usage: crate::parser::ColorUsage,
         dib_header_info: &crate::parser::BitmapInfoHeader,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        assert!(matches!(
+        if !matches!(
             dib_header_info,
             crate::parser::BitmapInfoHeader::Info { .. }
                 | crate::parser::BitmapInfoHeader::V4 { .. }
                 | crate::parser::BitmapInfoHeader::V5 { .. }
-        ));
+        ) {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: "expected BitmapInfoHeader Info/V4/V5 variant"
+                    .to_string(),
+            });
+        }
 
         match dib_header_info.bit_count() {
-            crate::parser::BitCount::BI_BITCOUNT_0 => unreachable!(),
+            crate::parser::BitCount::BI_BITCOUNT_0 => {
+                Err(crate::parser::ParseError::UnexpectedPattern {
+                    cause: "BI_BITCOUNT_0 should have been handled \
+                            before reaching parse_with_info_header"
+                        .to_string(),
+                })
+            }
             crate::parser::BitCount::BI_BITCOUNT_1
             | crate::parser::BitCount::BI_BITCOUNT_2
             | crate::parser::BitCount::BI_BITCOUNT_3 => {
@@ -159,7 +175,16 @@ impl Colors {
             crate::parser::BitCount::BI_BITCOUNT_4
             | crate::parser::BitCount::BI_BITCOUNT_6 => {
                 match &dib_header_info {
-                    crate::parser::BitmapInfoHeader::Core(_) => unreachable!(),
+                    crate::parser::BitmapInfoHeader::Core(_) => {
+                        Err(
+                            crate::parser::ParseError::UnexpectedPattern {
+                                cause:
+                                    "BitmapInfoHeader::Core should not \
+                                     reach parse_with_info_header"
+                                        .to_string(),
+                            },
+                        )
+                    }
                     crate::parser::BitmapInfoHeader::Info(
                         crate::parser::BitmapInfoHeaderInfo {
                             compression, ..
@@ -246,7 +271,13 @@ impl Colors {
 
                 Ok((Colors::PaletteIndices(table), consumed_bytes))
             }
-            crate::parser::ColorUsage::DIB_PAL_INDICES => unreachable!(),
+            crate::parser::ColorUsage::DIB_PAL_INDICES => {
+                Err(crate::parser::ParseError::UnexpectedPattern {
+                    cause: "DIB_PAL_INDICES should have been handled \
+                            before reaching parse_from_color_usage"
+                        .to_string(),
+                })
+            }
         }
     }
 }

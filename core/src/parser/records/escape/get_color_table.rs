@@ -11,6 +11,16 @@ impl crate::parser::META_ESCAPE {
             crate::parser::read_u16_from_le_bytes(buf)?,
         );
         record_size.consume(byte_count_bytes + start_bytes);
+
+        if start > byte_count {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: format!(
+                    "start `{start:#06X}` exceeds \
+                     byte_count `{byte_count:#06X}`",
+                ),
+            });
+        }
+
         let (_, c) = crate::parser::read_variable(buf, start as usize)?;
         record_size.consume(c);
 
