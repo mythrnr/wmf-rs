@@ -108,7 +108,15 @@ impl LogColorSpace {
                     crate::parser::read_variable(buf, 260)?;
                 consumed_bytes += filename_bytes;
 
-                Some(String::from_utf8_lossy(&bytes).to_string())
+                // Strip trailing NUL padding from fixed-length buffer
+                let end = bytes
+                    .iter()
+                    .position(|&b| b == 0)
+                    .unwrap_or(bytes.len());
+
+                Some(
+                    String::from_utf8_lossy(&bytes[..end]).to_string(),
+                )
             } else {
                 None
             };
