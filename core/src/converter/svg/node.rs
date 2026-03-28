@@ -48,11 +48,25 @@ impl Node {
     }
 
     fn escape_text(value: impl ToString) -> String {
-        value
-            .to_string()
-            .replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
+        let s = value.to_string();
+        let mut out = String::with_capacity(s.len());
+
+        for c in s.chars() {
+            match c {
+                '&' => out.push_str("&amp;"),
+                '<' => out.push_str("&lt;"),
+                '>' => out.push_str("&gt;"),
+                // XML 1.0 valid chars: #x9 | #xA | #xD |
+                // [#x20-#xD7FF] | [#xE000-#xFFFD] |
+                // [#x10000-#x10FFFF].
+                // Strip control characters that are invalid
+                // in XML to prevent malformed SVG output.
+                '\x00'..='\x08' | '\x0B' | '\x0C' | '\x0E'..='\x1F' => {}
+                _ => out.push(c),
+            }
+        }
+
+        out
     }
 
     fn escape_attr(value: impl ToString) -> String {

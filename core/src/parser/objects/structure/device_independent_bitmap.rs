@@ -104,8 +104,7 @@ impl Colors {
             crate::parser::BitmapInfoHeader::Core { .. }
         ) {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "expected BitmapInfoHeader::Core variant"
-                    .to_string(),
+                cause: "expected BitmapInfoHeader::Core variant".to_string(),
             });
         }
 
@@ -145,8 +144,8 @@ impl Colors {
         match dib_header_info.bit_count() {
             crate::parser::BitCount::BI_BITCOUNT_0 => {
                 Err(crate::parser::ParseError::UnexpectedPattern {
-                    cause: "BI_BITCOUNT_0 should have been handled \
-                            before reaching parse_with_info_header"
+                    cause: "BI_BITCOUNT_0 should have been handled before \
+                            reaching parse_with_info_header"
                         .to_string(),
                 })
             }
@@ -176,14 +175,11 @@ impl Colors {
             | crate::parser::BitCount::BI_BITCOUNT_6 => {
                 match &dib_header_info {
                     crate::parser::BitmapInfoHeader::Core(_) => {
-                        Err(
-                            crate::parser::ParseError::UnexpectedPattern {
-                                cause:
-                                    "BitmapInfoHeader::Core should not \
-                                     reach parse_with_info_header"
-                                        .to_string(),
-                            },
-                        )
+                        Err(crate::parser::ParseError::UnexpectedPattern {
+                            cause: "BitmapInfoHeader::Core should not reach \
+                                    parse_with_info_header"
+                                .to_string(),
+                        })
                     }
                     crate::parser::BitmapInfoHeader::Info(
                         crate::parser::BitmapInfoHeaderInfo {
@@ -273,8 +269,8 @@ impl Colors {
             }
             crate::parser::ColorUsage::DIB_PAL_INDICES => {
                 Err(crate::parser::ParseError::UnexpectedPattern {
-                    cause: "DIB_PAL_INDICES should have been handled \
-                            before reaching parse_from_color_usage"
+                    cause: "DIB_PAL_INDICES should have been handled before \
+                            reaching parse_from_color_usage"
                         .to_string(),
                 })
             }
