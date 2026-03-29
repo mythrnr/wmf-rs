@@ -63,13 +63,12 @@ impl Node {
                 // in XML to prevent malformed SVG output.
                 '\x00'..='\x08' | '\x0B' | '\x0C' | '\x0E'..='\x1F' => {}
                 _ => {
-                    // XML 1.0 で無効な noncharacter を除外する。
-                    // U+FDD0-U+FDEF および各面の U+xFFFE,
-                    // U+xFFFF が該当する。
+                    // Strip Unicode noncharacters that are
+                    // invalid in XML 1.0: U+FDD0-U+FDEF and
+                    // U+xFFFE/U+xFFFF in each plane.
                     let code = c as u32;
-                    let is_nonchar =
-                        (0xFDD0..=0xFDEF).contains(&code)
-                            || (code & 0xFFFE) == 0xFFFE;
+                    let is_nonchar = (0xFDD0..=0xFDEF).contains(&code)
+                        || (code & 0xFFFE) == 0xFFFE;
 
                     if !is_nonchar {
                         out.push(c);
