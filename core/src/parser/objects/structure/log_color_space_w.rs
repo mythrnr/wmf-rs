@@ -102,25 +102,23 @@ impl LogColorSpaceW {
             });
         }
 
-        let filename =
-            if (size as usize).saturating_sub(consumed_bytes) >= 520 {
-                let (bytes, filename_bytes) =
-                    crate::parser::read_variable(buf, 520)?;
-                consumed_bytes += filename_bytes;
-                // Find NUL terminator in u16 units for UTF-16LE
-                let len = bytes
-                    .chunks_exact(2)
-                    .position(|c| c == [0, 0])
-                    .map_or(bytes.len(), |pos| pos * 2);
+        let filename = if (size as usize).saturating_sub(consumed_bytes) >= 520
+        {
+            let (bytes, filename_bytes) =
+                crate::parser::read_variable(buf, 520)?;
+            consumed_bytes += filename_bytes;
+            // Find NUL terminator in u16 units for UTF-16LE
+            let len = bytes
+                .chunks_exact(2)
+                .position(|c| c == [0, 0])
+                .map_or(bytes.len(), |pos| pos * 2);
 
-                Some(
-                    crate::parser::objects::structure::utf16le_bytes_to_string(
-                        &bytes[..len],
-                    )?,
-                )
-            } else {
-                None
-            };
+            Some(crate::parser::objects::structure::utf16le_bytes_to_string(
+                &bytes[..len],
+            )?)
+        } else {
+            None
+        };
 
         Ok((
             Self {

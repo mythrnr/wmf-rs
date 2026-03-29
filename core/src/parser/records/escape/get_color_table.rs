@@ -15,8 +15,8 @@ impl crate::parser::META_ESCAPE {
         if start > byte_count {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
-                    "start `{start:#06X}` exceeds \
-                     byte_count `{byte_count:#06X}`",
+                    "start `{start:#06X}` exceeds byte_count \
+                     `{byte_count:#06X}`",
                 ),
             });
         }

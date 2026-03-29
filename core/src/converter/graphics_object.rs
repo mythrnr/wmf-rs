@@ -31,7 +31,14 @@ impl GraphicsObjects {
     }
 
     pub fn get(&self, i: usize) -> &GraphicsObject {
-        self.0.get(i).unwrap_or(&self.1)
+        self.0.get(i).unwrap_or_else(|| {
+            warn!(
+                index = i,
+                capacity = self.0.len(),
+                "object table index out of bounds on get",
+            );
+            &self.1
+        })
     }
 
     pub fn push(&mut self, g: GraphicsObject) {

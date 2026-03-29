@@ -124,8 +124,7 @@ impl BitmapInfoHeader {
                     let bits_per_row = (*width as u32)
                         .saturating_mul(u32::from(*planes))
                         .saturating_mul(*bit_count as u32);
-                    let row_bytes =
-                        (bits_per_row.saturating_add(31) & !31) / 8;
+                    let row_bytes = (bits_per_row.saturating_add(31) & !31) / 8;
 
                     row_bytes.saturating_mul(height.unsigned_abs())
                 }

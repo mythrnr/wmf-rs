@@ -208,66 +208,64 @@ impl From<DeviceIndependentBitmap> for Bitmap {
 
 impl From<(ColorRef, HatchStyle)> for Bitmap {
     fn from((color_ref, brush_hatch): (ColorRef, HatchStyle)) -> Self {
-        let mut a_data = Vec::with_capacity(100);
+        const WIDTH: usize = 10;
+        const HEIGHT: usize = 10;
+        // BMP rows must be aligned to 4-byte boundaries.
+        // 10 pixels * 8 bits = 80 bits → ceil(80/32)*4 = 12 bytes
+        const ROW_BYTES: usize = 12;
+        const ROW_PADDING: usize = ROW_BYTES - WIDTH;
 
+        let mut a_data = Vec::with_capacity(ROW_BYTES * HEIGHT);
+
+        // Generate 8-bit indexed pixel data (palette index per pixel)
         match brush_hatch {
             HatchStyle::HS_HORIZONTAL => {
-                for i in 0..10 {
-                    if i == 0 {
-                        a_data.extend([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
-                    } else {
-                        a_data.extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-                    }
+                for i in 0..HEIGHT {
+                    let v = u8::from(i == 0);
+                    a_data.extend([v; WIDTH]);
+                    a_data.extend([0u8; ROW_PADDING]);
                 }
             }
             HatchStyle::HS_VERTICAL => {
-                a_data.extend(
-                    vec![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0]; 10]
-                        .into_iter()
-                        .flatten()
-                        .collect::<Vec<_>>(),
-                );
+                for _ in 0..HEIGHT {
+                    a_data.push(1);
+                    a_data.extend([0u8; WIDTH - 1]);
+                    a_data.extend([0u8; ROW_PADDING]);
+                }
             }
             HatchStyle::HS_FDIAGONAL => {
-                for i in 0..10 {
-                    for j in 0..10 {
-                        if i + j == 9 {
-                            a_data.push(1);
-                        } else {
-                            a_data.push(0);
-                        }
+                for i in 0..HEIGHT {
+                    for j in 0..WIDTH {
+                        a_data.push(u8::from(i + j == 9));
                     }
+                    a_data.extend([0u8; ROW_PADDING]);
                 }
             }
             HatchStyle::HS_BDIAGONAL => {
-                for i in 0..10 {
-                    for j in 0..10 {
-                        if i == j {
-                            a_data.push(1);
-                        } else {
-                            a_data.push(0);
-                        }
+                for i in 0..HEIGHT {
+                    for j in 0..WIDTH {
+                        a_data.push(u8::from(i == j));
                     }
+                    a_data.extend([0u8; ROW_PADDING]);
                 }
             }
             HatchStyle::HS_CROSS => {
-                for i in 0..10 {
+                for i in 0..HEIGHT {
                     if i == 0 {
-                        a_data.extend([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+                        a_data.extend([1u8; WIDTH]);
                     } else {
-                        a_data.extend([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                        a_data.push(1);
+                        a_data.extend([0u8; WIDTH - 1]);
                     }
+                    a_data.extend([0u8; ROW_PADDING]);
                 }
             }
             HatchStyle::HS_DIAGCROSS => {
-                for i in 0..10 {
-                    for j in 0..10 {
-                        if i == j || i + j == 9 {
-                            a_data.push(1);
-                        } else {
-                            a_data.push(0);
-                        }
+                for i in 0..HEIGHT {
+                    for j in 0..WIDTH {
+                        a_data.push(u8::from(i == j || i + j == 9));
                     }
+                    a_data.extend([0u8; ROW_PADDING]);
                 }
             }
         }
@@ -278,13 +276,14 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
                 width: 10,
                 height: 10,
                 planes: 1,
-                bit_count: BitCount::BI_BITCOUNT_5,
+                // 8-bit indexed: one palette index per byte
+                bit_count: BitCount::BI_BITCOUNT_3,
                 compression: Compression::BI_RGB,
                 image_size: 0,
                 x_pels_per_meter: 0,
                 y_pels_per_meter: 0,
-                color_used: 0,
-                color_important: 0,
+                color_used: 2,
+                color_important: 2,
             }),
             colors: Colors::RGBTriple(vec![
                 RGBTriple { red: 0, green: 0, blue: 0 },
@@ -344,10 +343,15 @@ impl DeviceIndependentBitmap {
                     break;
                 };
 
-                let rgb = palette
-                    .get(idx as usize)
-                    .copied()
-                    .unwrap_or([0xFF, 0xFF, 0xFF]);
+                let rgb =
+                    palette.get(idx as usize).copied().unwrap_or_else(|| {
+                        warn!(
+                            index = idx,
+                            palette_size = palette.len(),
+                            "palette index out of bounds, using black",
+                        );
+                        [0x00, 0x00, 0x00]
+                    });
 
                 new_data.extend(rgb);
             }

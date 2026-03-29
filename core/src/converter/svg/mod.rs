@@ -10,7 +10,10 @@ use crate::{
             device_context::DeviceContext,
             node::{Data, Node},
             ternary_raster_operator::TernaryRasterOperator,
-            util::{Fill, Stroke, as_point_string, url_string},
+            util::{
+                Fill, Stroke, as_point_string, css_color_from_color_ref,
+                url_string,
+            },
         },
     },
     imports::*,
@@ -102,6 +105,93 @@ impl SVGPlayer {
         };
         self.context_current.extend_window(&point);
         point
+    }
+
+    /// Build an SVG path from a Region's scanlines.
+    fn region_to_path(&mut self, region: &Region) -> Data {
+        let mut data = Data::new();
+
+        for scan in &region.a_scans {
+            // Scan coordinates are u16; clamp to i16 range
+            let top = i16::try_from(scan.top).unwrap_or(i16::MAX);
+            let bottom = i16::try_from(scan.bottom).unwrap_or(i16::MAX);
+
+            for scan_line in &scan.scan_lines {
+                let left = i16::try_from(scan_line.left).unwrap_or(i16::MAX);
+                let right = i16::try_from(scan_line.right).unwrap_or(i16::MAX);
+
+                let tl = self.convert_point(left, top);
+                let br = self.convert_point(right, bottom);
+
+                data = data
+                    .move_to(format!("{} {}", tl.x, tl.y))
+                    .line_to(format!("{} {}", br.x, tl.y))
+                    .line_to(format!("{} {}", br.x, br.y))
+                    .line_to(format!("{} {}", tl.x, br.y))
+                    .close();
+            }
+        }
+
+        // Fallback to bounding rectangle if no scanlines
+        if region.a_scans.is_empty() {
+            let r = &region.bounding_rectangle;
+            let tl = self.convert_point(r.left, r.top);
+            let br = self.convert_point(r.right, r.bottom);
+
+            data = data
+                .move_to(format!("{} {}", tl.x, tl.y))
+                .line_to(format!("{} {}", br.x, tl.y))
+                .line_to(format!("{} {}", br.x, br.y))
+                .line_to(format!("{} {}", tl.x, br.y))
+                .close();
+        }
+
+        data
+    }
+
+    /// Resolve a brush from the object table by index.
+    fn resolve_fill_from_object_table(
+        &mut self,
+        brush_index: u16,
+    ) -> Result<String, PlayError> {
+        let object =
+            self.context_current.object_table.get(brush_index as usize).clone();
+
+        let GraphicsObject::Brush(brush) = object else {
+            return Err(PlayError::InvalidBrush {
+                cause: format!("object at index {brush_index} is not a Brush"),
+            });
+        };
+
+        match Fill::from(&brush) {
+            Fill::Pattern { pattern } => {
+                let id = self.issue_definition_id();
+                self.definitions.push(pattern.set("id", id.as_str()));
+                Ok(url_string(format!("#{id}").as_str()))
+            }
+            Fill::Value { value } => Ok(value),
+        }
+    }
+
+    /// Look up a Region from the object table by index.
+    fn get_region_from_object_table(
+        &self,
+        region_index: u16,
+    ) -> Result<Region, PlayError> {
+        let object = self
+            .context_current
+            .object_table
+            .get(region_index as usize)
+            .clone();
+
+        match object {
+            GraphicsObject::Region(r) => Ok(r),
+            _ => Err(PlayError::InvalidRecord {
+                cause: format!(
+                    "object at index {region_index} is not a Region"
+                ),
+            }),
+        }
     }
 }
 
@@ -344,11 +434,25 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_device_independent_bitmap_to_dev(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETDIBTODEV,
     ) -> Result<Self, PlayError> {
-        info!("META_SETDIBTODEV: not implemented");
+        let bitmap = crate::converter::Bitmap::from(record.dib);
+        // Clamp to i16::MAX when u16 exceeds i16 range
+        let x = i16::try_from(record.x_dest).unwrap_or(i16::MAX);
+        let y = i16::try_from(record.y_dest).unwrap_or(i16::MAX);
+        let point = self.convert_point(x, y);
+
+        let image = Node::new("image")
+            .set("x", point.x)
+            .set("y", point.y)
+            .set("width", record.width)
+            .set("height", record.height)
+            .set("href", bitmap.as_data_url());
+
+        self.push_element(record_number, image);
+
         Ok(self)
     }
 
@@ -520,14 +624,17 @@ impl crate::converter::Player for SVGPlayer {
         let stroke = Stroke::from(self.selected_pen());
         let start = self.convert_point(record.x_start_arc, record.y_start_arc);
         let end = self.convert_point(record.x_end_arc, record.y_end_arc);
-        let (rx, ry) = (
-            (record.right_rect - record.left_rect) / 2,
-            (record.bottom_rect - record.top_rect) / 2,
-        );
-        let center = self.context_current.point_s_to_absolute_point(&PointS {
-            x: record.left_rect + rx,
-            y: record.top_rect + ry,
-        });
+        // Use f32 to avoid precision loss from integer division.
+        // Take abs() because SVG requires non-negative radii,
+        // while WMF may have inverted bounding rectangles.
+        let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
+        let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
+        let center_x =
+            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
+        let center_y =
+            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center = self
+            .convert_point(center_x.round() as i16, center_y.round() as i16);
         // Start and end vectors relative to the center of the ellipse
         let start_dx = f32::from(start.x - center.x);
         let start_dy = f32::from(start.y - center.y);
@@ -541,12 +648,12 @@ impl crate::converter::Player for SVGPlayer {
         // is positive), it is not the larger arc.
         let large_arc = i16::from(cross < 0.0);
 
-        // sweep is always 0 ( equivalent to "counter-clockwise" in SVG )
+        // sweep is always 0 (equivalent to "counter-clockwise" in SVG)
         let data = Data::new()
             .move_to(format!("{} {}", start.x, start.y))
             .elliptical_arc_to(format!(
-                "{} {} {} {} {} {} {}",
-                rx, ry, 0, large_arc, 0, end.x, end.y
+                "{rx} {ry} {} {large_arc} {} {} {}",
+                0, 0, end.x, end.y,
             ));
         let path = Node::new("path").set("fill", "none").set("d", data);
         let path = stroke.set_props(path);
@@ -567,16 +674,21 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_CHORD,
     ) -> Result<Self, PlayError> {
-        // Calculate ellipse center and radii from bounding rectangle
-        let rx = (record.right_rect - record.left_rect) / 2;
-        let ry = (record.bottom_rect - record.top_rect) / 2;
-        if rx == 0 || ry == 0 {
+        // Calculate ellipse center and radii from bounding rectangle.
+        // Use f32 to avoid precision loss from integer division.
+        let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
+        let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
+        if rx == 0.0 || ry == 0.0 {
             info!("META_CHORD is skipped because rx or ry is zero.");
             return Ok(self);
         }
+        let center_x =
+            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
+        let center_y =
+            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
         let center = self.context_current.point_s_to_absolute_point(&PointS {
-            x: record.left_rect + rx,
-            y: record.top_rect + ry,
+            x: center_x.round() as i16,
+            y: center_y.round() as i16,
         });
 
         // Convert radial endpoints from WMF coordinates to SVG absolute
@@ -630,12 +742,13 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_ELLIPSE,
     ) -> Result<Self, PlayError> {
-        let (rx, ry) = (
-            (record.right_rect - record.left_rect) / 2,
-            (record.bottom_rect - record.top_rect) / 2,
-        );
+        // Use f32 to avoid precision loss from integer division.
+        // Take abs() because SVG requires non-negative radii,
+        // while WMF may have inverted bounding rectangles.
+        let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
+        let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
 
-        if rx == 0 || ry == 0 {
+        if rx == 0.0 || ry == 0.0 {
             info!(
                 %rx, %ry,
                 "META_ELLIPSE is skipped because rx or ry is zero.",
@@ -647,8 +760,12 @@ impl crate::converter::Player for SVGPlayer {
         let stroke = Stroke::from(self.selected_pen());
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let point =
-            self.convert_point(record.left_rect + rx, record.top_rect + ry);
+        let center_x =
+            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
+        let center_y =
+            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let point = self
+            .convert_point(center_x.round() as i16, center_y.round() as i16);
 
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
@@ -674,7 +791,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_EXTFLOODFILL,
     ) -> Result<Self, PlayError> {
-        info!("META_EXTFLOODFILL: not implemented");
+        info!(
+            "META_EXTFLOODFILL: skipped (pixel-based flood fill cannot be \
+             represented in SVG)",
+        );
         Ok(self)
     }
 
@@ -756,6 +876,8 @@ impl crate::converter::Player for SVGPlayer {
             text = text.add(Node::new_text(&text_content));
         } else {
             // https://cgit.freedesktop.org/libreoffice/core/tree/emfio/source/reader/wmfreader.cxx?id=c0b14ab9aa4d713a6b718ef07b9e0379b88e97d3#n693
+            let half_height = f32::from(font_height.abs()) / 2.0;
+
             for (i, s) in text_content.graphemes(true).enumerate() {
                 let dx = if i == 0 {
                     0
@@ -766,11 +888,12 @@ impl crate::converter::Player for SVGPlayer {
                 let mut tspan = Node::new("tspan").add(Node::new_text(s));
 
                 if dx != 0 {
-                    let excess_dx = (font_height.abs() / 2)
-                        * i16::try_from(s.width()).unwrap_or(0);
-                    let dx = core::cmp::max(dx - excess_dx, 0);
+                    let char_width =
+                        f32::from(i16::try_from(s.width()).unwrap_or(1));
+                    let excess_dx = half_height * char_width;
+                    let adjusted = (f32::from(dx) - excess_dx).max(0.0);
 
-                    tspan = tspan.set("dx", dx);
+                    tspan = tspan.set("dx", adjusted);
                 }
 
                 text = text.add(tspan);
@@ -784,21 +907,37 @@ impl crate::converter::Player for SVGPlayer {
             styles.push(shape_inside);
         }
 
+        if self.context_current.text_char_extra > 0 {
+            styles.push(format!(
+                "letter-spacing: {}px;",
+                self.context_current.text_char_extra,
+            ));
+        }
+
+        if self.context_current.text_break_count > 0
+            && self.context_current.text_break_extra > 0
+        {
+            let word_spacing = f32::from(self.context_current.text_break_extra)
+                / f32::from(self.context_current.text_break_count);
+            styles.push(format!("word-spacing: {word_spacing}px;"));
+        }
+
         if !styles.is_empty() {
             text = text.set("style", styles.join(""));
         }
 
         if self.context_current.text_align_update_cp {
-            let dx = (font_height.abs() / 2)
-                * i16::try_from(text_content.width()).unwrap_or(0);
+            let half_height = f32::from(font_height.abs()) / 2.0;
+            let text_width =
+                f32::from(i16::try_from(text_content.width()).unwrap_or(1));
+            let dx = (half_height * text_width).round() as i16;
             let point = PointS { x: point.x + dx, y: point.y };
             self.context_current.drawing_position(point);
         }
 
-        // HACK: background color
-        // https://stackoverflow.com/a/31013492
+        // Draw background rectangle for OPAQUE text mode.
+        // Insert the rect before the text so it renders behind.
         if self.context_current.bk_mode == MixMode::OPAQUE {
-            let id = self.issue_definition_id();
             let brush = if matches!(self.selected_brush(), Brush::Null) {
                 Brush::Solid {
                     color_ref: self.context_current.text_bk_color.clone(),
@@ -807,12 +946,49 @@ impl crate::converter::Player for SVGPlayer {
                 self.selected_brush().clone()
             };
 
-            self.definitions.push(brush.as_filter().set("id", id.as_str()));
+            let bg_fill = match Fill::from(&brush) {
+                Fill::Pattern { pattern } => {
+                    let id = self.issue_definition_id();
+                    self.definitions.push(pattern.set("id", id.as_str()));
+                    url_string(format!("#{id}").as_str())
+                }
+                Fill::Value { value } => value,
+            };
 
-            text = text.set("filter", url_string(format!("#{id}").as_str()));
+            // Estimate text bounding box from font metrics
+            let abs_height = f32::from(font_height.abs());
+            let half_height = abs_height / 2.0;
+            let text_width =
+                f32::from(i16::try_from(text_content.width()).unwrap_or(1));
+            let estimated_width = half_height * text_width;
+
+            // Adjust rect x based on text-anchor alignment
+            let rect_x = match self.context_current.text_align_horizontal {
+                TextAlignmentMode::TA_CENTER => {
+                    f32::from(point.x) - estimated_width / 2.0
+                }
+                TextAlignmentMode::TA_RIGHT => {
+                    f32::from(point.x) - estimated_width
+                }
+                _ => f32::from(point.x),
+            };
+            let rect_y = f32::from(point.y) - abs_height;
+
+            let bg_rect = Node::new("rect")
+                .set("x", rect_x)
+                .set("y", rect_y)
+                .set("width", estimated_width)
+                .set("height", abs_height)
+                .set("fill", bg_fill)
+                .set("stroke", "none");
+
+            // Wrap background rect and text in a group so
+            // that only the group receives the element id
+            let group = Node::new("g").add(bg_rect).add(text);
+            self.push_element(record_number, group);
+        } else {
+            self.push_element(record_number, text);
         }
-
-        self.push_element(record_number, text);
 
         Ok(self)
     }
@@ -823,11 +999,20 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn fill_region(
-        self,
+        mut self,
         record_number: usize,
         record: META_FILLREGION,
     ) -> Result<Self, PlayError> {
-        info!("META_FILLREGION: not implemented");
+        let region = self.get_region_from_object_table(record.region)?;
+        let fill = self.resolve_fill_from_object_table(record.brush)?;
+        let data = self.region_to_path(&region);
+        let path = Node::new("path")
+            .set("d", data)
+            .set("fill", fill)
+            .set("stroke", "none");
+
+        self.push_element(record_number, path);
+
         Ok(self)
     }
 
@@ -841,7 +1026,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_FLOODFILL,
     ) -> Result<Self, PlayError> {
-        info!("META_FLOODFILL: not implemented");
+        info!(
+            "META_FLOODFILL: skipped (pixel-based flood fill cannot be \
+             represented in SVG)",
+        );
         Ok(self)
     }
 
@@ -851,11 +1039,34 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn frame_region(
-        self,
+        mut self,
         record_number: usize,
         record: META_FRAMEREGION,
     ) -> Result<Self, PlayError> {
-        info!("META_FRAMEREGION: not implemented");
+        let region = self.get_region_from_object_table(record.region)?;
+        let fill = self.resolve_fill_from_object_table(record.brush)?;
+        let r = &region.bounding_rectangle;
+        let tl = self.convert_point(r.left, r.top);
+        let br = self.convert_point(r.right, r.bottom);
+
+        // Correct for possible axis inversion to avoid
+        // negative dimensions
+        let x = tl.x.min(br.x);
+        let y = tl.y.min(br.y);
+        let width = (br.x - tl.x).abs();
+        let height = (br.y - tl.y).abs();
+
+        let rect = Node::new("rect")
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
+            .set("fill", "none")
+            .set("stroke", fill)
+            .set("stroke-width", record.width.abs().max(record.height.abs()));
+
+        self.push_element(record_number, rect);
+
         Ok(self)
     }
 
@@ -869,7 +1080,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_INVERTREGION,
     ) -> Result<Self, PlayError> {
-        info!("META_INVERTREGION: not implemented");
+        info!(
+            "META_INVERTREGION: skipped (pixel-level color inversion cannot \
+             be represented in SVG)",
+        );
         Ok(self)
     }
 
@@ -908,11 +1122,20 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn paint_region(
-        self,
+        mut self,
         record_number: usize,
         record: META_PAINTREGION,
     ) -> Result<Self, PlayError> {
-        info!("META_PAINTREGION: not implemented");
+        let region = self.get_region_from_object_table(record.region)?;
+        let fill = self.resolve_fill();
+        let data = self.region_to_path(&region);
+        let path = Node::new("path")
+            .set("d", data)
+            .set("fill", fill)
+            .set("stroke", "none");
+
+        self.push_element(record_number, path);
+
         Ok(self)
     }
 
@@ -971,12 +1194,17 @@ impl crate::converter::Player for SVGPlayer {
         let stroke = Stroke::from(self.selected_pen());
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let (rx, ry) = (
-            (record.right_rect - record.left_rect) / 2,
-            (record.bottom_rect - record.top_rect) / 2,
-        );
-        let (center_x, center_y) =
-            (record.left_rect + rx, record.top_rect + ry);
+        // Use f32 to avoid precision loss from integer division.
+        // Take abs() because SVG requires non-negative radii,
+        // while WMF may have inverted bounding rectangles.
+        let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
+        let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
+        let center_x =
+            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
+        let center_y =
+            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center_xi = center_x.round() as i16;
+        let center_yi = center_y.round() as i16;
 
         let ellipse = Node::new("ellipse")
             .set("fill", fill.as_str())
@@ -988,7 +1216,7 @@ impl crate::converter::Player for SVGPlayer {
         let ellipse = stroke.set_props(ellipse);
 
         let p1 = self.convert_point(record.x_radial1, record.y_radial1);
-        let center = self.convert_point(center_x, center_y);
+        let center = self.convert_point(center_xi, center_yi);
         let p2 = self.convert_point(record.x_radial2, record.y_radial2);
 
         let data = Data::new()
@@ -1225,11 +1453,23 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_pixel(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETPIXEL,
     ) -> Result<Self, PlayError> {
-        info!("META_SETPIXEL: not implemented");
+        let point = self.convert_point(record.x, record.y);
+        let color = css_color_from_color_ref(&record.color_ref);
+
+        let rect = Node::new("rect")
+            .set("x", point.x)
+            .set("y", point.y)
+            .set("width", 1)
+            .set("height", 1)
+            .set("fill", color.as_str())
+            .set("stroke", "none");
+
+        self.push_element(record_number, rect);
+
         Ok(self)
     }
 
@@ -1243,6 +1483,8 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_TEXTOUT,
     ) -> Result<Self, PlayError> {
+        use unicode_width::UnicodeWidthStr;
+
         let font_charset = self.object_selected.font.charset;
         let font_height = self.object_selected.font.height;
         let text_content = record.into_utf8(font_charset).map_err(|err| {
@@ -1256,11 +1498,53 @@ impl crate::converter::Player for SVGPlayer {
             .set("x", point.x)
             .set("y", point.y)
             .set("fill", self.context_current.text_color_as_css_color())
-            .add(Node::new_text(text_content));
-        let (text, styles) = self.object_selected.font.set_props(text, &point);
+            .add(Node::new_text(&text_content));
+        let (text, mut styles) =
+            self.object_selected.font.set_props(text, &point);
+
+        if self.context_current.text_char_extra > 0 {
+            styles.push(format!(
+                "letter-spacing: {}px;",
+                self.context_current.text_char_extra,
+            ));
+        }
+
+        if self.context_current.text_break_count > 0
+            && self.context_current.text_break_extra > 0
+        {
+            let word_spacing = f32::from(self.context_current.text_break_extra)
+                / f32::from(self.context_current.text_break_count);
+            styles.push(format!("word-spacing: {word_spacing}px;"));
+        }
+
         let text = text.set("style", styles.join(""));
 
-        self.push_element(record_number, text);
+        // Draw background rectangle for OPAQUE text mode
+        if self.context_current.bk_mode == MixMode::OPAQUE {
+            let bg_color =
+                css_color_from_color_ref(&self.context_current.text_bk_color);
+            let abs_height = f32::from(font_height.abs());
+            let half_height = abs_height / 2.0;
+            let text_width =
+                f32::from(i16::try_from(text_content.width()).unwrap_or(1));
+            let estimated_width = half_height * text_width;
+            let rect_y = f32::from(point.y) - abs_height;
+
+            let bg_rect = Node::new("rect")
+                .set("x", point.x)
+                .set("y", rect_y)
+                .set("width", estimated_width)
+                .set("height", abs_height)
+                .set("fill", bg_color)
+                .set("stroke", "none");
+
+            // Wrap background rect and text in a group so
+            // that only the group receives the element id
+            let group = Node::new("g").add(bg_rect).add(text);
+            self.push_element(record_number, group);
+        } else {
+            self.push_element(record_number, text);
+        }
 
         Ok(self)
     }
@@ -1512,7 +1796,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_ANIMATEPALETTE,
     ) -> Result<Self, PlayError> {
-        info!("META_ANIMATEPALETTE: not implemented");
+        info!(
+            "META_ANIMATEPALETTE: skipped (palette animation is not \
+             applicable to SVG)",
+        );
         Ok(self)
     }
 
@@ -1522,11 +1809,37 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn exclude_clip_rect(
-        self,
+        mut self,
         record_number: usize,
         record: META_EXCLUDECLIPRECT,
     ) -> Result<Self, PlayError> {
-        info!("META_EXCLUDECLIPRECT: not implemented");
+        // Convert logical coordinates to SVG coordinates so
+        // clipping matches rendered elements. Use
+        // point_s_to_absolute_point directly to avoid
+        // expanding the viewBox for non-drawing geometry.
+        let to_abs = |x, y| {
+            self.context_current.point_s_to_absolute_point(&PointS { x, y })
+        };
+        let tl = to_abs(record.left, record.top);
+        let tr = to_abs(record.right, record.top);
+        let br = to_abs(record.right, record.bottom);
+        let bl = to_abs(record.left, record.bottom);
+
+        // Build a clip path that punches the excluded rect as
+        // a hole using the even-odd fill rule
+        let id = format!("clip_excl{record_number}");
+        let path_data = format!(
+            "M-32768,-32768 H32767 V32767 H-32768 Z M{},{} L{},{} L{},{} \
+             L{},{} Z",
+            tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y,
+        );
+        let path =
+            Node::new("path").set("d", path_data).set("clip-rule", "evenodd");
+        let clip = Node::new("clipPath").set("id", &id).add(path);
+
+        self.definitions.push(clip);
+        self.current_clip_id = Some(id);
+
         Ok(self)
     }
 
@@ -1569,11 +1882,49 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn offset_clip_region(
-        self,
+        mut self,
         record_number: usize,
         record: META_OFFSETCLIPRGN,
     ) -> Result<Self, PlayError> {
-        info!("META_OFFSETCLIPRGN: not implemented");
+        if let Some(ref mut region) = self.context_current.clipping_region {
+            region.left = region.left.saturating_add(record.x_offset);
+            region.right = region.right.saturating_add(record.x_offset);
+            region.top = region.top.saturating_add(record.y_offset);
+            region.bottom = region.bottom.saturating_add(record.y_offset);
+
+            // Copy values before conversion to avoid borrow
+            // conflict with self.context_current
+            let (left, top, right, bottom) =
+                (region.left, region.top, region.right, region.bottom);
+
+            // Convert logical coordinates to SVG coordinates
+            // so clipping matches rendered elements. Use
+            // point_s_to_absolute_point directly to avoid
+            // expanding the viewBox for non-drawing geometry.
+            let tl = self
+                .context_current
+                .point_s_to_absolute_point(&PointS { x: left, y: top });
+            let br = self
+                .context_current
+                .point_s_to_absolute_point(&PointS { x: right, y: bottom });
+
+            let x = tl.x.min(br.x);
+            let y = tl.y.min(br.y);
+            let width = (br.x - tl.x).abs();
+            let height = (br.y - tl.y).abs();
+
+            let id = format!("clip{record_number}");
+            let rect = Node::new("rect")
+                .set("x", x)
+                .set("y", y)
+                .set("width", width)
+                .set("height", height);
+            let clip = Node::new("clipPath").set("id", &id).add(rect);
+
+            self.definitions.push(clip);
+            self.current_clip_id = Some(id);
+        }
+
         Ok(self)
     }
 
@@ -1583,11 +1934,13 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn offset_viewport_origin(
-        self,
+        mut self,
         record_number: usize,
         record: META_OFFSETVIEWPORTORG,
     ) -> Result<Self, PlayError> {
-        info!("META_OFFSETVIEWPORTORG: not implemented");
+        self.context_current
+            .offset_viewport_origin(record.x_offset, record.y_offset);
+
         Ok(self)
     }
 
@@ -1597,11 +1950,13 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn offset_window_origin(
-        self,
+        mut self,
         record_number: usize,
         record: META_OFFSETWINDOWORG,
     ) -> Result<Self, PlayError> {
-        info!("META_OFFSETWINDOWORG: not implemented");
+        self.context_current
+            .offset_window_origin(record.x_offset, record.y_offset);
+
         Ok(self)
     }
 
@@ -1615,7 +1970,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_REALIZEPALETTE,
     ) -> Result<Self, PlayError> {
-        info!("META_REALIZEPALETTE: not implemented");
+        info!(
+            "META_REALIZEPALETTE: skipped (system palette mapping is not \
+             applicable to SVG)",
+        );
         Ok(self)
     }
 
@@ -1629,7 +1987,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_RESIZEPALETTE,
     ) -> Result<Self, PlayError> {
-        info!("META_RESIZEPALETTE: not implemented");
+        info!(
+            "META_RESIZEPALETTE: skipped (palette management is not \
+             applicable to SVG)",
+        );
         Ok(self)
     }
 
@@ -1712,11 +2073,27 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn scale_viewport_ext(
-        self,
+        mut self,
         record_number: usize,
         record: META_SCALEVIEWPORTEXT,
     ) -> Result<Self, PlayError> {
-        info!("META_SCALEVIEWPORTEXT: not implemented");
+        if record.x_denom == 0 || record.y_denom == 0 {
+            return Err(PlayError::InvalidRecord {
+                cause: format!(
+                    "META_SCALEVIEWPORTEXT has zero denominator: x_denom={}, \
+                     y_denom={}",
+                    record.x_denom, record.y_denom,
+                ),
+            });
+        }
+
+        self.context_current.scale_viewport_ext(
+            record.x_num,
+            record.x_denom,
+            record.y_num,
+            record.y_denom,
+        );
+
         Ok(self)
     }
 
@@ -1788,11 +2165,12 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_layout(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETLAYOUT,
     ) -> Result<Self, PlayError> {
-        info!("META_SETLAYOUT: not implemented");
+        self.context_current.layout(record.layout);
+
         Ok(self)
     }
 
@@ -1821,7 +2199,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETMAPPERFLAGS,
     ) -> Result<Self, PlayError> {
-        info!("META_SETMAPPERFLAGS: not implemented");
+        info!(
+            "META_SETMAPPERFLAGS: skipped (font mapper algorithm control is \
+             not applicable to SVG)",
+        );
         Ok(self)
     }
 
@@ -1835,7 +2216,10 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETPALENTRIES,
     ) -> Result<Self, PlayError> {
-        info!("META_SETPALENTRIES: not implemented");
+        info!(
+            "META_SETPALENTRIES: skipped (palette entry management is not \
+             applicable to SVG)",
+        );
         Ok(self)
     }
 
@@ -1889,11 +2273,12 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_stretch_blt_mode(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETSTRETCHBLTMODE,
     ) -> Result<Self, PlayError> {
-        info!("META_SETSTRETCHBLTMODE: not implemented");
+        self.context_current.stretch_mode(record.stretch_mode);
+
         Ok(self)
     }
 
@@ -1936,11 +2321,12 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_text_char_extra(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETTEXTCHAREXTRA,
     ) -> Result<Self, PlayError> {
-        info!("META_SETTEXTCHAREXTRA: not implemented");
+        self.context_current.text_char_extra(record.char_extra);
+
         Ok(self)
     }
 
@@ -1965,11 +2351,13 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_text_justification(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETTEXTJUSTIFICATION,
     ) -> Result<Self, PlayError> {
-        info!("META_SETTEXTJUSTIFICATION: not implemented");
+        self.context_current
+            .text_justification(record.break_count, record.break_extra);
+
         Ok(self)
     }
 
@@ -1979,11 +2367,12 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_viewport_ext(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETVIEWPORTEXT,
     ) -> Result<Self, PlayError> {
-        info!("META_SETVIEWPORTEXT: not implemented");
+        self.context_current.viewport_ext(record.x, record.y);
+
         Ok(self)
     }
 
@@ -1993,11 +2382,12 @@ impl crate::converter::Player for SVGPlayer {
         err(level = tracing::Level::ERROR, Display),
     ))]
     fn set_viewport_origin(
-        self,
+        mut self,
         record_number: usize,
         record: META_SETVIEWPORTORG,
     ) -> Result<Self, PlayError> {
-        info!("META_SETVIEWPORTORG: not implemented");
+        self.context_current.viewport_origin(record.x, record.y);
+
         Ok(self)
     }
 

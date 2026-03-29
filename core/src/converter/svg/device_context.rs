@@ -20,7 +20,16 @@ pub struct DeviceContext {
     pub text_align_update_cp: bool,
 
     pub draw_mode: Option<BinaryRasterOperation>,
+    pub layout: Layout,
     pub map_mode: MapMode,
+    pub stretch_mode: StretchMode,
+    /// Extra inter-character spacing in logical units
+    pub text_char_extra: u16,
+    /// Number of break characters in the line
+    pub text_break_count: u16,
+    /// Total extra space in logical units to distribute
+    /// across break characters
+    pub text_break_extra: u16,
 }
 
 impl Default for DeviceContext {
@@ -31,12 +40,17 @@ impl Default for DeviceContext {
             clipping_region: None,
             drawing_position: PointS { x: 0, y: 0 },
             draw_mode: None,
+            layout: Layout::LAYOUT_LTR,
             map_mode: MapMode::MM_TEXT,
             poly_fill_mode: PolyFillMode::ALTERNATE,
+            stretch_mode: StretchMode::BLACKONWHITE,
             text_align_horizontal: TextAlignmentMode::TA_LEFT,
             text_align_vertical: VerticalTextAlignmentMode::VTA_BASELINE,
             text_align_update_cp: false,
             text_bk_color: ColorRef::white(),
+            text_break_count: 0,
+            text_break_extra: 0,
+            text_char_extra: 0,
             text_color: ColorRef::black(),
             window: Window::new(),
         }
@@ -86,12 +100,21 @@ impl DeviceContext {
         }
     }
 
+    pub fn layout(&mut self, layout: Layout) {
+        self.layout = layout;
+    }
+
     pub fn map_mode(&mut self, map_mode: MapMode) {
         self.map_mode = map_mode;
+        self.window.map_mode = map_mode;
     }
 
     pub fn poly_fill_mode(&mut self, poly_fill_mode: PolyFillMode) {
         self.poly_fill_mode = poly_fill_mode;
+    }
+
+    pub fn stretch_mode(&mut self, stretch_mode: StretchMode) {
+        self.stretch_mode = stretch_mode;
     }
 
     pub fn text_align_horizontal(
@@ -116,8 +139,17 @@ impl DeviceContext {
         self.text_bk_color = text_bk_color;
     }
 
+    pub fn text_char_extra(&mut self, char_extra: u16) {
+        self.text_char_extra = char_extra;
+    }
+
     pub fn text_color(&mut self, text_color: ColorRef) {
         self.text_color = text_color;
+    }
+
+    pub fn text_justification(&mut self, break_count: u16, break_extra: u16) {
+        self.text_break_count = break_count;
+        self.text_break_extra = break_extra;
     }
 
     pub fn window_ext(&mut self, x: i16, y: i16) {
@@ -130,6 +162,37 @@ impl DeviceContext {
 
     pub fn window_scale(&mut self, x: f32, y: f32) {
         self.window.scale(x, y);
+    }
+
+    pub fn offset_window_origin(&mut self, x: i16, y: i16) {
+        self.window.offset_origin(x, y);
+    }
+
+    pub fn viewport_origin(&mut self, x: i16, y: i16) {
+        self.window.viewport_origin(x, y);
+    }
+
+    pub fn offset_viewport_origin(&mut self, x: i16, y: i16) {
+        self.window.offset_viewport_origin(x, y);
+    }
+
+    pub fn viewport_ext(&mut self, x: i16, y: i16) {
+        self.window.viewport_ext(x, y);
+    }
+
+    pub fn scale_viewport_ext(
+        &mut self,
+        x_num: i16,
+        x_denom: i16,
+        y_num: i16,
+        y_denom: i16,
+    ) {
+        self.window.scale_viewport_ext(
+            f32::from(x_num),
+            f32::from(x_denom),
+            f32::from(y_num),
+            f32::from(y_denom),
+        );
     }
 }
 
@@ -165,34 +228,31 @@ impl DeviceContext {
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {
-        // Widen to f32 before subtraction to avoid i16 overflow.
-        // i16 values fit in f32 without precision loss.
-        let dx = (f32::from(point.x) - f32::from(self.window.origin_x))
-            / self.window.scale_x;
-        let dy = (f32::from(point.y) - f32::from(self.window.origin_y))
-            / self.window.scale_y;
+        // Widen to f32 before subtraction to avoid i16
+        // overflow. i16 values fit in f32 without precision
+        // loss.
+        let lx = f32::from(point.x) - f32::from(self.window.origin_x);
+        let ly = f32::from(point.y) - f32::from(self.window.origin_y);
+        let (dx, dy) = self.window.logical_to_device(lx, ly);
 
-        // Negative extent means the axis is flipped
-        let x = (if self.window.flip_x { -dx } else { dx }) as i16;
-        let y = (if self.window.flip_y { -dy } else { dy }) as i16;
-
-        PointS { x, y }
+        // Round to nearest integer instead of truncating to
+        // avoid a consistent bias toward negative coordinates.
+        PointS { x: dx.round() as i16, y: dy.round() as i16 }
     }
 
     pub fn point_s_to_relative_point(&self, point: &PointS) -> PointS {
-        // Widen to f32 before subtraction to avoid i16 overflow.
-        // i16 values fit in f32 without precision loss.
-        let dx = (f32::from(point.x) - f32::from(self.window.origin_x))
-            / self.window.scale_x;
-        let dy = (f32::from(point.y) - f32::from(self.window.origin_y))
-            / self.window.scale_y;
+        // Widen to f32 before subtraction to avoid i16
+        // overflow. i16 values fit in f32 without precision
+        // loss.
+        let lx = f32::from(point.x) - f32::from(self.window.origin_x);
+        let ly = f32::from(point.y) - f32::from(self.window.origin_y);
+        let (dx, dy) = self.window.logical_to_device(lx, ly);
 
-        let x = (if self.window.flip_x { -dx } else { dx }) as i16
-            + self.drawing_position.x;
-        let y = (if self.window.flip_y { -dy } else { dy }) as i16
-            + self.drawing_position.y;
-
-        PointS { x, y }
+        // Round to nearest integer instead of truncating.
+        PointS {
+            x: dx.round() as i16 + self.drawing_position.x,
+            y: dy.round() as i16 + self.drawing_position.y,
+        }
     }
 
     pub fn poly_fill_rule(&self) -> &'static str {
@@ -222,6 +282,17 @@ pub struct Window {
     /// (in WMF, a negative extent reverses the axis direction)
     pub flip_x: bool,
     pub flip_y: bool,
+    /// Current window extent (set by META_SETWINDOWEXT)
+    pub current_ext_x: f32,
+    pub current_ext_y: f32,
+    /// Viewport origin
+    pub viewport_origin_x: f32,
+    pub viewport_origin_y: f32,
+    /// Viewport extent (None = not explicitly set)
+    pub viewport_ext_x: Option<f32>,
+    pub viewport_ext_y: Option<f32>,
+    /// Current mapping mode
+    pub map_mode: MapMode,
 }
 
 impl Default for Window {
@@ -237,7 +308,31 @@ impl Default for Window {
             min_y: 0,
             flip_x: false,
             flip_y: false,
+            current_ext_x: 1.0,
+            current_ext_y: 1.0,
+            viewport_origin_x: 0.0,
+            viewport_origin_y: 0.0,
+            viewport_ext_x: None,
+            viewport_ext_y: None,
+            map_mode: MapMode::MM_TEXT,
         }
+    }
+}
+
+impl Window {
+    /// Returns whether the current mapping mode is a fixed mode
+    /// (MM_LOMETRIC through MM_TWIPS). In fixed modes,
+    /// META_SETWINDOWEXT / META_SETVIEWPORTEXT do not affect
+    /// coordinate conversion.
+    fn is_fixed_map_mode(&self) -> bool {
+        matches!(
+            self.map_mode,
+            MapMode::MM_LOMETRIC
+                | MapMode::MM_HIMETRIC
+                | MapMode::MM_LOENGLISH
+                | MapMode::MM_HIENGLISH
+                | MapMode::MM_TWIPS
+        )
     }
 }
 
@@ -247,16 +342,33 @@ impl Window {
     }
 
     pub fn ext(&mut self, x: i16, y: i16) {
+        // In fixed mapping modes, window extent does not affect
+        // coordinate conversion (per MS-WMF spec). ViewBox
+        // tracking is delegated to extend_window.
+        if self.is_fixed_map_mode() {
+            return;
+        }
+
         self.flip_x = x < 0;
         self.flip_y = y < 0;
 
         let mag_x = i16::try_from(x.unsigned_abs()).unwrap_or(i16::MAX);
         let mag_y = i16::try_from(y.unsigned_abs()).unwrap_or(i16::MAX);
 
-        // Preserve any previously tracked larger extents to avoid
-        // shrinking the viewBox and clipping already rendered content.
+        // Preserve any previously tracked larger extents to
+        // avoid shrinking the viewBox and clipping already
+        // rendered content.
         self.x = self.x.max(mag_x);
         self.y = self.y.max(mag_y);
+
+        // Track window extent for viewport calculations
+        self.current_ext_x = f32::from(mag_x);
+        self.current_ext_y = f32::from(mag_y);
+
+        // META_SETWINDOWEXT sets an absolute extent, so reset
+        // the scale accumulated by META_SCALEWINDOWEXT
+        self.scale_x = 1.0;
+        self.scale_y = 1.0;
     }
 
     pub fn origin(&mut self, origin_x: i16, origin_y: i16) {
@@ -265,8 +377,112 @@ impl Window {
     }
 
     pub fn scale(&mut self, scale_x: f32, scale_y: f32) {
+        // Ignore scale changes in fixed mapping modes
+        if self.is_fixed_map_mode() {
+            return;
+        }
+
         self.scale_x = scale_x;
         self.scale_y = scale_y;
+    }
+
+    pub fn offset_origin(&mut self, x: i16, y: i16) {
+        self.origin_x = self.origin_x.saturating_add(x);
+        self.origin_y = self.origin_y.saturating_add(y);
+    }
+
+    pub fn viewport_origin(&mut self, x: i16, y: i16) {
+        self.viewport_origin_x = f32::from(x);
+        self.viewport_origin_y = f32::from(y);
+    }
+
+    pub fn offset_viewport_origin(&mut self, x: i16, y: i16) {
+        self.viewport_origin_x += f32::from(x);
+        self.viewport_origin_y += f32::from(y);
+    }
+
+    pub fn viewport_ext(&mut self, x: i16, y: i16) {
+        // Ignore viewport extent in fixed mapping modes
+        if self.is_fixed_map_mode() {
+            return;
+        }
+
+        self.viewport_ext_x = Some(f32::from(x));
+        self.viewport_ext_y = Some(f32::from(y));
+    }
+
+    pub fn scale_viewport_ext(
+        &mut self,
+        x_num: f32,
+        x_denom: f32,
+        y_num: f32,
+        y_denom: f32,
+    ) {
+        // Ignore viewport extent scaling in fixed mapping modes
+        if self.is_fixed_map_mode() {
+            return;
+        }
+
+        if let Some(ref mut ext_x) = self.viewport_ext_x {
+            *ext_x = *ext_x * x_num / x_denom;
+        }
+
+        if let Some(ref mut ext_y) = self.viewport_ext_y {
+            *ext_y = *ext_y * y_num / y_denom;
+        }
+    }
+
+    /// Convert logical coordinates to device coordinates.
+    /// The conversion method varies depending on the MapMode.
+    pub fn logical_to_device(&self, lx: f32, ly: f32) -> (f32, f32) {
+        // Fixed mapping modes (MM_LOMETRIC through MM_TWIPS):
+        // positive Y points up in logical space, so flip it to
+        // match SVG coordinate system (positive Y points down).
+        // No scaling by window/viewport extent.
+        if self.is_fixed_map_mode() {
+            let dx = lx + self.viewport_origin_x;
+            let dy = -ly + self.viewport_origin_y;
+            return (dx, dy);
+        }
+
+        let (dx, dy) = match (self.viewport_ext_x, self.viewport_ext_y) {
+            (Some(vp_ext_x), Some(vp_ext_y)) => {
+                // When viewport extent is set, apply the WMF
+                // formula: Dx = Lx * VEx / WEx
+                let eff_win_x = self.current_ext_x * self.scale_x;
+                let eff_win_y = self.current_ext_y * self.scale_y;
+                let rx = if eff_win_x.abs() > f32::EPSILON {
+                    vp_ext_x / eff_win_x
+                } else {
+                    1.0
+                };
+                let ry = if eff_win_y.abs() > f32::EPSILON {
+                    vp_ext_y / eff_win_y
+                } else {
+                    1.0
+                };
+
+                // MM_ISOTROPIC: preserve aspect ratio by applying
+                // the smaller absolute scale to both axes. The
+                // direction (sign) of each axis is preserved.
+                if self.map_mode == MapMode::MM_ISOTROPIC {
+                    let abs_min = rx.abs().min(ry.abs());
+                    (lx * abs_min.copysign(rx), ly * abs_min.copysign(ry))
+                } else {
+                    (lx * rx, ly * ry)
+                }
+            }
+            _ => {
+                // Default: preserve existing behavior
+                (lx / self.scale_x, ly / self.scale_y)
+            }
+        };
+
+        // Add viewport origin after axis flip
+        let dx = if self.flip_x { -dx } else { dx } + self.viewport_origin_x;
+        let dy = if self.flip_y { -dy } else { dy } + self.viewport_origin_y;
+
+        (dx, dy)
     }
 
     pub fn as_view_box(&self) -> (i32, i32, i32, i32) {

@@ -266,32 +266,39 @@ impl From<&Pen> for Stroke {
             }
         }
 
+        // Dash pattern ratios relative to pen width, based on
+        // typical Windows GDI behavior:
+        //   dash = 4w, dot = w, gap = 2w
+        // Use at least 1 for the effective width so that
+        // cosmetic pens (width 0) produce valid patterns.
+        let w = i16::max(v.width.x, 1);
+
         match v.style.style {
             PenStyle::PS_DASH => {
-                stroke.dash_array = format!("{v} {v}", v = v.width.x * 10);
+                let dash = w.saturating_mul(4);
+                let gap = w.saturating_mul(2);
+                stroke.dash_array = format!("{dash} {gap}");
             }
-            PenStyle::PS_ALTERNATE | PenStyle::PS_DOT => {
-                stroke.dash_array = format!("{} {}", v.width.x, v.width.x * 10);
+            PenStyle::PS_DOT => {
+                let dot = w;
+                let gap = w.saturating_mul(2);
+                stroke.dash_array = format!("{dot} {gap}");
+            }
+            PenStyle::PS_ALTERNATE => {
+                "1 1".clone_into(&mut stroke.dash_array);
             }
             PenStyle::PS_DASHDOT => {
-                stroke.dash_array = format!(
-                    "{} {} {} {}",
-                    v.width.x * 10,
-                    v.width.x * 2,
-                    v.width.x,
-                    v.width.x * 2,
-                );
+                let dash = w.saturating_mul(4);
+                let dot = w;
+                let gap = w.saturating_mul(2);
+                stroke.dash_array = format!("{dash} {gap} {dot} {gap}");
             }
             PenStyle::PS_DASHDOTDOT => {
-                stroke.dash_array = format!(
-                    "{} {} {} {} {} {}",
-                    v.width.x * 10,
-                    v.width.x * 2,
-                    v.width.x,
-                    v.width.x * 2,
-                    v.width.x,
-                    v.width.x * 2,
-                );
+                let dash = w.saturating_mul(4);
+                let dot = w;
+                let gap = w.saturating_mul(2);
+                stroke.dash_array =
+                    format!("{dash} {gap} {dot} {gap} {dot} {gap}");
             }
             _ => {}
         }
@@ -345,23 +352,26 @@ impl Font {
             }
         };
 
+        // WMF orientation and escapement are in tenths of
+        // degrees. Convert to degrees using f32 to preserve
+        // sub-degree precision and avoid i16 overflow on
+        // subtraction.
         if self.orientation != 0 {
-            let ori = self.orientation - self.escapement;
+            let ori_deg = (f32::from(self.orientation)
+                - f32::from(self.escapement))
+                / 10.0;
 
-            if ori != 0 {
-                elem = elem.set("rotate", -ori / 10);
+            if ori_deg.abs() > f32::EPSILON {
+                elem = elem.set("rotate", -ori_deg);
             }
         }
 
         if self.escapement != 0 {
+            let esc_deg = f32::from(self.escapement) / 10.0;
+
             elem = elem.set(
                 "transform",
-                format!(
-                    "rotate({}, {} {})",
-                    -self.escapement / 10,
-                    point.x,
-                    point.y
-                ),
+                format!("rotate({}, {} {})", -esc_deg, point.x, point.y,),
             );
         }
 

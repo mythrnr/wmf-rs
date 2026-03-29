@@ -102,24 +102,19 @@ impl LogColorSpace {
             });
         }
 
-        let filename =
-            if (size as usize).saturating_sub(consumed_bytes) >= 260 {
-                let (bytes, filename_bytes) =
-                    crate::parser::read_variable(buf, 260)?;
-                consumed_bytes += filename_bytes;
+        let filename = if (size as usize).saturating_sub(consumed_bytes) >= 260
+        {
+            let (bytes, filename_bytes) =
+                crate::parser::read_variable(buf, 260)?;
+            consumed_bytes += filename_bytes;
 
-                // Strip trailing NUL padding from fixed-length buffer
-                let end = bytes
-                    .iter()
-                    .position(|&b| b == 0)
-                    .unwrap_or(bytes.len());
+            // Strip trailing NUL padding from fixed-length buffer
+            let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
 
-                Some(
-                    String::from_utf8_lossy(&bytes[..end]).to_string(),
-                )
-            } else {
-                None
-            };
+            Some(String::from_utf8_lossy(&bytes[..end]).to_string())
+        } else {
+            None
+        };
 
         Ok((
             Self {
