@@ -1060,7 +1060,7 @@ impl crate::converter::Player for SVGPlayer {
             .set("height", height)
             .set("fill", "none")
             .set("stroke", fill)
-            .set("stroke-width", record.width.max(record.height));
+            .set("stroke-width", record.width.max(record.height).abs());
 
         self.push_element(record_number, rect);
 

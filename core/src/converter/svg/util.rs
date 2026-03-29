@@ -275,28 +275,28 @@ impl From<&Pen> for Stroke {
 
         match v.style.style {
             PenStyle::PS_DASH => {
-                let dash = w * 4;
-                let gap = w * 2;
+                let dash = w.saturating_mul(4);
+                let gap = w.saturating_mul(2);
                 stroke.dash_array = format!("{dash} {gap}");
             }
             PenStyle::PS_DOT => {
                 let dot = w;
-                let gap = w * 2;
+                let gap = w.saturating_mul(2);
                 stroke.dash_array = format!("{dot} {gap}");
             }
             PenStyle::PS_ALTERNATE => {
                 "1 1".clone_into(&mut stroke.dash_array);
             }
             PenStyle::PS_DASHDOT => {
-                let dash = w * 4;
+                let dash = w.saturating_mul(4);
                 let dot = w;
-                let gap = w * 2;
+                let gap = w.saturating_mul(2);
                 stroke.dash_array = format!("{dash} {gap} {dot} {gap}");
             }
             PenStyle::PS_DASHDOTDOT => {
-                let dash = w * 4;
+                let dash = w.saturating_mul(4);
                 let dot = w;
-                let gap = w * 2;
+                let gap = w.saturating_mul(2);
                 stroke.dash_array =
                     format!("{dash} {gap} {dot} {gap} {dot} {gap}");
             }
