@@ -982,10 +982,13 @@ impl crate::converter::Player for SVGPlayer {
                 .set("fill", bg_fill)
                 .set("stroke", "none");
 
-            self.push_element(record_number, bg_rect);
+            // Wrap background rect and text in a group so
+            // that only the group receives the element id
+            let group = Node::new("g").add(bg_rect).add(text);
+            self.push_element(record_number, group);
+        } else {
+            self.push_element(record_number, text);
         }
-
-        self.push_element(record_number, text);
 
         Ok(self)
     }
@@ -1535,10 +1538,13 @@ impl crate::converter::Player for SVGPlayer {
                 .set("fill", bg_color)
                 .set("stroke", "none");
 
-            self.push_element(record_number, bg_rect);
+            // Wrap background rect and text in a group so
+            // that only the group receives the element id
+            let group = Node::new("g").add(bg_rect).add(text);
+            self.push_element(record_number, group);
+        } else {
+            self.push_element(record_number, text);
         }
-
-        self.push_element(record_number, text);
 
         Ok(self)
     }
