@@ -439,8 +439,9 @@ impl crate::converter::Player for SVGPlayer {
         record: META_SETDIBTODEV,
     ) -> Result<Self, PlayError> {
         let bitmap = crate::converter::Bitmap::from(record.dib);
-        let x = i16::try_from(record.x_dest).unwrap_or(0);
-        let y = i16::try_from(record.y_dest).unwrap_or(0);
+        // u16 が i16 範囲を超える場合は i16::MAX にクランプする
+        let x = i16::try_from(record.x_dest).unwrap_or(i16::MAX);
+        let y = i16::try_from(record.y_dest).unwrap_or(i16::MAX);
         let point = self.convert_point(x, y);
 
         let image = Node::new("image")
@@ -675,8 +676,10 @@ impl crate::converter::Player for SVGPlayer {
     ) -> Result<Self, PlayError> {
         // Calculate ellipse center and radii from bounding rectangle.
         // Use f32 to avoid precision loss from integer division.
-        let rx = f32::from(record.right_rect - record.left_rect) / 2.0;
-        let ry = f32::from(record.bottom_rect - record.top_rect) / 2.0;
+        let rx =
+            (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
+        let ry =
+            (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
         if rx == 0.0 || ry == 0.0 {
             info!("META_CHORD is skipped because rx or ry is zero.");
             return Ok(self);
@@ -1045,11 +1048,17 @@ impl crate::converter::Player for SVGPlayer {
         let tl = self.convert_point(r.left, r.top);
         let br = self.convert_point(r.right, r.bottom);
 
+        // 軸反転時に負の寸法にならないよう補正する
+        let x = tl.x.min(br.x);
+        let y = tl.y.min(br.y);
+        let width = (br.x - tl.x).abs();
+        let height = (br.y - tl.y).abs();
+
         let rect = Node::new("rect")
-            .set("x", tl.x)
-            .set("y", tl.y)
-            .set("width", br.x - tl.x)
-            .set("height", br.y - tl.y)
+            .set("x", x)
+            .set("y", y)
+            .set("width", width)
+            .set("height", height)
             .set("fill", "none")
             .set("stroke", fill)
             .set("stroke-width", record.width.max(record.height));
@@ -1799,16 +1808,26 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_EXCLUDECLIPRECT,
     ) -> Result<Self, PlayError> {
-        // Use the even-odd rule with an outer rect covering the
-        // entire coordinate space and the excluded rect as a hole
+        // 論理座標を SVG 座標に変換して、描画要素と
+        // クリップ領域の座標系を一致させる
+        let tl = self.convert_point(record.left, record.top);
+        let tr = self.convert_point(record.right, record.top);
+        let br = self.convert_point(record.right, record.bottom);
+        let bl = self.convert_point(record.left, record.bottom);
+
+        // even-odd ルールで外側矩形から除外矩形を穴として
+        // くり抜くクリップパスを構築する
         let id = format!("clip_excl{record_number}");
         let path_data = format!(
-            "M-32768,-32768 H32767 V32767 H-32768 Z M{},{} H{} V{} H{} Z",
-            record.left, record.top, record.right, record.bottom, record.left,
+            "M-32768,-32768 H32767 V32767 H-32768 Z \
+             M{},{} L{},{} L{},{} L{},{} Z",
+            tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y,
         );
-        let path =
-            Node::new("path").set("d", path_data).set("clip-rule", "evenodd");
-        let clip = Node::new("clipPath").set("id", &id).add(path);
+        let path = Node::new("path")
+            .set("d", path_data)
+            .set("clip-rule", "evenodd");
+        let clip =
+            Node::new("clipPath").set("id", &id).add(path);
 
         self.definitions.push(clip);
         self.current_clip_id = Some(id);
@@ -1865,13 +1884,28 @@ impl crate::converter::Player for SVGPlayer {
             region.top = region.top.saturating_add(record.y_offset);
             region.bottom = region.bottom.saturating_add(record.y_offset);
 
+            // borrow 競合を避けるため、座標変換前に値をコピー
+            let (left, top, right, bottom) =
+                (region.left, region.top, region.right, region.bottom);
+
+            // 論理座標を SVG 座標に変換して、描画要素と
+            // クリップ領域の座標系を一致させる
+            let tl = self.convert_point(left, top);
+            let br = self.convert_point(right, bottom);
+
+            let x = tl.x.min(br.x);
+            let y = tl.y.min(br.y);
+            let width = (br.x - tl.x).abs();
+            let height = (br.y - tl.y).abs();
+
             let id = format!("clip{record_number}");
             let rect = Node::new("rect")
-                .set("x", region.left)
-                .set("y", region.top)
-                .set("width", region.right - region.left)
-                .set("height", region.bottom - region.top);
-            let clip = Node::new("clipPath").set("id", &id).add(rect);
+                .set("x", x)
+                .set("y", y)
+                .set("width", width)
+                .set("height", height);
+            let clip =
+                Node::new("clipPath").set("id", &id).add(rect);
 
             self.definitions.push(clip);
             self.current_clip_id = Some(id);
