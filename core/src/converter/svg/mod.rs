@@ -1814,11 +1814,16 @@ impl crate::converter::Player for SVGPlayer {
         record: META_EXCLUDECLIPRECT,
     ) -> Result<Self, PlayError> {
         // Convert logical coordinates to SVG coordinates so
-        // clipping matches rendered elements
-        let tl = self.convert_point(record.left, record.top);
-        let tr = self.convert_point(record.right, record.top);
-        let br = self.convert_point(record.right, record.bottom);
-        let bl = self.convert_point(record.left, record.bottom);
+        // clipping matches rendered elements. Use
+        // point_s_to_absolute_point directly to avoid
+        // expanding the viewBox for non-drawing geometry.
+        let to_abs = |x, y| {
+            self.context_current.point_s_to_absolute_point(&PointS { x, y })
+        };
+        let tl = to_abs(record.left, record.top);
+        let tr = to_abs(record.right, record.top);
+        let br = to_abs(record.right, record.bottom);
+        let bl = to_abs(record.left, record.bottom);
 
         // Build a clip path that punches the excluded rect as
         // a hole using the even-odd fill rule
@@ -1888,14 +1893,20 @@ impl crate::converter::Player for SVGPlayer {
             region.bottom = region.bottom.saturating_add(record.y_offset);
 
             // Copy values before conversion to avoid borrow
-            // conflict with self
+            // conflict with self.context_current
             let (left, top, right, bottom) =
                 (region.left, region.top, region.right, region.bottom);
 
             // Convert logical coordinates to SVG coordinates
-            // so clipping matches rendered elements
-            let tl = self.convert_point(left, top);
-            let br = self.convert_point(right, bottom);
+            // so clipping matches rendered elements. Use
+            // point_s_to_absolute_point directly to avoid
+            // expanding the viewBox for non-drawing geometry.
+            let tl = self
+                .context_current
+                .point_s_to_absolute_point(&PointS { x: left, y: top });
+            let br = self
+                .context_current
+                .point_s_to_absolute_point(&PointS { x: right, y: bottom });
 
             let x = tl.x.min(br.x);
             let y = tl.y.min(br.y);
