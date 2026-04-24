@@ -1336,6 +1336,12 @@ impl crate::converter::Player for SVGPlayer {
         let mut a_point: VecDeque<_> = record.poly_polygon.a_points.into();
         let total_points = a_point.len();
 
+        // Emit all sub-polygons as a single path with multiple subpaths so
+        // the fill-rule (evenodd / nonzero) can subtract inner rings from
+        // outer rings — required for glyphs and shapes with holes.
+        let mut data = Data::new();
+        let mut emitted = false;
+
         for i in 0..record.poly_polygon.number_of_polygons {
             let Some(points_of_polygon) =
                 record.poly_polygon.a_points_per_polygon.get(i as usize)
@@ -1345,9 +1351,11 @@ impl crate::converter::Player for SVGPlayer {
                 });
             };
 
-            let mut points = Vec::with_capacity(*points_of_polygon as usize);
+            if *points_of_polygon == 0 {
+                continue;
+            }
 
-            for _ in 0..*points_of_polygon {
+            for j in 0..*points_of_polygon {
                 let Some(point) = a_point.pop_front() else {
                     return Err(PlayError::InvalidRecord {
                         cause: format!(
@@ -1358,17 +1366,29 @@ impl crate::converter::Player for SVGPlayer {
                 };
 
                 let point = self.convert_point(point.x, point.y);
-                points.push(as_point_string(&point));
+                let coord = as_point_string(&point);
+                data = if j == 0 {
+                    data.move_to(coord)
+                } else {
+                    data.line_to(coord)
+                };
             }
 
-            let polygon = Node::new("polygon")
-                .set("fill", fill.as_str())
-                .set("fill-rule", fill_rule)
-                .set("points", points.join(" "));
-            let polygon = stroke.set_props(polygon);
-
-            self.push_element(record_number, polygon);
+            data = data.close();
+            emitted = true;
         }
+
+        if !emitted {
+            return Ok(self);
+        }
+
+        let path = Node::new("path")
+            .set("fill", fill.as_str())
+            .set("fill-rule", fill_rule)
+            .set("d", data);
+        let path = stroke.set_props(path);
+
+        self.push_element(record_number, path);
 
         Ok(self)
     }
