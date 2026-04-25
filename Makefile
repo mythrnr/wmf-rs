@@ -3,7 +3,7 @@ MAKEFLAGS += --silent
 endif
 
 .PHONY: ci-suite
-ci-suite: spell-check fix fmt lint udeps test
+ci-suite: spell-check fix fmt lint udeps wasm test
 
 .PHONY: check
 check:

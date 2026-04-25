@@ -64,7 +64,7 @@ Converts parsed records into an output format.
 
 ### Required Tools
 
-- Rust 1.85.0 (pinned via `rust-toolchain.toml`)
+- Rust 1.87.0 (pinned via `rust-toolchain.toml`)
 - Rust nightly (for rustfmt and cargo-udeps)
 - Docker (for spell-check)
 
@@ -109,7 +109,7 @@ make install-tools
 
 ### Rust Style
 
-- Edition 2024, MSRV 1.85.0
+- Edition 2024, MSRV 1.87.0
 - Formatted according to `rustfmt.toml` (`cargo +nightly fmt`)
   - Line width: 80 characters (including comments)
   - Imports: grouped by `StdExternalCrate`, merged at `Crate` granularity
