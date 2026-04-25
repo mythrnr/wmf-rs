@@ -168,7 +168,7 @@ make serve
 
 ## Requirements (for Development)
 
-- Rust 1.85.0+
+- Rust 1.87.0+
 - Rust nightly toolchain (for `rustfmt` and `cargo-udeps`)
 - Docker (for spell-check)
 - [wasm-pack](https://github.com/rustwasm/wasm-pack) (for WASM builds)

@@ -629,10 +629,14 @@ impl crate::converter::Player for SVGPlayer {
         // while WMF may have inverted bounding rectangles.
         let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
         let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
-        let center_x =
-            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
-        let center_y =
-            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center_x = f32::midpoint(
+            f32::from(record.left_rect),
+            f32::from(record.right_rect),
+        );
+        let center_y = f32::midpoint(
+            f32::from(record.top_rect),
+            f32::from(record.bottom_rect),
+        );
         let center = self
             .convert_point(center_x.round() as i16, center_y.round() as i16);
         // Start and end vectors relative to the center of the ellipse
@@ -682,10 +686,14 @@ impl crate::converter::Player for SVGPlayer {
             info!("META_CHORD is skipped because rx or ry is zero.");
             return Ok(self);
         }
-        let center_x =
-            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
-        let center_y =
-            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center_x = f32::midpoint(
+            f32::from(record.left_rect),
+            f32::from(record.right_rect),
+        );
+        let center_y = f32::midpoint(
+            f32::from(record.top_rect),
+            f32::from(record.bottom_rect),
+        );
         let center = self.context_current.point_s_to_absolute_point(&PointS {
             x: center_x.round() as i16,
             y: center_y.round() as i16,
@@ -760,10 +768,14 @@ impl crate::converter::Player for SVGPlayer {
         let stroke = Stroke::from(self.selected_pen());
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
-        let center_x =
-            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
-        let center_y =
-            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center_x = f32::midpoint(
+            f32::from(record.left_rect),
+            f32::from(record.right_rect),
+        );
+        let center_y = f32::midpoint(
+            f32::from(record.top_rect),
+            f32::from(record.bottom_rect),
+        );
         let point = self
             .convert_point(center_x.round() as i16, center_y.round() as i16);
 
@@ -1199,10 +1211,14 @@ impl crate::converter::Player for SVGPlayer {
         // while WMF may have inverted bounding rectangles.
         let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
         let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
-        let center_x =
-            (f32::from(record.left_rect) + f32::from(record.right_rect)) / 2.0;
-        let center_y =
-            (f32::from(record.top_rect) + f32::from(record.bottom_rect)) / 2.0;
+        let center_x = f32::midpoint(
+            f32::from(record.left_rect),
+            f32::from(record.right_rect),
+        );
+        let center_y = f32::midpoint(
+            f32::from(record.top_rect),
+            f32::from(record.bottom_rect),
+        );
         let center_xi = center_x.round() as i16;
         let center_yi = center_y.round() as i16;
 

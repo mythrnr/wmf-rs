@@ -71,7 +71,6 @@ export function setLogLevel(level) {
     const len0 = WASM_VECTOR_LEN;
     wasm.setLogLevel(ptr0, len0);
 }
-
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
