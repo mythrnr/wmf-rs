@@ -15,10 +15,6 @@ impl Bitmap {
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
-
-    pub fn to_vec(self) -> Vec<u8> {
-        self.0
-    }
 }
 
 impl From<DeviceIndependentBitmap> for Bitmap {

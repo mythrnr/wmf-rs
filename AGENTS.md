@@ -107,6 +107,15 @@ make install-tools
 
 ## Coding Conventions
 
+### Language in Source Code
+
+- All in-code text must be written in English. This includes:
+  - Comments (line comments, block comments, doc comments)
+  - Log messages (e.g. `tracing` macros)
+  - Error messages and `snafu` `display` strings
+  - Identifiers, string literals embedded in code paths, and any other text
+    appearing inside source files
+
 ### Rust Style
 
 - Edition 2024, MSRV 1.87.0
