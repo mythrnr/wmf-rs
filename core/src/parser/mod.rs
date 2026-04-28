@@ -190,13 +190,14 @@ fn bytes_into_utf8(
     charset: crate::parser::CharacterSet,
 ) -> Result<String, crate::parser::ParseError> {
     if charset == crate::parser::CharacterSet::SYMBOL_CHARSET {
+        // The symbol-charset lookup table never maps to `\0`, so a second
+        // pass to strip null characters would be a no-op allocation.
         Ok(bytes
             .iter()
             .filter_map(|v| {
                 crate::parser::symbol_charset_table().get(v).copied()
             })
-            .collect::<String>()
-            .replace('\0', ""))
+            .collect::<String>())
     } else {
         let encoding: &'static encoding_rs::Encoding = charset.into();
         let (cow, _, had_errors) = encoding.decode(bytes);

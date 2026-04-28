@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn parse_ok() {
-        let record_size: crate::parser::RecordSize = 3_u32.into();
+        let record_size = crate::parser::RecordSize::from_raw(3);
         let mut empty: &[u8] = &[];
         let record = META_EOF::parse(&mut empty, record_size, 0x0000).unwrap();
         assert_eq!(record.record_function, 0x0000);
@@ -58,14 +58,14 @@ mod tests {
 
     #[test]
     fn parse_wrong_size() {
-        let record_size: crate::parser::RecordSize = 4_u32.into();
+        let record_size = crate::parser::RecordSize::from_raw(4);
         let mut empty: &[u8] = &[];
         assert!(META_EOF::parse(&mut empty, record_size, 0x0000).is_err());
     }
 
     #[test]
     fn parse_wrong_function() {
-        let record_size: crate::parser::RecordSize = 3_u32.into();
+        let record_size = crate::parser::RecordSize::from_raw(3);
         let mut empty: &[u8] = &[];
         assert!(META_EOF::parse(&mut empty, record_size, 0x0001).is_err());
     }

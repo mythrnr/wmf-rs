@@ -123,7 +123,14 @@ fn consume_remaining_bytes<R: crate::Read>(
 /// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,
 /// defined in [MS-DTYP] section 2.2.61, in the record.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub struct RecordSize(u32, usize);
+pub struct RecordSize {
+    /// Total record length in 16-bit WORDs, taken verbatim from the
+    /// `RecordSize` field of the record header.
+    size_words: u32,
+    /// Number of bytes already consumed from the record payload, used to
+    /// detect overruns and to skip the trailing reserved area.
+    consumed_bytes: usize,
+}
 
 /// Maximum allowed record size in WORDs.
 /// 32 MW (64 MB) is far beyond any practical WMF record and guards
@@ -160,25 +167,31 @@ impl RecordSize {
             });
         }
 
-        Ok(Self(v, c))
+        Ok(Self { size_words: v, consumed_bytes: c })
     }
 }
 
-impl From<u32> for RecordSize {
-    fn from(v: u32) -> Self {
-        Self(v, 0)
+impl RecordSize {
+    /// Constructs a `RecordSize` from a raw word count without going
+    /// through `parse`'s validation. Intended only for synthesizing
+    /// records in unit/integration tests; production code MUST go
+    /// through `parse` so `MAX_RECORD_WORDS` and minimum-size checks
+    /// stay in effect.
+    #[doc(hidden)]
+    pub fn from_raw(words: u32) -> Self {
+        Self { size_words: words, consumed_bytes: 0 }
     }
 }
 
 impl From<RecordSize> for u32 {
     fn from(v: RecordSize) -> Self {
-        v.0
+        v.size_words
     }
 }
 
 impl core::fmt::Display for RecordSize {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:#010X}", self.0)
+        write!(f, "{:#010X}", self.size_words)
     }
 }
 
@@ -187,32 +200,32 @@ impl core::fmt::Debug for RecordSize {
         write!(
             f,
             "RecordSize(size: {:#010X}, consumed_bytes: {})",
-            self.0, self.1
+            self.size_words, self.consumed_bytes
         )
     }
 }
 
 impl RecordSize {
     pub fn byte_count(&self) -> usize {
-        (self.0 as usize).saturating_mul(2)
+        (self.size_words as usize).saturating_mul(2)
     }
 
     pub fn word_size(&self) -> usize {
-        self.0 as usize
+        self.size_words as usize
     }
 
     pub fn consume(&mut self, consumed_bytes: usize) {
-        self.1 += consumed_bytes;
+        self.consumed_bytes += consumed_bytes;
     }
 
     pub fn consumed_bytes(&self) -> usize {
-        self.1
+        self.consumed_bytes
     }
 
     /// Returns true if consumed_bytes has exceeded byte_count,
     /// indicating a malformed record or a parser bug.
     pub fn is_overrun(&self) -> bool {
-        self.1 > self.byte_count()
+        self.consumed_bytes > self.byte_count()
     }
 
     pub fn remaining(&self) -> bool {
@@ -220,7 +233,7 @@ impl RecordSize {
     }
 
     pub fn remaining_bytes(&self) -> usize {
-        self.byte_count().saturating_sub(self.1)
+        self.byte_count().saturating_sub(self.consumed_bytes)
     }
 }
 
@@ -333,7 +346,7 @@ mod tests {
         data.extend_from_slice(&(-99999_i32).to_le_bytes());
 
         let mut reader: &[u8] = &data;
-        let mut rs = RecordSize::from(100);
+        let mut rs = RecordSize::from_raw(100);
 
         let read_u8: u8 = read_field(&mut reader, &mut rs)?;
         let read_i8: i8 = read_field(&mut reader, &mut rs)?;

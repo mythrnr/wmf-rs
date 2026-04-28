@@ -17,6 +17,11 @@ pub enum MetafileHeader {
 }
 
 impl MetafileHeader {
+    /// Parses the metafile header that prefixes every WMF stream.
+    ///
+    /// Unlike record-level `parse` methods, this entry point is invoked
+    /// before any `RecordSize` exists, so it returns the consumed byte
+    /// count directly instead of mutating a `RecordSize` tracker.
     #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,

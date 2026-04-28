@@ -118,7 +118,7 @@ impl Bitmap16 {
         // Widen to i32 to prevent overflow.
         // Spec: (((Width * BitsPixel + 15) >> 4) << 1) * Height
         let w = i32::from(self.width);
-        let bp = i32::from(self.bits_pixel as u16);
+        let bp = i32::from(u16::from(self.bits_pixel));
         let h = i32::from(self.height);
 
         let row_words = (w.saturating_mul(bp).saturating_add(15)) >> 4;
@@ -141,10 +141,7 @@ impl From<Bitmap16> for crate::parser::DeviceIndependentBitmap {
                 },
             ),
             colors: crate::parser::Colors::Null,
-            bitmap_buffer: crate::parser::BitmapBuffer {
-                undefined_space: vec![],
-                a_data: v.bits,
-            },
+            bitmap_buffer: crate::parser::BitmapBuffer { a_data: v.bits },
         }
     }
 }

@@ -64,7 +64,7 @@ impl BitmapInfoHeaderCore {
             return Err(crate::parser::ParseError::UnexpectedEnumValue {
                 cause: format!(
                     "Invalid BitCount `{}` as Core type.",
-                    bit_count as u16
+                    u16::from(bit_count)
                 ),
             });
         }
