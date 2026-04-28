@@ -847,14 +847,18 @@ impl META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_ESCAPE,
         )?;
 
-        let (escape, escape_bytes) =
-            crate::parser::MetafileEscapes::parse(buf)?;
-        record_size.consume(escape_bytes);
+        let escape = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::MetafileEscapes::parse,
+        )?;
 
         let record = match escape {
             crate::parser::MetafileEscapes::ABORTDOC => {

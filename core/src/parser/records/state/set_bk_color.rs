@@ -31,13 +31,15 @@ impl META_SETBKCOLOR {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETBKCOLOR,
         )?;
 
-        let (color_ref, color_ref_bytes) = crate::parser::ColorRef::parse(buf)?;
-        record_size.consume(color_ref_bytes);
+        let color_ref =
+            read_with(buf, &mut record_size, crate::parser::ColorRef::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

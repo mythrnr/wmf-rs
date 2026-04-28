@@ -28,13 +28,14 @@ impl META_CREATEPENINDIRECT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEPENINDIRECT,
         )?;
 
-        let (pen, pen_bytes) = crate::parser::Pen::parse(buf)?;
-        record_size.consume(pen_bytes);
+        let pen = read_with(buf, &mut record_size, crate::parser::Pen::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

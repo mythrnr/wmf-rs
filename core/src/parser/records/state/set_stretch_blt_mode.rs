@@ -35,14 +35,18 @@ impl META_SETSTRETCHBLTMODE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETSTRETCHBLTMODE,
         )?;
 
-        let (stretch_mode, stretch_mode_bytes) =
-            crate::parser::StretchMode::parse(buf)?;
-        record_size.consume(stretch_mode_bytes);
+        let stretch_mode = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::StretchMode::parse,
+        )?;
 
         let reserved = if record_size.byte_count() > 8 {
             let (v, c) = crate::parser::read::<R, 2>(buf)?;

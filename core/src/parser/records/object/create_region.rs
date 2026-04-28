@@ -29,13 +29,15 @@ impl META_CREATEREGION {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEREGION,
         )?;
 
-        let (region, region_bytes) = crate::parser::Region::parse(buf)?;
-        record_size.consume(region_bytes);
+        let region =
+            read_with(buf, &mut record_size, crate::parser::Region::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

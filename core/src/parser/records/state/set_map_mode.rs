@@ -35,13 +35,15 @@ impl META_SETMAPMODE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETMAPMODE,
         )?;
 
-        let (map_mode, map_mode_bytes) = crate::parser::MapMode::parse(buf)?;
-        record_size.consume(map_mode_bytes);
+        let map_mode =
+            read_with(buf, &mut record_size, crate::parser::MapMode::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

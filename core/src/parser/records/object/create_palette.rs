@@ -29,13 +29,15 @@ impl META_CREATEPALETTE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEPALETTE,
         )?;
 
-        let (palette, palette_bytes) = crate::parser::Palette::parse(buf)?;
-        record_size.consume(palette_bytes);
+        let palette =
+            read_with(buf, &mut record_size, crate::parser::Palette::parse)?;
 
         crate::parser::ParseError::expect_eq(
             "palette.start",
