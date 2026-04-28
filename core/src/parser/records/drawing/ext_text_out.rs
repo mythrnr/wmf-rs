@@ -57,7 +57,7 @@ impl META_EXTTEXTOUT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -141,9 +141,7 @@ impl META_EXTTEXTOUT {
             }
         }
 
-        let (_, c) =
-            crate::parser::records::consume_remaining_bytes(buf, record_size)?;
-        record_size.consume(c);
+        crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
         Ok(Self {
             record_size,

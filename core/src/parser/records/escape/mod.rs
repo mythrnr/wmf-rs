@@ -837,7 +837,7 @@ impl META_ESCAPE {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -1076,7 +1076,8 @@ impl META_ESCAPE {
             }
             v => {
                 return Err(crate::parser::ParseError::NotSupported {
-                    cause: format!("Metafile Escapes `{v:?}` is not supported"),
+                    cause: format!("Metafile Escapes `{v:?}` is not supported")
+                        .into(),
                 });
             }
         };

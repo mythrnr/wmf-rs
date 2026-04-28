@@ -53,7 +53,7 @@ impl Region {
 
         if object_type != 0x0006 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The object_type field must be 0x0006".to_owned(),
+                cause: "The object_type field must be 0x0006".into(),
             });
         }
 
@@ -61,7 +61,8 @@ impl Region {
             return Err(crate::parser::ParseError::UnexpectedPattern {
                 cause: format!(
                     "scan_count must be non-negative, got {scan_count}",
-                ),
+                )
+                .into(),
             });
         }
 

@@ -75,7 +75,7 @@ impl LogBrush {
             }
             v => {
                 return Err(crate::parser::ParseError::NotSupported {
-                    cause: format!("BrushStyle {v:?}"),
+                    cause: format!("BrushStyle {v:?}").into(),
                 });
             }
         };

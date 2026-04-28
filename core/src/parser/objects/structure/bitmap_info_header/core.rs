@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The BitmapCoreHeader Object contains information about the dimensions
 /// and color format of a device-independent bitmap (DIB). (Although
 /// Windows processes BitmapCoreHeader objects in DIBs, it does not
@@ -50,7 +48,7 @@ impl BitmapInfoHeaderCore {
 
         if planes != 0x0001 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The planes field must be 0x01".to_owned(),
+                cause: "The planes field must be 0x01".into(),
             });
         }
 
@@ -65,7 +63,8 @@ impl BitmapInfoHeaderCore {
                 cause: format!(
                     "Invalid BitCount `{}` as Core type.",
                     u16::from(bit_count)
-                ),
+                )
+                .into(),
             });
         }
 

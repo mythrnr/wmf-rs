@@ -9,12 +9,16 @@ use crate::imports::*;
 pub enum ParseError {
     #[snafu(display("failed to read buffer: {cause}"))]
     FailedReadBuffer { cause: ReadError },
+    /// `cause` is a `Cow<'static, str>` so call sites can pass a
+    /// `&'static str` literal without allocating, and still fall
+    /// back to a formatted `String` when the message embeds runtime
+    /// values.
     #[snafu(display("not supported: {cause}"))]
-    NotSupported { cause: String },
+    NotSupported { cause: Cow<'static, str> },
     #[snafu(display("unexpected enum value: {cause}"))]
-    UnexpectedEnumValue { cause: String },
+    UnexpectedEnumValue { cause: Cow<'static, str> },
     #[snafu(display("unexpected bytes pattern: {cause}"))]
-    UnexpectedPattern { cause: String },
+    UnexpectedPattern { cause: Cow<'static, str> },
     /// A fixed-value field carried a value other than the one the
     /// specification mandates (e.g. magic numbers, reserved markers).
     /// `width_bits` records the source field width (8/16/32/64) so the
@@ -160,6 +164,7 @@ impl ReadError {
     }
 }
 
+#[inline]
 pub(in crate::parser) fn read<R: crate::Read, const N: usize>(
     buf: &mut R,
 ) -> Result<([u8; N], usize), ReadError> {
@@ -174,40 +179,61 @@ pub(crate) fn read_variable<R: crate::Read>(
     buf: &mut R,
     len: usize,
 ) -> Result<(Vec<u8>, usize), ReadError> {
+    // For small payloads `vec![0u8; len]` is the cheapest path: one
+    // allocation, one memset, one `read`. For larger payloads (e.g.
+    // multi-MB DIB pixel data) the up-front zero-fill becomes a
+    // measurable second pass over memory, so we switch over to
+    // reading through a stack scratch buffer and `extend_from_slice`
+    // into a Vec that started life uninitialized — staying entirely
+    // within safe Rust. The threshold matches the chunk size used
+    // elsewhere (e.g. `records::consume_remaining_bytes`) for
+    // consistency.
+    const CHUNK: usize = 4096;
+
     if len == 0 {
         return Ok((Vec::new(), 0));
     }
 
-    let mut buffer = vec![0u8; len];
+    if len <= CHUNK {
+        let mut buffer = vec![0u8; len];
+        read_exact(buf, &mut buffer)?;
+        return Ok((buffer, len));
+    }
 
-    read_exact(buf, &mut buffer)?;
+    let mut buffer = Vec::with_capacity(len);
+    let mut scratch = [0u8; CHUNK];
+    let mut remaining = len;
+    while remaining > 0 {
+        let to_read = remaining.min(scratch.len());
+        read_exact(buf, &mut scratch[..to_read])?;
+        buffer.extend_from_slice(&scratch[..to_read]);
+        remaining -= to_read;
+    }
 
     Ok((buffer, len))
 }
 
-/// Reads exactly `buffer.len()` bytes from `buf`, looping to handle
-/// short reads that `embedded_io::Read` may return.
+/// Reads exactly `buffer.len()` bytes from `buf`.
+///
+/// Defers to `embedded_io::Read::read_exact`, which already loops
+/// over short reads and surfaces an `UnexpectedEof` variant — and
+/// which a `Read` impl can override with a more efficient bulk
+/// read. The hand-rolled loop this replaced was duplicating that
+/// default behavior.
 fn read_exact<R: crate::Read>(
     buf: &mut R,
     buffer: &mut [u8],
 ) -> Result<(), ReadError> {
     let total = buffer.len();
-    let mut offset = 0;
-
-    while offset < total {
-        match buf.read(&mut buffer[offset..]) {
-            Ok(0) => {
-                return Err(ReadError::new(format!(
-                    "expected {total} bytes read, but {offset} bytes read \
-                     (unexpected end of stream)"
-                )));
-            }
-            Ok(n) => offset += n,
-            Err(err) => return Err(ReadError::new(format!("{err:?}"))),
+    buf.read_exact(buffer).map_err(|err| match err {
+        embedded_io::ReadExactError::UnexpectedEof => ReadError::new(format!(
+            "expected {total} bytes read, but stream ended early (unexpected \
+             end of stream)"
+        )),
+        embedded_io::ReadExactError::Other(inner) => {
+            ReadError::new(format!("{inner:?}"))
         }
-    }
-
-    Ok(())
+    })
 }
 
 /// Type-driven dispatch for little-endian fixed-width integer reads.
@@ -229,18 +255,21 @@ pub(crate) trait ConsumeTracker {
 }
 
 impl ConsumeTracker for usize {
+    #[inline]
     fn track(&mut self, consumed_bytes: usize) {
         *self += consumed_bytes;
     }
 }
 
 impl ConsumeTracker for crate::parser::RecordSize {
+    #[inline]
     fn track(&mut self, consumed_bytes: usize) {
         self.consume(consumed_bytes);
     }
 }
 
 impl ReadLeField for i8 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -250,6 +279,7 @@ impl ReadLeField for i8 {
 }
 
 impl ReadLeField for i16 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -259,6 +289,7 @@ impl ReadLeField for i16 {
 }
 
 impl ReadLeField for i32 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -268,6 +299,7 @@ impl ReadLeField for i32 {
 }
 
 impl ReadLeField for u8 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -277,6 +309,7 @@ impl ReadLeField for u8 {
 }
 
 impl ReadLeField for u16 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -286,6 +319,7 @@ impl ReadLeField for u16 {
 }
 
 impl ReadLeField for u32 {
+    #[inline]
     fn read_le<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), ReadError> {
@@ -319,9 +353,7 @@ fn bytes_into_utf8(
         // pass to strip null characters would be a no-op allocation.
         Ok(bytes
             .iter()
-            .filter_map(|v| {
-                crate::parser::symbol_charset_table().get(v).copied()
-            })
+            .filter_map(|&v| crate::parser::map_symbol_charset(v))
             .collect::<String>())
     } else {
         let encoding: &'static encoding_rs::Encoding = charset.into();
@@ -329,12 +361,20 @@ fn bytes_into_utf8(
 
         if had_errors {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "Failed to decode string with specified charset"
-                    .to_string(),
+                cause: "Failed to decode string with specified charset".into(),
             });
         }
 
-        Ok(cow.replace('\0', ""))
+        // Avoid the unconditional `cow.replace('\0', "")` allocation
+        // when the decoded text contains no NUL bytes (the common case
+        // for well-formed inputs); otherwise strip them in-place.
+        if cow.contains('\0') {
+            let mut owned = cow.into_owned();
+            owned.retain(|c| c != '\0');
+            Ok(owned)
+        } else {
+            Ok(cow.into_owned())
+        }
     }
 }
 

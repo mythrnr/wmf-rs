@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The META_HEADER Record is the first record in a standard (nonplaceable) WMF
 /// metafile.
 #[derive(Clone, Debug)]
@@ -79,8 +77,7 @@ impl META_HEADER {
 
         if number_of_members != 0x0000 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The number_of_members field should be `0x0000`"
-                    .to_owned(),
+                cause: "The number_of_members field should be `0x0000`".into(),
             });
         }
 

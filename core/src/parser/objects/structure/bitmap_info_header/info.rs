@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The BitmapInfoHeader Object contains information about the dimensions
 /// and color format of a device-independent bitmap (DIB).
 #[derive(Clone, Debug)]
@@ -118,13 +116,13 @@ impl BitmapInfoHeaderInfo {
 
         if width <= 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The width field must be positive".to_owned(),
+                cause: "The width field must be positive".into(),
             });
         }
 
         if height == 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The height field must not be zero".to_owned(),
+                cause: "The height field must not be zero".into(),
             });
         }
 

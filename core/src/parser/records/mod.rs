@@ -11,6 +11,25 @@ pub use self::{
     bitmap::*, control::*, drawing::*, escape::*, object::*, state::*,
 };
 
+/// `Display`-only wrapper around a `u16` that emits `{:#06X}`.
+///
+/// `tracing::instrument(fields(record_function = %...))` previously
+/// passed `format!("{record_function:#06X}")`, which allocated a
+/// `String` on every parse just to feed `tracing`'s `Display`
+/// recorder. Wrapping the raw `u16` in this newtype lets the macro
+/// hand `tracing` a `Display` impl directly so the formatting
+/// happens lazily inside the subscriber, without an intermediate
+/// heap allocation. The visible output (`0xNNNN`) is preserved.
+#[doc(hidden)]
+pub struct HexU16(pub u16);
+
+impl core::fmt::Display for HexU16 {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#06X}", self.0)
+    }
+}
+
 /// Read a fixed-width little-endian integer field, advance the `tracker`
 /// by the number of bytes consumed, and return the value.
 ///
@@ -21,6 +40,7 @@ pub use self::{
 /// (record parsers) or a plain `usize` counter (object/control parsers).
 /// The output type is selected via type inference from the binding,
 /// e.g. `let v = read_field(...)?;`.
+#[inline]
 pub(crate) fn read_field<R, T>(
     buf: &mut R,
     tracker: &mut impl crate::parser::ConsumeTracker,
@@ -38,6 +58,7 @@ where
 /// advance the `tracker` accordingly. Used for object parsers
 /// (e.g. `ColorRef::parse`) that already follow the `(T, usize)`
 /// convention but cannot satisfy the `ReadLeField` bound.
+#[inline]
 pub(in crate::parser) fn read_with<R, T, F>(
     buf: &mut R,
     tracker: &mut impl crate::parser::ConsumeTracker,
@@ -54,6 +75,7 @@ where
 
 /// Read a variable-length byte buffer of `len` bytes and advance the
 /// `tracker` accordingly.
+#[inline]
 pub(in crate::parser) fn read_bytes_field<R>(
     buf: &mut R,
     tracker: &mut impl crate::parser::ConsumeTracker,
@@ -80,10 +102,15 @@ fn check_lower_byte_matches(
     )
 }
 
+/// Drains and discards any unread payload bytes for a record.
+///
+/// All call sites discard the bytes anyway, so the function returns
+/// `()` on success rather than handing back an empty `Vec` and a
+/// byte count that the previous signature implied carried a payload.
 fn consume_remaining_bytes<R: crate::Read>(
     buf: &mut R,
     record_size: crate::parser::RecordSize,
-) -> Result<(crate::imports::Vec<u8>, usize), crate::parser::ParseError> {
+) -> Result<(), crate::parser::ParseError> {
     crate::parser::ParseError::expect_le(
         "consumed_bytes",
         record_size.consumed_bytes() as u64,
@@ -92,7 +119,7 @@ fn consume_remaining_bytes<R: crate::Read>(
 
     let remaining = record_size.remaining_bytes();
     if remaining == 0 {
-        return Ok((crate::imports::Vec::new(), 0));
+        return Ok(());
     }
 
     // Discard remaining bytes in fixed-size chunks to avoid
@@ -107,7 +134,7 @@ fn consume_remaining_bytes<R: crate::Read>(
         discarded += to_read;
     }
 
-    Ok((crate::imports::Vec::new(), discarded))
+    Ok(())
 }
 
 /// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,
@@ -144,7 +171,8 @@ impl RecordSize {
                 cause: alloc::format!(
                     "record size {v:#010X} is smaller than minimum header \
                      size (0x00000003)",
-                ),
+                )
+                .into(),
             });
         }
 
@@ -193,32 +221,43 @@ impl core::fmt::Debug for RecordSize {
 }
 
 impl RecordSize {
+    #[inline]
     pub fn byte_count(&self) -> usize {
-        (self.size_words as usize).saturating_mul(2)
+        // `parse` already rejects `size_words` above
+        // `MAX_RECORD_WORDS` (32 MW), so the doubled value cannot
+        // overflow `usize` on any supported platform; a plain
+        // multiplication keeps this hot getter branch-free.
+        (self.size_words as usize) * 2
     }
 
+    #[inline]
     pub fn word_size(&self) -> usize {
         self.size_words as usize
     }
 
+    #[inline]
     pub fn consume(&mut self, consumed_bytes: usize) {
         self.consumed_bytes += consumed_bytes;
     }
 
+    #[inline]
     pub fn consumed_bytes(&self) -> usize {
         self.consumed_bytes
     }
 
     /// Returns true if consumed_bytes has exceeded byte_count,
     /// indicating a malformed record or a parser bug.
+    #[inline]
     pub fn is_overrun(&self) -> bool {
         self.consumed_bytes > self.byte_count()
     }
 
+    #[inline]
     pub fn remaining(&self) -> bool {
         !self.is_overrun() && self.remaining_bytes() > 0
     }
 
+    #[inline]
     pub fn remaining_bytes(&self) -> usize {
         self.byte_count().saturating_sub(self.consumed_bytes)
     }

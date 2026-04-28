@@ -111,7 +111,7 @@ impl Colors {
             crate::parser::BitmapInfoHeader::Core { .. }
         ) {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "expected BitmapInfoHeader::Core variant".to_string(),
+                cause: "expected BitmapInfoHeader::Core variant".into(),
             });
         }
 
@@ -143,8 +143,7 @@ impl Colors {
                 | crate::parser::BitmapInfoHeader::V5 { .. }
         ) {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "expected BitmapInfoHeader Info/V4/V5 variant"
-                    .to_string(),
+                cause: "expected BitmapInfoHeader Info/V4/V5 variant".into(),
             });
         }
 

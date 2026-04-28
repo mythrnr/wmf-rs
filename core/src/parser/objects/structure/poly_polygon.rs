@@ -49,8 +49,7 @@ impl PolyPolygon {
             number_of_points = number_of_points
                 .checked_add(u32::from(v))
                 .ok_or(crate::parser::ParseError::UnexpectedPattern {
-                    cause: "sum of points per polygon overflowed u32"
-                        .to_string(),
+                    cause: "sum of points per polygon overflowed u32".into(),
                 })?;
             a_points_per_polygon.push(v);
         }

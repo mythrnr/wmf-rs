@@ -53,7 +53,8 @@ impl BitmapInfoHeader {
                 cause: format!(
                     "The header_size `{header_size:#10X}` field is not match \
                      as any BitmapInfoHeader format"
-                ),
+                )
+                .into(),
             }),
         }
     }

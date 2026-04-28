@@ -36,13 +36,14 @@ impl PaletteEntry {
 
         let values = match values {
             0x00 => None,
-            v => {
-                Some(crate::parser::PaletteEntryFlag::from_repr(v).ok_or_else(
+            v => Some(
+                crate::parser::PaletteEntryFlag::from_repr(v).ok_or_else(
                     || crate::parser::ParseError::UnexpectedEnumValue {
-                        cause: format!("invalid value {v} as PaletteEntryFlag"),
+                        cause: format!("invalid value {v} as PaletteEntryFlag")
+                            .into(),
                     },
-                )?)
-            }
+                )?,
+            ),
         };
 
         Ok((Self { red, green, blue, values }, consumed_bytes))

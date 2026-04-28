@@ -70,7 +70,7 @@ where
             if record_size.byte_count() == 0 {
                 return Err(ConvertError::ParseError {
                     source: ParseError::UnexpectedPattern {
-                        cause: "record size is zero".to_owned(),
+                        cause: "record size is zero".into(),
                     },
                 });
             }
@@ -81,7 +81,7 @@ where
             let Some(record_type) = RecordType::from_repr(record_function)
             else {
                 debug!(
-                    record_function = %format!("{record_function:#06X}"),
+                    record_function = %crate::parser::HexU16(record_function),
                     "record_function is not match any RecordType",
                 );
 
@@ -90,7 +90,8 @@ where
                         cause: format!(
                             "record_function `{record_function:#06X}` is not \
                              match any RecordType"
-                        ),
+                        )
+                        .into(),
                     },
                 });
             };

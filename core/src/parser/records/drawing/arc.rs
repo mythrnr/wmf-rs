@@ -49,7 +49,7 @@ impl META_ARC {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]

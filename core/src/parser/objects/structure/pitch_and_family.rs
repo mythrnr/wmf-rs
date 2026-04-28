@@ -29,7 +29,8 @@ impl PitchAndFamily {
         let Some(family) = crate::parser::FamilyFont::from_repr(byte >> 4)
         else {
             return Err(crate::parser::ParseError::UnexpectedEnumValue {
-                cause: format!("unexpected value as FamilyFont: {family:#04X}"),
+                cause: format!("unexpected value as FamilyFont: {family:#04X}")
+                    .into(),
             });
         };
 

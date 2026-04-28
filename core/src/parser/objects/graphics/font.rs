@@ -153,11 +153,12 @@ impl Font {
         let (facename, facename_as_charset) = {
             // The spec defines facename as a 32-byte field, but
             // real-world records may have fewer remaining bytes.
-            // Read up to 32 bytes from the buffer.
-            let mut bytes = vec![0; 32];
+            // Read up to 32 bytes from the buffer. The fixed size
+            // lets us keep this scratch on the stack.
+            let mut bytes = [0u8; 32];
             let c = buf.read(&mut bytes).map_err(|err| {
                 crate::parser::ParseError::UnexpectedPattern {
-                    cause: format!("{err:?}"),
+                    cause: format!("{err:?}").into(),
                 }
             })?;
             consumed_bytes += c;
@@ -184,15 +185,19 @@ impl Font {
             fallback_facename.push(facename_as_charset);
         }
 
-        // if facename is `Symbol`, set charset `SYMBOL_CHARSET`.
-        let charset = if facename.to_ascii_lowercase().contains("symbol")
-            || fallback_facename
-                .iter()
-                .any(|f| f.to_ascii_lowercase().contains("symbol"))
+        // If the facename refers to "Symbol" (case-insensitive),
+        // promote the charset to SYMBOL_CHARSET. `contains_symbol`
+        // walks the string once with ASCII case folding so we avoid
+        // the per-call `to_ascii_lowercase` allocation that would
+        // otherwise trigger for every CREATEFONTINDIRECT record.
+        let charset = if contains_symbol(&facename)
+            || fallback_facename.iter().any(|f| contains_symbol(f))
         {
-            let symbol = "Symbol".to_string();
-            if facename != symbol && !fallback_facename.contains(&symbol) {
-                fallback_facename.push(symbol);
+            const SYMBOL: &str = "Symbol";
+            if facename != SYMBOL
+                && !fallback_facename.iter().any(|f| f == SYMBOL)
+            {
+                fallback_facename.push(SYMBOL.into());
             }
 
             crate::parser::CharacterSet::SYMBOL_CHARSET
@@ -221,6 +226,18 @@ impl Font {
             consumed_bytes,
         ))
     }
+}
+
+/// Returns true when `s` contains the substring "symbol" under
+/// ASCII case folding, without allocating an intermediate
+/// lowercased copy.
+fn contains_symbol(s: &str) -> bool {
+    const NEEDLE: &[u8] = b"symbol";
+    let bytes = s.as_bytes();
+    if bytes.len() < NEEDLE.len() {
+        return false;
+    }
+    bytes.windows(NEEDLE.len()).any(|w| w.eq_ignore_ascii_case(NEEDLE))
 }
 
 #[cfg(test)]
