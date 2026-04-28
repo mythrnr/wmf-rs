@@ -828,7 +828,6 @@ impl crate::converter::Player for SVGPlayer {
         let text_content = record.into_utf8(font_charset).map_err(|err| {
             PlayError::InvalidRecord { cause: err.to_string() }
         })?;
-        let y_offset = self.context_current.text_y_offset(font_height);
         let point = {
             let point = PointS {
                 x: if self.context_current.text_align_update_cp {
@@ -840,7 +839,7 @@ impl crate::converter::Player for SVGPlayer {
                     self.context_current.drawing_position.y
                 } else {
                     record.y
-                } + y_offset,
+                },
             };
 
             // update_cp == true: already in SVG space, no conversion
@@ -848,6 +847,21 @@ impl crate::converter::Player for SVGPlayer {
                 point
             } else {
                 self.context_current.point_s_to_absolute_point(&point)
+            };
+
+            // Translate the WMF reference y into the SVG alphabetic
+            // baseline using script-aware ascent/descent ratios.
+            // Emitting baseline-aligned coordinates (and omitting
+            // `dominant-baseline`) avoids the unreliable cross-
+            // renderer support of the SVG/CSS baseline keywords,
+            // which otherwise let the text escape its WMF bounding
+            // rectangle.
+            let baseline_y_offset = self
+                .context_current
+                .text_baseline_y_offset(font_height, font_charset);
+            let point = PointS {
+                x: point.x,
+                y: point.y.saturating_add(baseline_y_offset),
             };
 
             self.context_current.extend_window(&point);
@@ -878,34 +892,71 @@ impl crate::converter::Player for SVGPlayer {
             .set("x", point.x)
             .set("y", point.y)
             .set("text-anchor", text_align)
-            .set(
-                "dominant-baseline",
-                self.context_current.as_css_text_align_vertical(),
-            )
             .set("fill", self.context_current.text_color_as_css_color());
 
         if record.dx.len() <= 1 {
             text = text.add(Node::new_text(&text_content));
         } else {
-            // https://cgit.freedesktop.org/libreoffice/core/tree/emfio/source/reader/wmfreader.cxx?id=c0b14ab9aa4d713a6b718ef07b9e0379b88e97d3#n693
-            let half_height = f32::from(font_height.abs()) / 2.0;
+            // The tspan dx attribute is an additional offset on top of the
+            // natural advance computed by the SVG renderer, which accumulates
+            // error through font-metric dependence. WMF Dx represents the
+            // full advance between adjacent characters, so give each grapheme
+            // an absolute x coordinate to make positioning independent of the
+            // renderer's advance.
+            //
+            // Per the MS-WMF spec, the Dx array length equals StringLength
+            // (in bytes). With variable-length encodings such as SJIS, the
+            // advance for grapheme i lives at the byte index of grapheme i's
+            // first byte in the original byte sequence. Therefore re-encode
+            // each grapheme with the original charset to obtain its byte
+            // length, and use the running total as the index into dx.
+            let graphemes: Vec<&str> = text_content.graphemes(true).collect();
+            let encoding: &'static encoding_rs::Encoding = font_charset.into();
+            let is_symbol =
+                font_charset == crate::parser::CharacterSet::SYMBOL_CHARSET;
 
-            for (i, s) in text_content.graphemes(true).enumerate() {
-                let dx = if i == 0 {
-                    0
+            // Precompute the original byte offset of each grapheme's first
+            // byte. With DBCS such as SJIS, the advance for grapheme i is
+            // stored at dx[byte_offsets[i]].
+            let mut byte_offsets = Vec::with_capacity(graphemes.len());
+            let mut acc: usize = 0;
+            for s in &graphemes {
+                byte_offsets.push(acc);
+                let len = if is_symbol {
+                    s.chars().count()
                 } else {
-                    *record.dx.get(i - 1).unwrap_or(&0)
+                    encoding.encode(s).0.len()
                 };
+                acc = acc.saturating_add(len);
+            }
 
-                let mut tspan = Node::new("tspan").add(Node::new_text(s));
+            let mut cumulative_dx: i32 = 0;
 
-                if dx != 0 {
-                    let char_width =
-                        f32::from(i16::try_from(s.width()).unwrap_or(1));
-                    let excess_dx = half_height * char_width;
-                    let adjusted = (f32::from(dx) - excess_dx).max(0.0);
+            for (i, s) in graphemes.iter().enumerate() {
+                let mut tspan = Node::new("tspan").add(Node::new_text(*s));
 
-                    tspan = tspan.set("dx", adjusted);
+                if i > 0 {
+                    // The advance for grapheme i-1 spans every byte
+                    // it occupies in the original encoding, not just
+                    // its lead byte. With DBCS such as Big5/SJIS,
+                    // the per-character advance is split across both
+                    // bytes (often a leading 0 followed by the full
+                    // width on the trail byte), so summing only the
+                    // lead byte's entry collapses the next grapheme
+                    // onto the previous one.
+                    let prev_start = byte_offsets[i - 1];
+                    let prev_end = byte_offsets[i];
+                    let dx_value: i32 = record
+                        .dx
+                        .get(prev_start..prev_end)
+                        .unwrap_or(&[])
+                        .iter()
+                        .map(|d| i32::from(*d))
+                        .sum();
+                    cumulative_dx = cumulative_dx.saturating_add(dx_value);
+                    let abs_x =
+                        i32::from(point.x).saturating_add(cumulative_dx);
+                    tspan = tspan.set("x", abs_x);
                 }
 
                 text = text.add(tspan);
@@ -1506,9 +1557,15 @@ impl crate::converter::Player for SVGPlayer {
         let text_content = record.into_utf8(font_charset).map_err(|err| {
             PlayError::InvalidRecord { cause: err.to_string() }
         })?;
-        let y_offset = self.context_current.text_y_offset(font_height);
-        let point = self
-            .convert_point_for_text(record.x_start, record.y_start + y_offset);
+        let point = self.convert_point_for_text(record.x_start, record.y_start);
+        // Same baseline shift as ext_text_out: pre-place y on the
+        // alphabetic baseline so the text stays inside the WMF
+        // bounding rectangle regardless of renderer baseline support.
+        let baseline_y_offset = self
+            .context_current
+            .text_baseline_y_offset(font_height, font_charset);
+        let point =
+            PointS { x: point.x, y: point.y.saturating_add(baseline_y_offset) };
 
         let text = Node::new("text")
             .set("x", point.x)
@@ -2316,13 +2373,27 @@ impl crate::converter::Player for SVGPlayer {
                 .into_iter()
                 .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
                 .unwrap_or(TextAlignmentMode::TA_LEFT);
-        let align_vertical = [
-            VerticalTextAlignmentMode::VTA_BOTTOM,
-            VerticalTextAlignmentMode::VTA_TOP,
-        ]
-        .into_iter()
-        .find(|a| record.text_alignment_mode & (*a as u16) == *a as u16)
-        .unwrap_or(VerticalTextAlignmentMode::VTA_BASELINE);
+        // Per MS-WMF section 2.3.5.24, the value is interpreted as
+        // TextAlignmentMode for fonts with a horizontal default
+        // baseline (the common case), and VerticalTextAlignmentMode
+        // only when the font has a vertical default baseline (e.g.,
+        // CJK vertical layout). Map the horizontal-baseline values
+        // (TA_TOP / TA_BOTTOM / TA_BASELINE) to the internal vertical
+        // alignment representation.
+        //
+        // Test TA_BASELINE first because it shares the TA_BOTTOM bit
+        // (0x18 vs 0x08); a plain bit-AND against TA_BOTTOM would
+        // incorrectly match TA_BASELINE as well.
+        let ta_baseline = TextAlignmentMode::TA_BASELINE as u16;
+        let ta_bottom = TextAlignmentMode::TA_BOTTOM as u16;
+        let align_vertical =
+            if (record.text_alignment_mode & ta_baseline) == ta_baseline {
+                VerticalTextAlignmentMode::VTA_BASELINE
+            } else if (record.text_alignment_mode & ta_bottom) == ta_bottom {
+                VerticalTextAlignmentMode::VTA_BOTTOM
+            } else {
+                VerticalTextAlignmentMode::VTA_TOP
+            };
 
         self.context_current.text_align_update_cp(update_cp);
         self.context_current.text_align_horizontal(align_horizontal);
@@ -2417,6 +2488,28 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_SETWINDOWEXT,
     ) -> Result<Self, PlayError> {
+        // Inside a SAVEDC scope, a META_SETWINDOWEXT call usually
+        // defines a sub-region (e.g. a chart panel) that should
+        // remap the saved (outer) device area to a smaller logical
+        // window. Capture the prior window extent as an implicit
+        // viewport extent so the new logical coordinates rescale to
+        // fit the outer area; otherwise the sub-region would render
+        // at unscaled logical size and collapse to a fraction of
+        // its intended bounds. RESTOREDC reverts the captured
+        // viewport extent along with the rest of the saved state.
+        // Only triggered inside a SAVEDC scope to avoid regressing
+        // metafiles whose only META_SETWINDOWEXT establishes the
+        // overall logical coordinate system in MM_TEXT mode.
+        if !self.context_stack.is_empty()
+            && self.context_current.window.viewport_ext_x.is_none()
+            && self.context_current.window.viewport_ext_y.is_none()
+        {
+            let prev_ext_x = self.context_current.window.current_ext_x;
+            let prev_ext_y = self.context_current.window.current_ext_y;
+            self.context_current.window.viewport_ext_x = Some(prev_ext_x);
+            self.context_current.window.viewport_ext_y = Some(prev_ext_y);
+        }
+
         self.context_current.window_ext(record.x, record.y);
 
         Ok(self)

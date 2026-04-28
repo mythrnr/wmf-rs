@@ -33,7 +33,11 @@ Handles binary parsing based on the MS-WMF specification.
 - `objects/` - WMF object definitions (graphics, structure)
 - `records/` - WMF record type definitions and parsing (bitmap, control, drawing, escape, object, state)
 - Key types: `MetafileHeader`, `RecordType`, `RecordSize`, `ParseError`, `ReadError`
-- Parsing functions: `read`, `read_variable`, `read_*_from_le_bytes` (little-endian)
+- Parsing helpers (little-endian):
+  - `read_variable` - reads a variable-length byte slice
+  - `ReadLeField` trait - per-integer-width little-endian reader (implemented for `i8`/`i16`/`i32`/`u8`/`u16`/`u32`)
+  - `read_field` - generic helper that combines `ReadLeField` with the `ConsumeTracker` byte-count bookkeeping
+  - `read_with` / `read_bytes_field` - variants for composite parsers and variable-length payloads
 
 #### converter Module (`core/src/converter/`)
 
@@ -64,21 +68,39 @@ Converts parsed records into an output format.
 
 ### Required Tools
 
-- Rust 1.87.0 (pinned via `rust-toolchain.toml`)
+- Rust 1.88.0 (pinned via `rust-toolchain.toml`)
 - Rust nightly (for rustfmt and cargo-udeps)
-- Docker (for spell-check)
+- Docker (for spell-check, and for the optional containerized dev shell)
 
 ### Optional Tools
 
 - `cargo-machete`, `cargo-udeps` (unused dependency detection)
-- `wasm-pack` (WASM build)
+- `wasm-pack`, `wasm-opt`, `wasm-bindgen-cli` (WASM build)
 - Yarn 1.22.22+ (running WASM demo)
 
-Bulk install of tools:
+Bulk install of host tools:
 
 ```sh
 make install-tools
 ```
+
+### Containerized Dev Shell (alternative)
+
+`docker/` provides a self-contained image with the toolchain plus
+every helper used by the `make` targets (clippy, rustfmt,
+rust-analyzer, cargo-machete, cargo-udeps, wasm-pack, wasm-opt,
+wasm-bindgen-cli, cargo-bloat, twiggy). The workspace is bind-mounted
+at `/work` and `target/` is kept on a named volume so host editors and
+the container don't fight over `target/` ownership.
+
+```sh
+make docker-build   # build the image (one-time / on Dockerfile change)
+make docker-dev     # drop into bash inside the container
+make docker-clean   # tear down volumes (forces a clean cache)
+```
+
+Inside the container, the same `make` targets work
+(`make ci-suite`, `make test`, `make wasm`, ...).
 
 ## Build, Test & Quality Checks
 
@@ -92,9 +114,12 @@ make install-tools
 | `make lint` | `cargo clippy --workspace --all-targets --all-features -- --no-deps -D warnings` |
 | `make udeps` | `cargo machete` && `cargo +nightly udeps --all-targets` |
 | `make spell-check` | Run cSpell via Docker |
-| `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps test` |
+| `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps wasm test` |
 | `make wasm` | `wasm-pack build --out-dir dist --target web` |
 | `make serve` | Start WASM demo at `localhost:8080` |
+| `make docker-build` | Build the dev container image |
+| `make docker-dev` | Open an interactive shell in the dev container |
+| `make docker-clean` | Tear down dev container volumes |
 
 ### CI (GitHub Actions)
 
@@ -107,9 +132,18 @@ make install-tools
 
 ## Coding Conventions
 
+### Language in Source Code
+
+- All in-code text must be written in English. This includes:
+  - Comments (line comments, block comments, doc comments)
+  - Log messages (e.g. `tracing` macros)
+  - Error messages and `snafu` `display` strings
+  - Identifiers, string literals embedded in code paths, and any other text
+    appearing inside source files
+
 ### Rust Style
 
-- Edition 2024, MSRV 1.87.0
+- Edition 2024, MSRV 1.88.0
 - Formatted according to `rustfmt.toml` (`cargo +nightly fmt`)
   - Line width: 80 characters (including comments)
   - Imports: grouped by `StdExternalCrate`, merged at `Crate` granularity
@@ -135,7 +169,9 @@ make install-tools
 
 ## Testing
 
-- Inline tests (`#[cfg(test)]`) in `core/src/parser/mod.rs`
+- Inline tests (`#[cfg(test)]`) live alongside the implementation across
+  `core/src/parser/` (records, objects, structure helpers, etc.) and a
+  shared `test_helpers` module in `core/src/parser/records/mod.rs`
 - Integration tests in `core/tests/`
   - `core/tests/mod.rs` as the entry point
   - `core/tests/drawing/` for drawing record tests

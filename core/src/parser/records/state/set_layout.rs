@@ -26,7 +26,7 @@ impl META_SETLAYOUT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -35,16 +35,17 @@ impl META_SETLAYOUT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETLAYOUT,
         )?;
 
-        let ((layout, layout_bytes), (reserved, reserved_bytes)) = (
-            crate::parser::Layout::parse(buf)?,
-            crate::parser::read::<R, 2>(buf)?,
-        );
-        record_size.consume(layout_bytes + reserved_bytes);
+        let layout =
+            read_with(buf, &mut record_size, crate::parser::Layout::parse)?;
+        let (reserved, reserved_bytes) = crate::parser::read::<R, 2>(buf)?;
+        record_size.consume(reserved_bytes);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

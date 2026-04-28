@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The BitmapCoreHeader Object contains information about the dimensions
 /// and color format of a device-independent bitmap (DIB). (Although
 /// Windows processes BitmapCoreHeader objects in DIBs, it does not
@@ -36,23 +34,21 @@ impl BitmapInfoHeaderCore {
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (width, width_bytes),
-            (height, height_bytes),
-            (planes, planes_bytes),
-            (bit_count, bit_count_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::BitCount::parse(buf)?,
-        );
-        let consumed_bytes =
-            width_bytes + height_bytes + planes_bytes + bit_count_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let planes = read_field(buf, &mut consumed_bytes)?;
+        let bit_count = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::BitCount::parse,
+        )?;
 
         if planes != 0x0001 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The planes field must be 0x01".to_owned(),
+                cause: "The planes field must be 0x01".into(),
             });
         }
 
@@ -66,8 +62,9 @@ impl BitmapInfoHeaderCore {
             return Err(crate::parser::ParseError::UnexpectedEnumValue {
                 cause: format!(
                     "Invalid BitCount `{}` as Core type.",
-                    bit_count as u16
-                ),
+                    u16::from(bit_count)
+                )
+                .into(),
             });
         }
 

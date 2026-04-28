@@ -44,6 +44,8 @@ mod set_line_join;
 mod set_miter_limit;
 mod spcl_passthrough2;
 mod startdoc;
+#[cfg(test)]
+mod tests;
 
 use crate::imports::*;
 
@@ -835,7 +837,7 @@ impl META_ESCAPE {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -845,14 +847,18 @@ impl META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_ESCAPE,
         )?;
 
-        let (escape, escape_bytes) =
-            crate::parser::MetafileEscapes::parse(buf)?;
-        record_size.consume(escape_bytes);
+        let escape = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::MetafileEscapes::parse,
+        )?;
 
         let record = match escape {
             crate::parser::MetafileEscapes::ABORTDOC => {
@@ -1074,7 +1080,8 @@ impl META_ESCAPE {
             }
             v => {
                 return Err(crate::parser::ParseError::NotSupported {
-                    cause: format!("Metafile Escapes `{v:?}` is not supported"),
+                    cause: format!("Metafile Escapes `{v:?}` is not supported")
+                        .into(),
                 });
             }
         };

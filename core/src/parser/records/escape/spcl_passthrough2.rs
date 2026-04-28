@@ -6,17 +6,12 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (reserved, reserved_bytes),
-            (size, size_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        let (raw_data, c) = crate::parser::read_variable(buf, size as usize)?;
-        record_size.consume(byte_count_bytes + reserved_bytes + size_bytes + c);
+        use crate::parser::records::{read_bytes_field, read_field};
+
+        let byte_count = read_field(buf, &mut record_size)?;
+        let reserved = read_field(buf, &mut record_size)?;
+        let size = read_field(buf, &mut record_size)?;
+        let raw_data = read_bytes_field(buf, &mut record_size, size as usize)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

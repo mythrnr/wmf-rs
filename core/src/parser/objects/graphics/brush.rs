@@ -81,11 +81,64 @@ impl Brush {
             }
             v => {
                 return Err(crate::parser::ParseError::NotSupported {
-                    cause: format!("BrushStyle {v:?}"),
+                    cause: format!("BrushStyle {v:?}").into(),
                 });
             }
         };
 
         Ok((v, consumed_bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_solid_brush() {
+        // BS_SOLID = 0x0000 (u16) + ColorRef (4 bytes).
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0000_u16.to_le_bytes());
+        data.extend_from_slice(&[0x12, 0x34, 0x56, 0x00]);
+        let mut reader = &data[..];
+        let (b, consumed) = Brush::parse(&mut reader).unwrap();
+        let Brush::Solid { color_ref } = b else {
+            panic!("expected Solid, got {b:?}");
+        };
+        assert_eq!(color_ref.red, 0x12);
+        assert_eq!(consumed, 6);
+    }
+
+    #[test]
+    fn parse_null_brush() {
+        // BS_NULL = 0x0001 + 4 bytes filler.
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0001_u16.to_le_bytes());
+        data.extend_from_slice(&[0u8; 4]);
+        let mut reader = &data[..];
+        let (b, _) = Brush::parse(&mut reader).unwrap();
+        assert!(matches!(b, Brush::Null));
+    }
+
+    #[test]
+    fn parse_hatched_brush() {
+        // BS_HATCHED = 0x0002 + ColorRef (4 bytes) + HatchStyle (u16,
+        // HS_HORIZONTAL = 0x0000).
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0002_u16.to_le_bytes());
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x00]);
+        data.extend_from_slice(&0x0000_u16.to_le_bytes());
+        let mut reader = &data[..];
+        let (b, consumed) = Brush::parse(&mut reader).unwrap();
+        assert!(matches!(b, Brush::Hatched { .. }));
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_truncated_returns_err() {
+        let data = 0x0000_u16.to_le_bytes(); // BS_SOLID with no color
+        let mut reader = &data[..];
+        assert!(Brush::parse(&mut reader).is_err());
     }
 }

@@ -15,7 +15,7 @@ fn meta_chord_svg_table_test() {
         TestCase {
             desc: "Standard horizontal ellipse chord",
             record: META_CHORD {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 y_radial2: 80,
                 x_radial2: 120,
@@ -31,7 +31,7 @@ fn meta_chord_svg_table_test() {
         TestCase {
             desc: "Vertical ellipse chord",
             record: META_CHORD {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 y_radial2: 120,
                 x_radial2: 80,
@@ -47,7 +47,7 @@ fn meta_chord_svg_table_test() {
         TestCase {
             desc: "Skip when rx/ry is zero",
             record: META_CHORD {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 y_radial2: 80,
                 x_radial2: 120,
@@ -66,7 +66,7 @@ fn meta_chord_svg_table_test() {
         let player = SVGPlayer::new();
         let player = player
             .set_window_ext(0, META_SETWINDOWEXT {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 y: 1024,
                 x: 1024,

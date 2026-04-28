@@ -59,54 +59,45 @@ impl LogColorSpace {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (signature, signature_bytes),
-            (version, version_bytes),
-            (size, size_bytes),
-            (color_space_type, color_space_type_bytes),
-            (intent, intent_bytes),
-            (endpoints, endpoints_bytes),
-            (gamma_red, gamma_red_bytes),
-            (gamma_green, gamma_green_bytes),
-            (gamma_blue, gamma_blue_bytes),
-        ) = (
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::LogicalColorSpace::parse(buf)?,
-            crate::parser::GamutMappingIntent::parse(buf)?,
-            crate::parser::CIEXYZTriple::parse(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
-        let mut consumed_bytes = signature_bytes
-            + version_bytes
-            + size_bytes
-            + color_space_type_bytes
-            + intent_bytes
-            + endpoints_bytes
-            + gamma_red_bytes
-            + gamma_green_bytes
-            + gamma_blue_bytes;
+        use crate::parser::records::{read_bytes_field, read_field, read_with};
 
-        if signature != 0x50534F43 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The signature field must be 0x50534F43".to_owned(),
-            });
-        }
+        let mut consumed_bytes: usize = 0;
+        let signature = read_field(buf, &mut consumed_bytes)?;
+        let version = read_field(buf, &mut consumed_bytes)?;
+        let size = read_field(buf, &mut consumed_bytes)?;
+        let color_space_type = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::LogicalColorSpace::parse,
+        )?;
+        let intent = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::GamutMappingIntent::parse,
+        )?;
+        let endpoints = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::CIEXYZTriple::parse,
+        )?;
+        let gamma_red = read_field(buf, &mut consumed_bytes)?;
+        let gamma_green = read_field(buf, &mut consumed_bytes)?;
+        let gamma_blue = read_field(buf, &mut consumed_bytes)?;
 
-        if version != 0x00000400 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The version field must be 0x00000400".to_owned(),
-            });
-        }
+        crate::parser::ParseError::expect_eq(
+            "signature",
+            signature,
+            0x5053_4F43_u32,
+        )?;
+        crate::parser::ParseError::expect_eq(
+            "version",
+            version,
+            0x0000_0400_u32,
+        )?;
 
         let filename = if (size as usize).saturating_sub(consumed_bytes) >= 260
         {
-            let (bytes, filename_bytes) =
-                crate::parser::read_variable(buf, 260)?;
-            consumed_bytes += filename_bytes;
+            let bytes = read_bytes_field(buf, &mut consumed_bytes, 260)?;
 
             // Strip trailing NUL padding from fixed-length buffer
             let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
@@ -131,5 +122,70 @@ impl LogColorSpace {
             },
             consumed_bytes,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a synthetic LogColorSpace payload with valid signature
+    /// and version. Reused across the success cases below.
+    fn build_payload(size: u32, with_filename: bool) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x5053_4F43_u32.to_le_bytes()); // signature
+        data.extend_from_slice(&0x0000_0400_u32.to_le_bytes()); // version
+        data.extend_from_slice(&size.to_le_bytes());
+        data.extend_from_slice(&0x0000_0000_u32.to_le_bytes()); // LCS_CALIBRATED_RGB
+        data.extend_from_slice(&0x0000_0001_u32.to_le_bytes()); // LCS_GM_BUSINESS
+        // Endpoints: 9 u32 zeros (CIEXYZTriple).
+        data.extend_from_slice(&[0u8; 36]);
+        data.extend_from_slice(&0_u32.to_le_bytes()); // gamma_red
+        data.extend_from_slice(&0_u32.to_le_bytes()); // gamma_green
+        data.extend_from_slice(&0_u32.to_le_bytes()); // gamma_blue
+        if with_filename {
+            data.extend_from_slice(&[0u8; 260]);
+        }
+        data
+    }
+
+    /// Fixed prefix size is 68 bytes (sig 4 + ver 4 + size 4 +
+    /// color_space_type 4 + intent 4 + endpoints 36 + 3 * gamma 4); the
+    /// optional 260-byte filename trails it for a total of 328 bytes.
+    const FIXED_PREFIX: u32 = 68;
+    const FILENAME_LEN: u32 = 260;
+
+    #[test]
+    fn parse_without_filename() {
+        // size = FIXED_PREFIX -> filename block is not read.
+        let data = build_payload(FIXED_PREFIX, false);
+        let mut reader = &data[..];
+        let (lcs, _) = LogColorSpace::parse(&mut reader).unwrap();
+        assert_eq!(lcs.signature, 0x5053_4F43);
+        assert_eq!(lcs.version, 0x0000_0400);
+        assert!(lcs.filename.is_none());
+    }
+
+    #[test]
+    fn parse_with_filename() {
+        // size = FIXED_PREFIX + FILENAME_LEN makes the filename block
+        // readable; the 260-byte buffer is all zeros so the resulting
+        // filename is an empty string (everything before the first NUL).
+        let data = build_payload(FIXED_PREFIX + FILENAME_LEN, true);
+        let mut reader = &data[..];
+        let (lcs, _) = LogColorSpace::parse(&mut reader).unwrap();
+        assert_eq!(lcs.filename.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn parse_rejects_invalid_signature() {
+        let mut data = build_payload(FIXED_PREFIX, false);
+        data[..4].copy_from_slice(&0xDEAD_BEEF_u32.to_le_bytes()); // bad sig
+        let mut reader = &data[..];
+        let err = LogColorSpace::parse(&mut reader).unwrap_err();
+        assert!(matches!(err, crate::parser::ParseError::MismatchedField {
+            field: "signature",
+            ..
+        },));
     }
 }

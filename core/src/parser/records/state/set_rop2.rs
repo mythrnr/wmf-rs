@@ -28,7 +28,7 @@ impl META_SETROP2 {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -37,14 +37,18 @@ impl META_SETROP2 {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETROP2,
         )?;
 
-        let (draw_mode, draw_mode_bytes) =
-            crate::parser::BinaryRasterOperation::parse(buf)?;
-        record_size.consume(draw_mode_bytes);
+        let draw_mode = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::BinaryRasterOperation::parse,
+        )?;
 
         let reserved = if record_size.byte_count() > 8 {
             let (v, c) = crate::parser::read::<R, 2>(buf)?;

@@ -36,7 +36,7 @@ impl META_DIBCREATEPATTERNBRUSH {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -45,16 +45,17 @@ impl META_DIBCREATEPATTERNBRUSH {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_DIBCREATEPATTERNBRUSH,
         )?;
 
-        let ((mut style, style_bytes), (mut color_usage, color_usage_bytes)) = (
-            crate::parser::BrushStyle::parse(buf)?,
-            crate::parser::ColorUsage::parse(buf)?,
-        );
-        record_size.consume(style_bytes + color_usage_bytes);
+        let mut style =
+            read_with(buf, &mut record_size, crate::parser::BrushStyle::parse)?;
+        let mut color_usage =
+            read_with(buf, &mut record_size, crate::parser::ColorUsage::parse)?;
 
         if matches!(style, crate::parser::BrushStyle::BS_PATTERN) {
             color_usage = crate::parser::ColorUsage::DIB_RGB_COLORS;
@@ -62,12 +63,15 @@ impl META_DIBCREATEPATTERNBRUSH {
             style = crate::parser::BrushStyle::BS_DIBPATTERNPT;
         }
 
-        let (target, c) =
-            crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
-                buf,
-                color_usage,
-            )?;
-        record_size.consume(c);
+        let target = {
+            let (t, c) =
+                crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
+                    buf,
+                    color_usage,
+                )?;
+            record_size.consume(c);
+            t
+        };
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

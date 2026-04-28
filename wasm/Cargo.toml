@@ -27,7 +27,24 @@ console_error_panic_hook = { workspace = true, optional = true }
 wasm-bindgen-test = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+# Hand `wasm-opt -Oz` over the post-`wasm-bindgen` artifact so the
+# release `.wasm` is shrunk to size-optimal form. Default behavior of
+# `wasm-pack` keeps this disabled; enabling it shaves a substantial
+# fraction off the published bundle without dropping any features.
+#
+# `--enable-*` flags whitelist the WebAssembly proposals that modern
+# `rustc` emits by default; even Binaryen 116 still rejects the
+# corresponding instructions unless they are explicitly enabled, so
+# listing them avoids having to disable the matching `rustc`
+# `target-feature` flags (which would cost code size).
+wasm-opt = [
+  '-Oz',
+  '--enable-bulk-memory',
+  '--enable-sign-ext',
+  '--enable-mutable-globals',
+  '--enable-nontrapping-float-to-int',
+  '--enable-reference-types',
+]
 
 [package.metadata.cargo-udeps.ignore]
 development = ["wasm-bindgen-test"]

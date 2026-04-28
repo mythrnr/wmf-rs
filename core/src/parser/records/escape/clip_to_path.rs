@@ -6,33 +6,19 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (clip_function, clip_function_bytes),
-            (reserved1, reserved1_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::PostScriptClipping::parse(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size
-            .consume(byte_count_bytes + clip_function_bytes + reserved1_bytes);
+        use crate::parser::records::{read_field, read_with};
 
-        if byte_count != 0x0004 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count `{byte_count:#06X}` field must be `0x0004`",
-                ),
-            });
-        }
+        let byte_count = read_field(buf, &mut record_size)?;
+        let clip_function = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::PostScriptClipping::parse,
+        )?;
+        let reserved1: u16 = read_field(buf, &mut record_size)?;
 
-        if reserved1 != 0x0000 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The reserved1 `{reserved1:#06X}` field should be `0x0000`",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq("byte_count", byte_count, 0x0004)?;
+
+        crate::parser::ParseError::expect_eq("reserved1", reserved1, 0x0000)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

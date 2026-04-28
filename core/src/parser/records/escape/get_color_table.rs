@@ -6,27 +6,24 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let ((byte_count, byte_count_bytes), (start, start_bytes)) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size.consume(byte_count_bytes + start_bytes);
+        use crate::parser::records::{read_bytes_field, read_field};
 
-        if start > byte_count {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "start `{start:#06X}` exceeds byte_count \
-                     `{byte_count:#06X}`",
-                ),
-            });
-        }
+        let byte_count = read_field(buf, &mut record_size)?;
+        let start = read_field(buf, &mut record_size)?;
 
-        let (_, c) = crate::parser::read_variable(buf, start as usize)?;
-        record_size.consume(c);
+        crate::parser::ParseError::expect_le(
+            "start (vs byte_count)",
+            start,
+            byte_count,
+        )?;
 
-        let (color_table_buffer, c) =
-            crate::parser::read_variable(buf, (byte_count - start) as usize)?;
-        record_size.consume(c);
+        let _ = read_bytes_field(buf, &mut record_size, start as usize)?;
+
+        let color_table_buffer = read_bytes_field(
+            buf,
+            &mut record_size,
+            (byte_count - start) as usize,
+        )?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

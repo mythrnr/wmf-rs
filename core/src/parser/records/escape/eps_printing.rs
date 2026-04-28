@@ -6,22 +6,12 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (set_eps_printing, set_eps_printing_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size.consume(byte_count_bytes + set_eps_printing_bytes);
+        use crate::parser::records::read_field;
 
-        if byte_count != 0x0002 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count `{byte_count:#06X}` field must be `0x0002`",
-                ),
-            });
-        }
+        let byte_count = read_field(buf, &mut record_size)?;
+        let set_eps_printing = read_field(buf, &mut record_size)?;
+
+        crate::parser::ParseError::expect_eq("byte_count", byte_count, 0x0002)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

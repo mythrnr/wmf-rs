@@ -21,7 +21,7 @@ impl META_SELECTPALETTE {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -30,14 +30,14 @@ impl META_SELECTPALETTE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SELECTPALETTE,
         )?;
 
-        let (palette, palette_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
-        record_size.consume(palette_bytes);
+        let palette = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

@@ -146,39 +146,29 @@ impl BitmapInfoHeaderV4 {
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (header, header_bytes),
-            (mut red_mask, red_mask_bytes),
-            (mut green_mask, green_mask_bytes),
-            (mut blue_mask, blue_mask_bytes),
-            (alpha_mask, alpha_mask_bytes),
-            (color_space_type, color_space_type_bytes),
-            (endpoints, endpoints_bytes),
-            (gamma_red, gamma_red_bytes),
-            (gamma_green, gamma_green_bytes),
-            (gamma_blue, gamma_blue_bytes),
-        ) = (
-            crate::parser::BitmapInfoHeaderInfo::parse(buf, header_size)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::LogicalColorSpace::parse(buf)?,
-            crate::parser::CIEXYZTriple::parse(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
-        let consumed_bytes = header_bytes
-            + red_mask_bytes
-            + green_mask_bytes
-            + blue_mask_bytes
-            + alpha_mask_bytes
-            + color_space_type_bytes
-            + endpoints_bytes
-            + gamma_red_bytes
-            + gamma_green_bytes
-            + gamma_blue_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let header = read_with(buf, &mut consumed_bytes, |b| {
+            crate::parser::BitmapInfoHeaderInfo::parse(b, header_size)
+        })?;
+        let mut red_mask: u32 = read_field(buf, &mut consumed_bytes)?;
+        let mut green_mask: u32 = read_field(buf, &mut consumed_bytes)?;
+        let mut blue_mask: u32 = read_field(buf, &mut consumed_bytes)?;
+        let alpha_mask = read_field(buf, &mut consumed_bytes)?;
+        let color_space_type = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::LogicalColorSpace::parse,
+        )?;
+        let endpoints = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::CIEXYZTriple::parse,
+        )?;
+        let gamma_red = read_field(buf, &mut consumed_bytes)?;
+        let gamma_green = read_field(buf, &mut consumed_bytes)?;
+        let gamma_blue = read_field(buf, &mut consumed_bytes)?;
 
         let crate::parser::BitmapInfoHeaderInfo {
             header_size,

@@ -32,7 +32,7 @@ impl META_INTERSECTCLIPRECT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -41,24 +41,17 @@ impl META_INTERSECTCLIPRECT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_INTERSECTCLIPRECT,
         )?;
 
-        let (
-            (bottom, bottom_bytes),
-            (right, right_bytes),
-            (top, top_bytes),
-            (left, left_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size
-            .consume(bottom_bytes + right_bytes + top_bytes + left_bytes);
+        let bottom = read_field(buf, &mut record_size)?;
+        let right = read_field(buf, &mut record_size)?;
+        let top = read_field(buf, &mut record_size)?;
+        let left = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

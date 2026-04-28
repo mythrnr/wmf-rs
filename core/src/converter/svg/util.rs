@@ -23,61 +23,6 @@ impl crate::converter::Bitmap {
     }
 }
 
-impl Brush {
-    pub fn as_filter(&self) -> Node {
-        match self {
-            Brush::DIBPatternPT { brush_hatch, .. } => {
-                let data = crate::converter::Bitmap::from(brush_hatch.clone())
-                    .as_data_url();
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Hatched { color_ref, brush_hatch } => {
-                let data = crate::converter::Bitmap::from((
-                    color_ref.clone(),
-                    *brush_hatch,
-                ))
-                .as_data_url();
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Pattern { brush_hatch } => {
-                let bitmap = crate::parser::DeviceIndependentBitmap::from(
-                    brush_hatch.clone(),
-                );
-                let data = crate::converter::Bitmap::from(bitmap).as_data_url();
-
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Solid { color_ref } => Node::new("filter")
-                .set("x", "0")
-                .set("y", "0")
-                .set("width", "1")
-                .set("height", "1")
-                .add(
-                    Node::new("feFlood")
-                        .set("flood-color", css_color_from_color_ref(color_ref))
-                        .set("result", "bg"),
-                )
-                .add(
-                    Node::new("feMerge")
-                        .add(Node::new("feMergeNode").set("in", "bg"))
-                        .add(
-                            Node::new("feMergeNode").set("in", "SourceGraphic"),
-                        ),
-                ),
-            Brush::Null => Node::new("filter")
-                .set("x", "0")
-                .set("y", "0")
-                .set("width", "0")
-                .set("height", "0")
-                .add(
-                    Node::new("feFlood")
-                        .set("flood-color", "#000")
-                        .set("flood-opacity", "0"),
-                ),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum Fill {
     Pattern { pattern: Node },
