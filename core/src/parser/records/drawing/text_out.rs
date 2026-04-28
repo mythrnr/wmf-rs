@@ -49,14 +49,14 @@ impl META_TEXTOUT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_bytes_field, read_field};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_TEXTOUT,
         )?;
 
-        let (string_length, string_length_bytes) =
-            crate::parser::read_i16_from_le_bytes(buf)?;
-        record_size.consume(string_length_bytes);
+        let string_length = read_field(buf, &mut record_size)?;
 
         if string_length < 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -70,16 +70,9 @@ impl META_TEXTOUT {
         // Compute in usize to avoid i16 overflow (e.g. 32767 + 1).
         let string_len = string_length as usize + (string_length as usize % 2);
 
-        let (
-            (string, string_bytes),
-            (y_start, y_start_bytes),
-            (x_start, x_start_bytes),
-        ) = (
-            crate::parser::read_variable(buf, string_len)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(string_bytes + y_start_bytes + x_start_bytes);
+        let string = read_bytes_field(buf, &mut record_size, string_len)?;
+        let y_start = read_field(buf, &mut record_size)?;
+        let x_start = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

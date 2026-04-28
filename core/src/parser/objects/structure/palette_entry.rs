@@ -26,19 +26,13 @@ impl PaletteEntry {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (red, red_bytes),
-            (green, green_bytes),
-            (blue, blue_bytes),
-            (values, values_bytes),
-        ) = (
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-        );
-        let consumed_bytes =
-            red_bytes + green_bytes + blue_bytes + values_bytes;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let red = read_field(buf, &mut consumed_bytes)?;
+        let green = read_field(buf, &mut consumed_bytes)?;
+        let blue = read_field(buf, &mut consumed_bytes)?;
+        let values = read_field(buf, &mut consumed_bytes)?;
 
         let values = match values {
             0x00 => None,

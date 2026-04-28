@@ -30,14 +30,14 @@ impl META_PAINTREGION {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_PAINTREGION,
         )?;
 
-        let (region, region_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
-        record_size.consume(region_bytes);
+        let region = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

@@ -25,22 +25,21 @@ impl Palette {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (start, start_bytes),
-            (number_of_entries, number_of_entries_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::{read_field, read_with};
 
-        let mut consumed_bytes = start_bytes + number_of_entries_bytes;
+        let mut consumed_bytes: usize = 0;
+        let start = read_field(buf, &mut consumed_bytes)?;
+        let number_of_entries = read_field(buf, &mut consumed_bytes)?;
+
         let mut a_palette_entries =
             Vec::with_capacity(number_of_entries as usize);
 
         for _ in 0..number_of_entries {
-            let (v, c) = crate::parser::PaletteEntry::parse(buf)?;
-
-            consumed_bytes += c;
+            let v = read_with(
+                buf,
+                &mut consumed_bytes,
+                crate::parser::PaletteEntry::parse,
+            )?;
             a_palette_entries.push(v);
         }
 

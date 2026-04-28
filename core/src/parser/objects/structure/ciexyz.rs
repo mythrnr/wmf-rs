@@ -21,12 +21,13 @@ impl CIEXYZ {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((x, x_bytes), (y, y_bytes), (z, z_bytes)) = (
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { x, y, z }, x_bytes + y_bytes + z_bytes))
+        let mut consumed_bytes: usize = 0;
+        let x = read_field(buf, &mut consumed_bytes)?;
+        let y = read_field(buf, &mut consumed_bytes)?;
+        let z = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { x, y, z }, consumed_bytes))
     }
 }

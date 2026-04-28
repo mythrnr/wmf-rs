@@ -6,11 +6,14 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let ((byte_count, byte_count_bytes), (join, join_bytes)) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::PostScriptJoin::parse(buf)?,
-        );
-        record_size.consume(byte_count_bytes + join_bytes);
+        use crate::parser::records::{read_field, read_with};
+
+        let byte_count = read_field(buf, &mut record_size)?;
+        let join = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::PostScriptJoin::parse,
+        )?;
 
         if byte_count != 0x0004 {
             return Err(crate::parser::ParseError::UnexpectedPattern {

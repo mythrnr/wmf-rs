@@ -36,21 +36,17 @@ impl META_FLOODFILL {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_FLOODFILL,
         )?;
 
-        let (
-            (color_ref, color_ref_bytes),
-            (y_start, y_start_bytes),
-            (x_start, x_start_bytes),
-        ) = (
-            crate::parser::ColorRef::parse(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(color_ref_bytes + y_start_bytes + x_start_bytes);
+        let color_ref =
+            read_with(buf, &mut record_size, crate::parser::ColorRef::parse)?;
+        let y_start = read_field(buf, &mut record_size)?;
+        let x_start = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

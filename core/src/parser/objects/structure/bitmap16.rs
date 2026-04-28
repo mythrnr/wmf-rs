@@ -56,12 +56,15 @@ impl Bitmap16 {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (mut bitmap, mut consumed_bytes) = Self::parse_without_bits(buf)?;
-        let (bits, bits_bytes) =
-            crate::parser::read_variable(buf, bitmap.calc_length())?;
+        use crate::parser::records::{read_bytes_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let mut bitmap =
+            read_with(buf, &mut consumed_bytes, Self::parse_without_bits)?;
+        let bits =
+            read_bytes_field(buf, &mut consumed_bytes, bitmap.calc_length())?;
 
         bitmap.bits = bits;
-        consumed_bytes += bits_bytes;
 
         Ok((bitmap, consumed_bytes))
     }
@@ -74,27 +77,15 @@ impl Bitmap16 {
     pub fn parse_without_bits<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (typ, typ_bytes),
-            (width, width_consumed_bytes),
-            (height, height_bytes),
-            (width_bytes, width_bytes_consumed_bytes),
-            (planes, planes_bytes),
-            (bits_pixel, bits_pixel_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-        );
-        let consumed_bytes = typ_bytes
-            + width_consumed_bytes
-            + height_bytes
-            + width_bytes_consumed_bytes
-            + planes_bytes
-            + bits_pixel_bytes;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let typ = read_field(buf, &mut consumed_bytes)?;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let width_bytes = read_field(buf, &mut consumed_bytes)?;
+        let planes: u8 = read_field(buf, &mut consumed_bytes)?;
+        let bits_pixel: u8 = read_field(buf, &mut consumed_bytes)?;
 
         if planes != 0x01 {
             return Err(crate::parser::ParseError::UnexpectedPattern {

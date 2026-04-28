@@ -22,20 +22,20 @@ impl Pen {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (style, style_bytes),
-            (width, width_bytes),
-            (color_ref, color_ref_bytes),
-        ) = (
-            PenStyleSubsection::parse(buf)?,
-            crate::parser::PointS::parse(buf)?,
-            crate::parser::ColorRef::parse(buf)?,
-        );
+        use crate::parser::records::read_with;
 
-        Ok((
-            Self { style, width, color_ref },
-            style_bytes + width_bytes + color_ref_bytes,
-        ))
+        let mut consumed_bytes: usize = 0;
+        let style =
+            read_with(buf, &mut consumed_bytes, PenStyleSubsection::parse)?;
+        let width =
+            read_with(buf, &mut consumed_bytes, crate::parser::PointS::parse)?;
+        let color_ref = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::ColorRef::parse,
+        )?;
+
+        Ok((Self { style, width, color_ref }, consumed_bytes))
     }
 }
 
@@ -56,8 +56,10 @@ impl PenStyleSubsection {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (style_u16, style_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let style_u16: u16 = read_field(buf, &mut consumed_bytes)?;
 
         Ok((
             Self {
@@ -67,7 +69,7 @@ impl PenStyleSubsection {
                 style: Self::style(style_u16),
                 typ: crate::parser::PenStyle::PS_SOLID,
             },
-            style_bytes,
+            consumed_bytes,
         ))
     }
 

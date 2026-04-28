@@ -75,9 +75,8 @@ where
                 });
             }
 
-            let (record_function, c) =
-                read_u16_from_le_bytes(buf).map_err(ParseError::from)?;
-            record_size.consume(c);
+            let record_function: u16 =
+                crate::parser::read_field(buf, &mut record_size)?;
 
             let Some(record_type) = RecordType::from_repr(record_function)
             else {

@@ -6,20 +6,13 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (size, size_bytes),
-            (version, version_bytes),
-            (points, points_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::PointL::parse(buf)?,
-        );
-        record_size.consume(
-            byte_count_bytes + size_bytes + version_bytes + points_bytes,
-        );
+        use crate::parser::records::{read_bytes_field, read_field, read_with};
+
+        let byte_count = read_field(buf, &mut record_size)?;
+        let size = read_field(buf, &mut record_size)?;
+        let version = read_field(buf, &mut record_size)?;
+        let points =
+            read_with(buf, &mut record_size, crate::parser::PointL::parse)?;
 
         if u32::from(byte_count) < size {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -35,9 +28,8 @@ impl crate::parser::META_ESCAPE {
                 .expect("should be convert u32")
                 + 4
                 + 4);
-        let (data, c) =
-            crate::parser::read_variable(buf, data_length as usize)?;
-        record_size.consume(c);
+        let data =
+            read_bytes_field(buf, &mut record_size, data_length as usize)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

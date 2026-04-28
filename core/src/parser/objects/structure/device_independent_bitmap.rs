@@ -35,16 +35,22 @@ impl DeviceIndependentBitmap {
         buf: &mut R,
         color_usage: crate::parser::ColorUsage,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (dib_header_info, mut consumed_bytes) =
-            crate::parser::BitmapInfoHeader::parse(buf)?;
-        let (colors, c) = Colors::parse(buf, color_usage, &dib_header_info)?;
-        consumed_bytes += c;
+        use crate::parser::records::{read_bytes_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let dib_header_info = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::BitmapInfoHeader::parse,
+        )?;
+        let colors = read_with(buf, &mut consumed_bytes, |b| {
+            Colors::parse(b, color_usage, &dib_header_info)
+        })?;
 
         //  TODO: Not written in [MS-WMF] how to parse this field.
         let undefined_space = vec![];
-        let (a_data, c) =
-            crate::parser::read_variable(buf, dib_header_info.size())?;
-        consumed_bytes += c;
+        let a_data =
+            read_bytes_field(buf, &mut consumed_bytes, dib_header_info.size())?;
 
         Ok((
             Self {
@@ -228,6 +234,8 @@ impl Colors {
         colors_length: usize,
         core: bool,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         let mut consumed_bytes: usize = 0;
 
         match color_usage {
@@ -235,9 +243,11 @@ impl Colors {
                 let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
-                    let (v, c) = crate::parser::RGBTriple::parse(buf)?;
-
-                    consumed_bytes += c;
+                    let v = read_with(
+                        buf,
+                        &mut consumed_bytes,
+                        crate::parser::RGBTriple::parse,
+                    )?;
                     table.push(v);
                 }
 
@@ -247,9 +257,11 @@ impl Colors {
                 let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
-                    let (v, c) = crate::parser::RGBQuad::parse(buf)?;
-
-                    consumed_bytes += c;
+                    let v = read_with(
+                        buf,
+                        &mut consumed_bytes,
+                        crate::parser::RGBQuad::parse,
+                    )?;
                     table.push(v);
                 }
 
@@ -259,9 +271,7 @@ impl Colors {
                 let mut table = Vec::with_capacity(colors_length);
 
                 for _ in 0..colors_length {
-                    let (v, c) = crate::parser::read_u16_from_le_bytes(buf)?;
-
-                    consumed_bytes += c;
+                    let v = read_field(buf, &mut consumed_bytes)?;
                     table.push(v);
                 }
 

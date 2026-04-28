@@ -39,23 +39,17 @@ impl Region {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (next_in_chain, next_in_chain_bytes),
-            (object_type, object_type_bytes),
-            (object_count, object_count_bytes),
-            (size, size_bytes),
-            (scan_count, scan_count_bytes),
-            (max_scan, max_scan_bytes),
-            (bounding_rectangle, bounding_rectangle_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::Rect::parse(buf)?,
-        );
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let next_in_chain = read_field(buf, &mut consumed_bytes)?;
+        let object_type = read_field(buf, &mut consumed_bytes)?;
+        let object_count = read_field(buf, &mut consumed_bytes)?;
+        let size = read_field(buf, &mut consumed_bytes)?;
+        let scan_count = read_field(buf, &mut consumed_bytes)?;
+        let max_scan = read_field(buf, &mut consumed_bytes)?;
+        let bounding_rectangle =
+            read_with(buf, &mut consumed_bytes, crate::parser::Rect::parse)?;
 
         if object_type != 0x0006 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -71,19 +65,14 @@ impl Region {
             });
         }
 
-        let mut consumed_bytes = next_in_chain_bytes
-            + object_type_bytes
-            + object_count_bytes
-            + size_bytes
-            + scan_count_bytes
-            + max_scan_bytes
-            + bounding_rectangle_bytes;
         let mut a_scans = Vec::with_capacity(scan_count as usize);
 
         for _ in 0..scan_count {
-            let (v, c) = crate::parser::Scan::parse(buf)?;
-
-            consumed_bytes += c;
+            let v = read_with(
+                buf,
+                &mut consumed_bytes,
+                crate::parser::Scan::parse,
+            )?;
             a_scans.push(v);
         }
 

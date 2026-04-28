@@ -32,14 +32,14 @@ impl META_SETMAPPERFLAGS {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETMAPPERFLAGS,
         )?;
 
-        let (mapper_values, mapper_values_bytes) =
-            crate::parser::read_u32_from_le_bytes(buf)?;
-        record_size.consume(mapper_values_bytes);
+        let mapper_values = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

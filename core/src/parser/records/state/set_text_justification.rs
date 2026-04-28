@@ -36,19 +36,15 @@ impl META_SETTEXTJUSTIFICATION {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETTEXTJUSTIFICATION,
         )?;
 
-        let (
-            (break_count, break_count_bytes),
-            (break_extra, break_extra_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size.consume(break_count_bytes + break_extra_bytes);
+        let break_count = read_field(buf, &mut record_size)?;
+        let break_extra = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

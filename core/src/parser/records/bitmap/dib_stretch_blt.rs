@@ -133,31 +133,22 @@ impl META_DIBSTRETCHBLT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_DIBSTRETCHBLT,
         )?;
 
-        let (
-            (raster_operation, raster_operation_bytes),
-            (src_height, src_height_bytes),
-            (src_width, src_width_bytes),
-            (y_src, y_src_bytes),
-            (x_src, x_src_bytes),
-        ) = (
-            crate::parser::TernaryRasterOperation::parse(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            raster_operation_bytes
-                + src_height_bytes
-                + src_width_bytes
-                + y_src_bytes
-                + x_src_bytes,
-        );
+        let raster_operation = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::TernaryRasterOperation::parse,
+        )?;
+        let src_height = read_field(buf, &mut record_size)?;
+        let src_width = read_field(buf, &mut record_size)?;
+        let y_src = read_field(buf, &mut record_size)?;
+        let x_src = read_field(buf, &mut record_size)?;
 
         let bitmap_specified =
             u32::from(record_size) != u32::from((record_function >> 8) + 3);
@@ -168,28 +159,18 @@ impl META_DIBSTRETCHBLT {
             record_size.consume(c);
             v
         };
-        let (
-            (dest_height, dest_height_bytes),
-            (dest_width, dest_width_bytes),
-            (y_dest, y_dest_bytes),
-            (x_dest, x_dest_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            dest_height_bytes + dest_width_bytes + y_dest_bytes + x_dest_bytes,
-        );
+        let dest_height = read_field(buf, &mut record_size)?;
+        let dest_width = read_field(buf, &mut record_size)?;
+        let y_dest = read_field(buf, &mut record_size)?;
+        let x_dest = read_field(buf, &mut record_size)?;
 
         let record = if bitmap_specified {
-            let (target, c) =
+            let target = read_with(buf, &mut record_size, |b| {
                 crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
-                    buf,
+                    b,
                     crate::parser::ColorUsage::DIB_PAL_INDICES,
-                )?;
-            record_size.consume(c);
+                )
+            })?;
 
             Self::WithBitmap {
                 record_size,

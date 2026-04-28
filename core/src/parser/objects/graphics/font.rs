@@ -110,57 +110,45 @@ impl Font {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (height, height_bytes),
-            (width, width_bytes),
-            (escapement, escapement_bytes),
-            (orientation, orientation_bytes),
-            (weight, weight_bytes),
-            (italic, italic_bytes),
-            (underline, underline_bytes),
-            (strike_out, strike_out_bytes),
-            (charset, charset_bytes),
-            (out_precision, out_precision_bytes),
-            (clip_precision, clip_precision_bytes),
-            (quality, quality_bytes),
-            (pitch_and_family, pitch_and_family_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            crate::parser::CharacterSet::parse(buf)?,
-            crate::parser::OutPrecision::parse(buf)?,
-            crate::parser::ClipPrecision::parse(buf)?,
-            crate::parser::FontQuality::parse(buf)?,
-            crate::parser::PitchAndFamily::parse(buf)?,
-        );
-        let mut consumed_bytes = height_bytes
-            + width_bytes
-            + escapement_bytes
-            + orientation_bytes
-            + weight_bytes
-            + italic_bytes
-            + underline_bytes
-            + strike_out_bytes
-            + charset_bytes
-            + out_precision_bytes
-            + clip_precision_bytes
-            + quality_bytes
-            + pitch_and_family_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let escapement = read_field(buf, &mut consumed_bytes)?;
+        let orientation = read_field(buf, &mut consumed_bytes)?;
+        let weight = read_field(buf, &mut consumed_bytes)?;
+        let italic_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let italic = italic_byte == 0x01;
+        let underline_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let underline = underline_byte == 0x01;
+        let strike_out_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let strike_out = strike_out_byte == 0x01;
+        let charset = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::CharacterSet::parse,
+        )?;
+        let out_precision = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::OutPrecision::parse,
+        )?;
+        let clip_precision = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::ClipPrecision::parse,
+        )?;
+        let quality = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::FontQuality::parse,
+        )?;
+        let pitch_and_family = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::PitchAndFamily::parse,
+        )?;
 
         let (facename, facename_as_charset) = {
             // The spec defines facename as a 32-byte field, but

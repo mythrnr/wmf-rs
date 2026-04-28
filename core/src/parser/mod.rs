@@ -35,7 +35,7 @@ impl ReadError {
     }
 }
 
-pub fn read<R: crate::Read, const N: usize>(
+pub(in crate::parser) fn read<R: crate::Read, const N: usize>(
     buf: &mut R,
 ) -> Result<([u8; N], usize), ReadError> {
     let mut buffer = [0u8; N];
@@ -45,7 +45,7 @@ pub fn read<R: crate::Read, const N: usize>(
     Ok((buffer, N))
 }
 
-pub fn read_variable<R: crate::Read>(
+pub(crate) fn read_variable<R: crate::Read>(
     buf: &mut R,
     len: usize,
 ) -> Result<(Vec<u8>, usize), ReadError> {
@@ -85,23 +85,89 @@ fn read_exact<R: crate::Read>(
     Ok(())
 }
 
-macro_rules! impl_from_le_bytes {
-    ($(($t:ty, $n:expr)),+) => {
-        paste::paste!{
-            $(
-                pub fn [<read_ $t _from_le_bytes>]<R: $crate::Read>(
-                    buf: &mut R,
-                ) -> Result<($t, usize), ReadError> {
-                    let (bytes, consumed_bytes) = read::<R, $n>(buf)?;
-
-                    Ok((<$t>::from_le_bytes(bytes), consumed_bytes))
-                }
-            )*
-        }
-    };
+/// Type-driven dispatch for little-endian fixed-width integer reads.
+///
+/// Lets generic helpers (e.g. `records::read_field`) pick the right
+/// integer width based on the requested type, while keeping the byte-count
+/// returned by each impl bound to the type that produced it.
+pub(crate) trait ReadLeField: Sized {
+    fn read_le<R: crate::Read>(buf: &mut R)
+    -> Result<(Self, usize), ReadError>;
 }
 
-impl_from_le_bytes! {(i8, 1), (i16, 2), (i32, 4), (u8, 1), (u16, 2), (u32, 4) }
+/// Abstract interface for tracking how many bytes have been consumed from
+/// a buffer. Implemented for both `RecordSize` (used by record parsers
+/// that have a known frame) and `usize` (used by object/control parsers
+/// that just thread a counter through the call graph).
+pub(crate) trait ConsumeTracker {
+    fn track(&mut self, consumed_bytes: usize);
+}
+
+impl ConsumeTracker for usize {
+    fn track(&mut self, consumed_bytes: usize) {
+        *self += consumed_bytes;
+    }
+}
+
+impl ConsumeTracker for crate::parser::RecordSize {
+    fn track(&mut self, consumed_bytes: usize) {
+        self.consume(consumed_bytes);
+    }
+}
+
+impl ReadLeField for i8 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 1>(buf)?;
+        Ok((i8::from_le_bytes(bytes), c))
+    }
+}
+
+impl ReadLeField for i16 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 2>(buf)?;
+        Ok((i16::from_le_bytes(bytes), c))
+    }
+}
+
+impl ReadLeField for i32 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 4>(buf)?;
+        Ok((i32::from_le_bytes(bytes), c))
+    }
+}
+
+impl ReadLeField for u8 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 1>(buf)?;
+        Ok((u8::from_le_bytes(bytes), c))
+    }
+}
+
+impl ReadLeField for u16 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 2>(buf)?;
+        Ok((u16::from_le_bytes(bytes), c))
+    }
+}
+
+impl ReadLeField for u32 {
+    fn read_le<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<(Self, usize), ReadError> {
+        let (bytes, c) = read::<R, 4>(buf)?;
+        Ok((u32::from_le_bytes(bytes), c))
+    }
+}
 
 /// Converts the given byte slice to a UTF-8 string using the specified
 /// character set.
@@ -148,12 +214,13 @@ fn bytes_into_utf8(
 
 #[cfg(test)]
 mod tests {
+    use super::ReadLeField;
+
     #[test]
     fn read_i16_from_le_bytes_ok() {
         let data = (-1234_i16).to_le_bytes();
         let mut reader = &data[..];
-        let (val, consumed) =
-            super::read_i16_from_le_bytes(&mut reader).unwrap();
+        let (val, consumed) = i16::read_le(&mut reader).unwrap();
         assert_eq!(val, -1234);
         assert_eq!(consumed, 2);
     }
@@ -162,8 +229,7 @@ mod tests {
     fn read_u16_from_le_bytes_ok() {
         let data = 0xABCD_u16.to_le_bytes();
         let mut reader = &data[..];
-        let (val, consumed) =
-            super::read_u16_from_le_bytes(&mut reader).unwrap();
+        let (val, consumed) = u16::read_le(&mut reader).unwrap();
         assert_eq!(val, 0xABCD);
         assert_eq!(consumed, 2);
     }
@@ -172,8 +238,7 @@ mod tests {
     fn read_u32_from_le_bytes_ok() {
         let data = 0xDEADBEEF_u32.to_le_bytes();
         let mut reader = &data[..];
-        let (val, consumed) =
-            super::read_u32_from_le_bytes(&mut reader).unwrap();
+        let (val, consumed) = u32::read_le(&mut reader).unwrap();
         assert_eq!(val, 0xDEADBEEF);
         assert_eq!(consumed, 4);
     }
@@ -182,8 +247,7 @@ mod tests {
     fn read_i32_from_le_bytes_ok() {
         let data = (-99999_i32).to_le_bytes();
         let mut reader = &data[..];
-        let (val, consumed) =
-            super::read_i32_from_le_bytes(&mut reader).unwrap();
+        let (val, consumed) = i32::read_le(&mut reader).unwrap();
         assert_eq!(val, -99999);
         assert_eq!(consumed, 4);
     }
@@ -192,8 +256,7 @@ mod tests {
     fn read_u8_from_le_bytes_ok() {
         let data = [0xFF];
         let mut reader = &data[..];
-        let (val, consumed) =
-            super::read_u8_from_le_bytes(&mut reader).unwrap();
+        let (val, consumed) = u8::read_le(&mut reader).unwrap();
         assert_eq!(val, 0xFF);
         assert_eq!(consumed, 1);
     }
@@ -240,14 +303,14 @@ mod tests {
     #[test]
     fn read_u16_from_empty_buffer() {
         let mut reader: &[u8] = &[];
-        assert!(super::read_u16_from_le_bytes(&mut reader).is_err());
+        assert!(u16::read_le(&mut reader).is_err());
     }
 
     #[test]
     fn read_u32_from_short_buffer() {
         let data = [0u8; 2];
         let mut reader = &data[..];
-        assert!(super::read_u32_from_le_bytes(&mut reader).is_err());
+        assert!(u32::read_le(&mut reader).is_err());
     }
 
     #[test]

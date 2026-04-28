@@ -45,28 +45,17 @@ impl META_ELLIPSE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_ELLIPSE,
         )?;
 
-        let (
-            (bottom_rect, bottom_rect_bytes),
-            (right_rect, right_rect_bytes),
-            (top_rect, top_rect_bytes),
-            (left_rect, left_rect_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            bottom_rect_bytes
-                + right_rect_bytes
-                + top_rect_bytes
-                + left_rect_bytes,
-        );
+        let bottom_rect = read_field(buf, &mut record_size)?;
+        let right_rect = read_field(buf, &mut record_size)?;
+        let top_rect = read_field(buf, &mut record_size)?;
+        let left_rect = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

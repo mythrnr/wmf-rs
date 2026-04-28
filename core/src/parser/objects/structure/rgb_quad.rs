@@ -26,17 +26,13 @@ impl RGBQuad {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (red, red_bytes),
-            (green, green_bytes),
-            (blue, blue_bytes),
-            (reserved, reserved_bytes),
-        ) = (
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let red = read_field(buf, &mut consumed_bytes)?;
+        let green = read_field(buf, &mut consumed_bytes)?;
+        let blue = read_field(buf, &mut consumed_bytes)?;
+        let reserved = read_field(buf, &mut consumed_bytes)?;
 
         if reserved != 0x00 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -44,9 +40,6 @@ impl RGBQuad {
             });
         }
 
-        Ok((
-            Self { red, green, blue, reserved },
-            red_bytes + green_bytes + blue_bytes + reserved_bytes,
-        ))
+        Ok((Self { red, green, blue, reserved }, consumed_bytes))
     }
 }

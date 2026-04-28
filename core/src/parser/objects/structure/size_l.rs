@@ -18,11 +18,12 @@ impl SizeL {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((cx, cx_bytes), (cy, cy_bytes)) = (
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { cx, cy }, cx_bytes + cy_bytes))
+        let mut consumed_bytes: usize = 0;
+        let cx = read_field(buf, &mut consumed_bytes)?;
+        let cy = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { cx, cy }, consumed_bytes))
     }
 }

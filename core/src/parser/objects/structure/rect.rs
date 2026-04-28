@@ -25,22 +25,15 @@ impl Rect {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (left, left_bytes),
-            (top, top_bytes),
-            (right, right_bytes),
-            (bottom, bottom_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((
-            Self { left, top, right, bottom },
-            left_bytes + top_bytes + right_bytes + bottom_bytes,
-        ))
+        let mut consumed_bytes: usize = 0;
+        let left = read_field(buf, &mut consumed_bytes)?;
+        let top = read_field(buf, &mut consumed_bytes)?;
+        let right = read_field(buf, &mut consumed_bytes)?;
+        let bottom = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { left, top, right, bottom }, consumed_bytes))
     }
 
     pub fn overlap(&self, other: &Rect) -> Option<Rect> {

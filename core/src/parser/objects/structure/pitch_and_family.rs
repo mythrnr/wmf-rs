@@ -20,7 +20,10 @@ impl PitchAndFamily {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (byte, consumed_bytes) = crate::parser::read_u8_from_le_bytes(buf)?;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let byte: u8 = read_field(buf, &mut consumed_bytes)?;
 
         let family = byte >> 4;
         let Some(family) = crate::parser::FamilyFont::from_repr(byte >> 4)

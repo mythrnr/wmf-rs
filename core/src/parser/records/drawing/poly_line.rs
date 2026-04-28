@@ -35,14 +35,14 @@ impl META_POLYLINE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_POLYLINE,
         )?;
 
-        let (number_of_points, number_of_points_bytes) =
-            crate::parser::read_i16_from_le_bytes(buf)?;
-        record_size.consume(number_of_points_bytes);
+        let number_of_points = read_field(buf, &mut record_size)?;
 
         if number_of_points < 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
@@ -56,10 +56,11 @@ impl META_POLYLINE {
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
-            let (v, c) = crate::parser::PointS::parse(buf)?;
-
-            record_size.consume(c);
-            a_points.push(v);
+            a_points.push(read_with(
+                buf,
+                &mut record_size,
+                crate::parser::PointS::parse,
+            )?);
         }
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

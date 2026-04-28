@@ -25,22 +25,30 @@ impl MetafileHeader {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (mut key, mut consumed_bytes) =
-            crate::parser::read_u32_from_le_bytes(buf)?;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let mut key: u32 = read_field(buf, &mut consumed_bytes)?;
 
         let placeable = if key == 0x9AC6CDD7 {
-            let (v, c) = crate::parser::META_PLACEABLE::parse(buf, key)?;
-            let (k, key_bytes) = crate::parser::read_u32_from_le_bytes(buf)?;
-
-            (key, consumed_bytes) = (k, c + key_bytes);
+            // Reset the byte counter to match the original behavior:
+            // when a placeable header is detected, only the post-placeable
+            // read (placeable + new key) is reported, dropping the initial
+            // key read.
+            consumed_bytes = 0;
+            let v = read_with(buf, &mut consumed_bytes, |b| {
+                crate::parser::META_PLACEABLE::parse(b, key)
+            })?;
+            key = read_field(buf, &mut consumed_bytes)?;
 
             Some(v)
         } else {
             None
         };
 
-        let (header, c) = crate::parser::META_HEADER::parse(buf, key)?;
-        consumed_bytes += c;
+        let header = read_with(buf, &mut consumed_bytes, |b| {
+            crate::parser::META_HEADER::parse(b, key)
+        })?;
 
         Ok(if let Some(placeable) = placeable {
             (Self::StartsWithPlaceable(placeable, header), consumed_bytes)

@@ -4,41 +4,19 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (comment_identifier, comment_identifier_bytes),
-            (comment_type, comment_type_bytes),
-            (version, version_bytes),
-            (checksum, checksum_bytes),
-            (flags, flags_bytes),
-            (comment_record_count, comment_record_count_bytes),
-            (current_record_size, current_record_size_bytes),
-            (remaining_bytes, remaining_bytes_bytes),
-            (enhanced_metafile_data_size, enhanced_metafile_data_size_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            byte_count_bytes
-                + comment_identifier_bytes
-                + comment_type_bytes
-                + version_bytes
-                + checksum_bytes
-                + flags_bytes
-                + comment_record_count_bytes
-                + current_record_size_bytes
-                + remaining_bytes_bytes
-                + enhanced_metafile_data_size_bytes,
-        );
+        use crate::parser::records::{read_bytes_field, read_field};
+
+        let byte_count = read_field(buf, &mut record_size)?;
+        let comment_identifier = read_field(buf, &mut record_size)?;
+        let comment_type = read_field(buf, &mut record_size)?;
+        let version = read_field(buf, &mut record_size)?;
+        let checksum = read_field(buf, &mut record_size)?;
+        let flags = read_field(buf, &mut record_size)?;
+        let comment_record_count = read_field(buf, &mut record_size)?;
+        let current_record_size = read_field(buf, &mut record_size)?;
+        let remaining_bytes = read_field(buf, &mut record_size)?;
+        let enhanced_metafile_data_size: u32 =
+            read_field(buf, &mut record_size)?;
 
         let Some(expected_byte_count) =
             enhanced_metafile_data_size.checked_add(34)
@@ -103,11 +81,11 @@ impl crate::parser::META_ESCAPE {
             });
         }
 
-        let (enhanced_metafile_data, c) = crate::parser::read_variable(
+        let enhanced_metafile_data = read_bytes_field(
             buf,
+            &mut record_size,
             enhanced_metafile_data_size as usize,
         )?;
-        record_size.consume(c);
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

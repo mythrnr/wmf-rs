@@ -17,8 +17,10 @@ impl BitmapInfoHeader {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (header_size, mut consumed_bytes) =
-            crate::parser::read_u32_from_le_bytes(buf)?;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let header_size = read_field(buf, &mut consumed_bytes)?;
 
         match header_size {
             0x0000000C => {

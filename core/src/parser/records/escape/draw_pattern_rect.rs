@@ -6,26 +6,15 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (position, position_bytes),
-            (size, size_bytes),
-            (style, style_bytes),
-            (pattern, pattern_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::PointL::parse(buf)?,
-            crate::parser::PointL::parse(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            byte_count_bytes
-                + position_bytes
-                + size_bytes
-                + style_bytes
-                + pattern_bytes,
-        );
+        use crate::parser::records::{read_field, read_with};
+
+        let byte_count = read_field(buf, &mut record_size)?;
+        let position =
+            read_with(buf, &mut record_size, crate::parser::PointL::parse)?;
+        let size =
+            read_with(buf, &mut record_size, crate::parser::PointL::parse)?;
+        let style = read_field(buf, &mut record_size)?;
+        let pattern = read_field(buf, &mut record_size)?;
 
         if byte_count != 0x0014 {
             return Err(crate::parser::ParseError::UnexpectedPattern {

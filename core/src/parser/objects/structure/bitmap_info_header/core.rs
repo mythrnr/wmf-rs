@@ -36,19 +36,17 @@ impl BitmapInfoHeaderCore {
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (width, width_bytes),
-            (height, height_bytes),
-            (planes, planes_bytes),
-            (bit_count, bit_count_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::BitCount::parse(buf)?,
-        );
-        let consumed_bytes =
-            width_bytes + height_bytes + planes_bytes + bit_count_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let planes = read_field(buf, &mut consumed_bytes)?;
+        let bit_count = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::BitCount::parse,
+        )?;
 
         if planes != 0x0001 {
             return Err(crate::parser::ParseError::UnexpectedPattern {

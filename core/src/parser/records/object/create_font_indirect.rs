@@ -28,6 +28,8 @@ impl META_CREATEFONTINDIRECT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_bytes_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEFONTINDIRECT,
@@ -56,8 +58,7 @@ impl META_CREATEFONTINDIRECT {
         // against corrupted record sizes.
         const FONT_MAX_SIZE: usize = 50;
         let read_len = core::cmp::min(remaining, FONT_MAX_SIZE);
-        let (b, c) = crate::parser::read_variable(buf, read_len)?;
-        record_size.consume(c);
+        let b = read_bytes_field(buf, &mut record_size, read_len)?;
 
         let mut bounded = &b[..];
         let (font, _) = crate::parser::Font::parse(&mut bounded)?;

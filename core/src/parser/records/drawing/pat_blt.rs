@@ -46,31 +46,22 @@ impl META_PATBLT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_PATBLT,
         )?;
 
-        let (
-            (raster_operation, raster_operation_bytes),
-            (height, height_bytes),
-            (width, width_bytes),
-            (y_left, y_left_bytes),
-            (x_left, x_left_bytes),
-        ) = (
-            crate::parser::TernaryRasterOperation::parse(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            raster_operation_bytes
-                + height_bytes
-                + width_bytes
-                + y_left_bytes
-                + x_left_bytes,
-        );
+        let raster_operation = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::TernaryRasterOperation::parse,
+        )?;
+        let height = read_field(buf, &mut record_size)?;
+        let width = read_field(buf, &mut record_size)?;
+        let y_left = read_field(buf, &mut record_size)?;
+        let x_left = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

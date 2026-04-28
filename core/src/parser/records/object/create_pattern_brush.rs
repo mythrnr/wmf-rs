@@ -57,21 +57,26 @@ impl META_CREATEPATTERNBRUSH {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_bytes_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEPATTERNBRUSH,
         )?;
 
-        let (bitmap16, bitmap16_bytes) =
-            crate::parser::Bitmap16::parse_without_bits(buf)?;
-        let (_, ignored_bytes) =
-            crate::parser::read_variable(buf, 14 - bitmap16_bytes)?;
+        let bitmap16_start = record_size.consumed_bytes();
+        let bitmap16 = read_with(
+            buf,
+            &mut record_size,
+            crate::parser::Bitmap16::parse_without_bits,
+        )?;
+        let bitmap16_bytes = record_size.consumed_bytes() - bitmap16_start;
+        let _ = read_bytes_field(buf, &mut record_size, 14 - bitmap16_bytes)?;
         let (reserved, reserved_bytes) = crate::parser::read::<R, 18>(buf)?;
-        record_size.consume(bitmap16_bytes + ignored_bytes + reserved_bytes);
+        record_size.consume(reserved_bytes);
 
-        let (pattern, pattern_bytes) =
-            crate::parser::read_variable(buf, bitmap16.calc_length())?;
-        record_size.consume(pattern_bytes);
+        let pattern =
+            read_bytes_field(buf, &mut record_size, bitmap16.calc_length())?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

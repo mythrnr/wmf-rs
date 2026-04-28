@@ -52,24 +52,19 @@ impl META_PLACEABLE {
         buf: &mut R,
         key: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (hwmf, hwmf_bytes),
-            (bounding_box, bounding_box_bytes),
-            (inch, inch_bytes),
-            (reserved, reserved_bytes),
-            (checksum, checksum_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::Rect::parse(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read::<R, 2>(buf)?,
-        );
-        let consumed_bytes = hwmf_bytes
-            + bounding_box_bytes
-            + inch_bytes
-            + reserved_bytes
-            + checksum_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let hwmf = read_field(buf, &mut consumed_bytes)?;
+        let bounding_box =
+            read_with(buf, &mut consumed_bytes, crate::parser::Rect::parse)?;
+        let inch = read_field(buf, &mut consumed_bytes)?;
+        let reserved = read_field(buf, &mut consumed_bytes)?;
+        // `read::<R, 2>` returns a fixed-length array with `ReadError`, so
+        // it cannot use `read_with` (which expects `ParseError`). Track the
+        // byte count manually.
+        let (checksum, checksum_bytes) = crate::parser::read::<R, 2>(buf)?;
+        consumed_bytes += checksum_bytes;
 
         Ok((
             Self { key, hwmf, bounding_box, inch, reserved, checksum },

@@ -36,14 +36,14 @@ impl META_SETTEXTALIGN {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETTEXTALIGN,
         )?;
 
-        let (text_alignment_mode, text_alignment_mode_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
-        record_size.consume(text_alignment_mode_bytes);
+        let text_alignment_mode = read_field(buf, &mut record_size)?;
 
         let reserved = if record_size.byte_count() > 8 {
             let (v, c) = crate::parser::read::<R, 2>(buf)?;
