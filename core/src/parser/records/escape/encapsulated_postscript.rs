@@ -8,20 +8,20 @@ impl crate::parser::META_ESCAPE {
     ) -> Result<Self, crate::parser::ParseError> {
         use crate::parser::records::{read_bytes_field, read_field, read_with};
 
-        let byte_count = read_field(buf, &mut record_size)?;
-        let size = read_field(buf, &mut record_size)?;
-        let version = read_field(buf, &mut record_size)?;
+        let byte_count: u16 = read_field(buf, &mut record_size)?;
+        let size: u32 = read_field(buf, &mut record_size)?;
+        let version: u32 = read_field(buf, &mut record_size)?;
         let points =
             read_with(buf, &mut record_size, crate::parser::PointL::parse)?;
 
-        if u32::from(byte_count) < size {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count field `{byte_count:#06X}` field must be \
-                     greater than or equal to size field `{size:#06X}`",
-                ),
-            });
-        }
+        // byte_count is u16 in the wire format but `size` is u32.
+        // Widen byte_count for the bound check so both operands share
+        // the same width (and `width_bits` stays 32 for the diagnostic).
+        crate::parser::ParseError::expect_le(
+            "size (vs byte_count)",
+            size,
+            u32::from(byte_count),
+        )?;
 
         let data_length = size
             - (u32::try_from(size_of::<crate::parser::PointL>())

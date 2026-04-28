@@ -44,14 +44,10 @@ impl META_POLYLINE {
 
         let number_of_points = read_field(buf, &mut record_size)?;
 
-        if number_of_points < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "number_of_points must be non-negative, got \
-                     {number_of_points}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "number_of_points",
+            number_of_points,
+        )?;
 
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 

@@ -11,14 +11,11 @@ impl crate::parser::META_ESCAPE {
         let byte_count = read_field(buf, &mut record_size)?;
         let start = read_field(buf, &mut record_size)?;
 
-        if start > byte_count {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "start `{start:#06X}` exceeds byte_count \
-                     `{byte_count:#06X}`",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_le(
+            "start (vs byte_count)",
+            start,
+            byte_count,
+        )?;
 
         let _ = read_bytes_field(buf, &mut record_size, start as usize)?;
 

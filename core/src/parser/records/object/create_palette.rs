@@ -37,15 +37,11 @@ impl META_CREATEPALETTE {
         let (palette, palette_bytes) = crate::parser::Palette::parse(buf)?;
         record_size.consume(palette_bytes);
 
-        if palette.start != 0x0300 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The start field in the palette object must be `0x0300`, \
-                     but `{:#06X}`",
-                    palette.start
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq(
+            "palette.start",
+            palette.start,
+            0x0300,
+        )?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

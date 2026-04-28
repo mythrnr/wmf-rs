@@ -50,13 +50,10 @@ impl META_POLYGON {
         // The spec requires number_of_points >= 2, but real-world
         // WMF files may contain degenerate polygons (0 or 1 points).
         // Treat these as a no-op; only reject negative values.
-        if number_of_points < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "number_of_points must be >= 0, got {number_of_points}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "number_of_points",
+            number_of_points,
+        )?;
 
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 

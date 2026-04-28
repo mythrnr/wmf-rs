@@ -128,11 +128,7 @@ impl BitmapInfoHeaderInfo {
             });
         }
 
-        if planes != 0x0001 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The planes field must be 0x01".to_owned(),
-            });
-        }
+        crate::parser::ParseError::expect_eq("planes", planes, 0x0001)?;
 
         Ok((
             Self {

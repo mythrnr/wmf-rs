@@ -58,13 +58,10 @@ impl META_TEXTOUT {
 
         let string_length = read_field(buf, &mut record_size)?;
 
-        if string_length < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "string_length must be non-negative, got {string_length}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "string_length",
+            string_length,
+        )?;
 
         // Pad to 2-byte boundary if string_length is odd.
         // Compute in usize to avoid i16 overflow (e.g. 32767 + 1).

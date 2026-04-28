@@ -10,14 +10,7 @@ impl crate::parser::META_ESCAPE {
 
         let byte_count = read_field(buf, &mut record_size)?;
 
-        if byte_count >= 260 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count `{byte_count}` field must be less than \
-                     `260`",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_le("byte_count", byte_count, 259)?;
 
         let doc_name =
             read_bytes_field(buf, &mut record_size, byte_count as usize)?;

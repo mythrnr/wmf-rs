@@ -73,32 +73,22 @@ fn check_lower_byte_matches(
     record_function: u16,
     record_type: crate::parser::RecordType,
 ) -> Result<(), crate::parser::ParseError> {
-    if record_function & 0x00FF != (record_type as u16) & 0x00FF {
-        return Err(crate::parser::ParseError::UnexpectedPattern {
-            cause: format!(
-                "The low-order byte of record_function \
-                 `{record_function:#06X}` field must be same as `{:#06X}`",
-                record_type as u16
-            ),
-        });
-    }
-
-    Ok(())
+    crate::parser::ParseError::expect_eq(
+        "record_function (low byte)",
+        record_function & 0x00FF,
+        (record_type as u16) & 0x00FF,
+    )
 }
 
 fn consume_remaining_bytes<R: crate::Read>(
     buf: &mut R,
     record_size: crate::parser::RecordSize,
 ) -> Result<(crate::imports::Vec<u8>, usize), crate::parser::ParseError> {
-    if record_size.consumed_bytes() > record_size.byte_count() {
-        return Err(crate::parser::ParseError::UnexpectedPattern {
-            cause: alloc::format!(
-                "consumed bytes ({}) exceeds record byte count ({})",
-                record_size.consumed_bytes(),
-                record_size.byte_count(),
-            ),
-        });
-    }
+    crate::parser::ParseError::expect_le(
+        "consumed_bytes",
+        record_size.consumed_bytes() as u64,
+        record_size.byte_count() as u64,
+    )?;
 
     let remaining = record_size.remaining_bytes();
     if remaining == 0 {
@@ -158,14 +148,11 @@ impl RecordSize {
             });
         }
 
-        if v > MAX_RECORD_WORDS {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: alloc::format!(
-                    "record size {v:#010X} exceeds maximum \
-                     ({MAX_RECORD_WORDS:#010X})",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_le(
+            "record_size (words)",
+            v,
+            MAX_RECORD_WORDS,
+        )?;
 
         Ok(Self { size_words: v, consumed_bytes: c })
     }

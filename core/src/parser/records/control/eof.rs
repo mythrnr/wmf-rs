@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The META_EOF Record indicates the end of the WMF metafile.
 #[derive(Clone, Debug)]
 pub struct META_EOF {
@@ -28,17 +26,18 @@ impl META_EOF {
         record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        if record_size.word_size() != 3 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The record_size must be `3`".to_owned(),
-            });
-        }
-
-        if record_function != 0x0000 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The record_function field must be `0x0000`".to_owned(),
-            });
-        }
+        // word_size() returns usize; go through `u32::from(RecordSize)`
+        // to keep the diagnostic width matching the on-wire field.
+        crate::parser::ParseError::expect_eq(
+            "record_size (words)",
+            u32::from(record_size),
+            3_u32,
+        )?;
+        crate::parser::ParseError::expect_eq(
+            "record_function",
+            record_function,
+            0x0000_u16,
+        )?;
 
         Ok(Self { record_size, record_function })
     }

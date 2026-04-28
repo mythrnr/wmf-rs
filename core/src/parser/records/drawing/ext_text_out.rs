@@ -107,13 +107,10 @@ impl META_EXTTEXTOUT {
             None
         };
 
-        if string_length < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "string_length must be non-negative, got {string_length}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "string_length",
+            string_length,
+        )?;
 
         let string =
             read_bytes_field(buf, &mut record_size, string_length as usize)?;

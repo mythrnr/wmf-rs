@@ -16,13 +16,7 @@ impl crate::parser::META_ESCAPE {
         let style = read_field(buf, &mut record_size)?;
         let pattern = read_field(buf, &mut record_size)?;
 
-        if byte_count != 0x0014 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count `{byte_count:#06X}` field must be `0x0014`",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq("byte_count", byte_count, 0x0014)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

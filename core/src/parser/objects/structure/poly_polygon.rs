@@ -55,14 +55,11 @@ impl PolyPolygon {
             a_points_per_polygon.push(v);
         }
 
-        if number_of_points > Self::MAX_TOTAL_POINTS {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: alloc::format!(
-                    "total point count {number_of_points} exceeds maximum {}",
-                    Self::MAX_TOTAL_POINTS,
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_le(
+            "number_of_points",
+            number_of_points,
+            Self::MAX_TOTAL_POINTS,
+        )?;
 
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 
@@ -131,10 +128,10 @@ mod tests {
         let err = PolyPolygon::parse(&mut reader).expect_err(
             "total point count above MAX_TOTAL_POINTS must be rejected",
         );
-        assert!(matches!(
-            err,
-            crate::parser::ParseError::UnexpectedPattern { .. }
-        ));
+        assert!(matches!(err, crate::parser::ParseError::FieldOutOfRange {
+            field: "number_of_points",
+            ..
+        }));
     }
 
     #[test]

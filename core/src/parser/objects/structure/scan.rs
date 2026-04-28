@@ -40,11 +40,7 @@ impl Scan {
         let top = read_field(buf, &mut consumed_bytes)?;
         let bottom = read_field(buf, &mut consumed_bytes)?;
 
-        if count % 2 != 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!("The count field `{count}` must be even value"),
-            });
-        }
+        crate::parser::ParseError::expect_eq("count (parity)", count % 2, 0)?;
 
         let line_count = count as usize / 2;
         let mut scan_lines = Vec::with_capacity(line_count);
@@ -56,14 +52,7 @@ impl Scan {
 
         let count2: u16 = read_field(buf, &mut consumed_bytes)?;
 
-        if count != count2 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The count field `{count}` and count2 field `{count2}` \
-                     must have same value"
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq("count2", count2, count)?;
 
         Ok((Self { count, top, bottom, scan_lines, count2 }, consumed_bytes))
     }
