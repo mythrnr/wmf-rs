@@ -51,5 +51,13 @@ version = "0.1.0"
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "s"
+# `z` favors size over speed more aggressively than `s`. The CLI runs
+# briefly per invocation and the WASM bundle is the size-sensitive
+# artifact, so the slight loss in throughput is an acceptable trade.
+opt-level = "z"
+# `abort` skips the unwinding tables and `_Unwind_*` shims that the
+# default `unwind` strategy pulls into the binary. `console_error_panic_hook`
+# still runs through `std::panic::set_hook`, which fires under abort
+# too, so the WASM panic-to-console diagnostic survives.
+panic = "abort"
 strip = "symbols"

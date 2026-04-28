@@ -5,6 +5,10 @@ mod records;
 pub use self::{constants::*, objects::*, records::*};
 use crate::imports::*;
 
+// ---------------------------------------------------------------------------
+// Error types
+// ---------------------------------------------------------------------------
+
 #[derive(Clone, Debug, snafu::prelude::Snafu)]
 pub enum ParseError {
     #[snafu(display("failed to read buffer: {cause}"))]
@@ -55,15 +59,6 @@ pub enum ParseError {
     /// `i64`, so this variant displays decimal rather than hex.
     #[snafu(display("field `{field}` must be non-negative: actual {actual}"))]
     FieldNegative { field: &'static str, actual: i64 },
-}
-
-/// Maps a bit width (8/16/32/64) to the formatter `width` argument
-/// expected by `{:#0w$x}`. The `#` flag emits the `0x` prefix and the
-/// `0` flag pads with zeros, so the total width includes those two
-/// prefix characters and the underlying hex digits.
-const fn hex_width(width_bits: u8) -> usize {
-    // hex digits = bits / 4; total width adds 2 for the `0x` prefix.
-    (width_bits as usize) / 4 + 2
 }
 
 impl ParseError {
@@ -146,10 +141,13 @@ const fn bits_of<T>() -> u8 {
     (core::mem::size_of::<T>() * 8) as u8
 }
 
-impl From<ReadError> for ParseError {
-    fn from(err: ReadError) -> Self {
-        Self::FailedReadBuffer { cause: err }
-    }
+/// Maps a bit width (8/16/32/64) to the formatter `width` argument
+/// expected by `{:#0w$x}`. The `#` flag emits the `0x` prefix and the
+/// `0` flag pads with zeros, so the total width includes those two
+/// prefix characters and the underlying hex digits.
+const fn hex_width(width_bits: u8) -> usize {
+    // hex digits = bits / 4; total width adds 2 for the `0x` prefix.
+    (width_bits as usize) / 4 + 2
 }
 
 #[derive(Clone, Debug, snafu::prelude::Snafu)]
@@ -163,6 +161,16 @@ impl ReadError {
         Self { cause: err.to_string() }
     }
 }
+
+impl From<ReadError> for ParseError {
+    fn from(err: ReadError) -> Self {
+        Self::FailedReadBuffer { cause: err }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Low-level byte I/O primitives
+// ---------------------------------------------------------------------------
 
 #[inline]
 pub(in crate::parser) fn read<R: crate::Read, const N: usize>(
@@ -236,6 +244,10 @@ fn read_exact<R: crate::Read>(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Trait foundations used by record / object parsers
+// ---------------------------------------------------------------------------
+
 /// Type-driven dispatch for little-endian fixed-width integer reads.
 ///
 /// Lets generic helpers (e.g. `records::read_field`) pick the right
@@ -244,28 +256,6 @@ fn read_exact<R: crate::Read>(
 pub(crate) trait ReadLeField: Sized {
     fn read_le<R: crate::Read>(buf: &mut R)
     -> Result<(Self, usize), ReadError>;
-}
-
-/// Abstract interface for tracking how many bytes have been consumed from
-/// a buffer. Implemented for both `RecordSize` (used by record parsers
-/// that have a known frame) and `usize` (used by object/control parsers
-/// that just thread a counter through the call graph).
-pub(crate) trait ConsumeTracker {
-    fn track(&mut self, consumed_bytes: usize);
-}
-
-impl ConsumeTracker for usize {
-    #[inline]
-    fn track(&mut self, consumed_bytes: usize) {
-        *self += consumed_bytes;
-    }
-}
-
-impl ConsumeTracker for crate::parser::RecordSize {
-    #[inline]
-    fn track(&mut self, consumed_bytes: usize) {
-        self.consume(consumed_bytes);
-    }
 }
 
 impl ReadLeField for i8 {
@@ -327,6 +317,32 @@ impl ReadLeField for u32 {
         Ok((u32::from_le_bytes(bytes), c))
     }
 }
+
+/// Abstract interface for tracking how many bytes have been consumed from
+/// a buffer. Implemented for both `RecordSize` (used by record parsers
+/// that have a known frame) and `usize` (used by object/control parsers
+/// that just thread a counter through the call graph).
+pub(crate) trait ConsumeTracker {
+    fn track(&mut self, consumed_bytes: usize);
+}
+
+impl ConsumeTracker for usize {
+    #[inline]
+    fn track(&mut self, consumed_bytes: usize) {
+        *self += consumed_bytes;
+    }
+}
+
+impl ConsumeTracker for crate::parser::RecordSize {
+    #[inline]
+    fn track(&mut self, consumed_bytes: usize) {
+        self.consume(consumed_bytes);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// High-level utilities
+// ---------------------------------------------------------------------------
 
 /// Converts the given byte slice to a UTF-8 string using the specified
 /// character set.

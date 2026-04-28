@@ -70,19 +70,37 @@ Converts parsed records into an output format.
 
 - Rust 1.88.0 (pinned via `rust-toolchain.toml`)
 - Rust nightly (for rustfmt and cargo-udeps)
-- Docker (for spell-check)
+- Docker (for spell-check, and for the optional containerized dev shell)
 
 ### Optional Tools
 
 - `cargo-machete`, `cargo-udeps` (unused dependency detection)
-- `wasm-pack` (WASM build)
+- `wasm-pack`, `wasm-opt`, `wasm-bindgen-cli` (WASM build)
 - Yarn 1.22.22+ (running WASM demo)
 
-Bulk install of tools:
+Bulk install of host tools:
 
 ```sh
 make install-tools
 ```
+
+### Containerized Dev Shell (alternative)
+
+`docker/` provides a self-contained image with the toolchain plus
+every helper used by the `make` targets (clippy, rustfmt,
+rust-analyzer, cargo-machete, cargo-udeps, wasm-pack, wasm-opt,
+wasm-bindgen-cli, cargo-bloat, twiggy). The workspace is bind-mounted
+at `/work` and `target/` is kept on a named volume so host editors and
+the container don't fight over `target/` ownership.
+
+```sh
+make docker-build   # build the image (one-time / on Dockerfile change)
+make docker-dev     # drop into bash inside the container
+make docker-clean   # tear down volumes (forces a clean cache)
+```
+
+Inside the container, the same `make` targets work
+(`make ci-suite`, `make test`, `make wasm`, ...).
 
 ## Build, Test & Quality Checks
 
@@ -99,6 +117,9 @@ make install-tools
 | `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps wasm test` |
 | `make wasm` | `wasm-pack build --out-dir dist --target web` |
 | `make serve` | Start WASM demo at `localhost:8080` |
+| `make docker-build` | Build the dev container image |
+| `make docker-dev` | Open an interactive shell in the dev container |
+| `make docker-clean` | Tear down dev container volumes |
 
 ### CI (GitHub Actions)
 

@@ -11,6 +11,136 @@ pub use self::{
     bitmap::*, control::*, drawing::*, escape::*, object::*, state::*,
 };
 
+// ---------------------------------------------------------------------------
+// RecordSize: the central record-frame primitive
+// ---------------------------------------------------------------------------
+
+/// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,
+/// defined in [MS-DTYP] section 2.2.61, in the record.
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RecordSize {
+    /// Total record length in 16-bit WORDs, taken verbatim from the
+    /// `RecordSize` field of the record header.
+    size_words: u32,
+    /// Number of bytes already consumed from the record payload, used to
+    /// detect overruns and to skip the trailing reserved area.
+    consumed_bytes: usize,
+}
+
+impl RecordSize {
+    #[cfg_attr(feature = "tracing", tracing::instrument(
+        level = tracing::Level::TRACE,
+        skip_all,
+        err(level = tracing::Level::ERROR, Display),
+    ))]
+    pub fn parse<R: crate::Read>(
+        buf: &mut R,
+    ) -> Result<Self, crate::parser::ParseError> {
+        /// Maximum allowed record size in WORDs.
+        /// 32 MW (64 MB) is far beyond any practical WMF record and guards
+        /// against crafted inputs that would cause excessive resource usage.
+        const MAX_RECORD_WORDS: u32 = 32 * 1024 * 1024;
+
+        let (v, c) = <u32 as crate::parser::ReadLeField>::read_le(buf)?;
+
+        // Minimum record is 3 WORDs (RecordSize: 2 + RecordFunction: 1).
+        if v < 3 {
+            return Err(crate::parser::ParseError::UnexpectedPattern {
+                cause: alloc::format!(
+                    "record size {v:#010X} is smaller than minimum header \
+                     size (0x00000003)",
+                )
+                .into(),
+            });
+        }
+
+        crate::parser::ParseError::expect_le(
+            "record_size (words)",
+            v,
+            MAX_RECORD_WORDS,
+        )?;
+
+        Ok(Self { size_words: v, consumed_bytes: c })
+    }
+
+    /// Constructs a `RecordSize` from a raw word count without going
+    /// through `parse`'s validation. Intended only for synthesizing
+    /// records in unit/integration tests; production code MUST go
+    /// through `parse` so `MAX_RECORD_WORDS` and minimum-size checks
+    /// stay in effect.
+    #[doc(hidden)]
+    pub fn from_raw(words: u32) -> Self {
+        Self { size_words: words, consumed_bytes: 0 }
+    }
+
+    #[inline]
+    pub fn word_size(&self) -> usize {
+        self.size_words as usize
+    }
+
+    #[inline]
+    pub fn byte_count(&self) -> usize {
+        // `parse` already rejects `size_words` above
+        // `MAX_RECORD_WORDS` (32 MW), so the doubled value cannot
+        // overflow `usize` on any supported platform; a plain
+        // multiplication keeps this hot getter branch-free.
+        (self.size_words as usize) * 2
+    }
+
+    #[inline]
+    pub fn consumed_bytes(&self) -> usize {
+        self.consumed_bytes
+    }
+
+    #[inline]
+    pub fn consume(&mut self, consumed_bytes: usize) {
+        self.consumed_bytes += consumed_bytes;
+    }
+
+    #[inline]
+    pub fn remaining_bytes(&self) -> usize {
+        self.byte_count().saturating_sub(self.consumed_bytes)
+    }
+
+    /// Returns true if consumed_bytes has exceeded byte_count,
+    /// indicating a malformed record or a parser bug.
+    #[inline]
+    pub fn is_overrun(&self) -> bool {
+        self.consumed_bytes > self.byte_count()
+    }
+
+    #[inline]
+    pub fn remaining(&self) -> bool {
+        !self.is_overrun() && self.remaining_bytes() > 0
+    }
+}
+
+impl From<RecordSize> for u32 {
+    fn from(v: RecordSize) -> Self {
+        v.size_words
+    }
+}
+
+impl core::fmt::Display for RecordSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#010X}", self.size_words)
+    }
+}
+
+impl core::fmt::Debug for RecordSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "RecordSize(size: {:#010X}, consumed_bytes: {})",
+            self.size_words, self.consumed_bytes
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Display-only helpers used by the per-record `tracing::instrument`
+// ---------------------------------------------------------------------------
+
 /// `Display`-only wrapper around a `u16` that emits `{:#06X}`.
 ///
 /// `tracing::instrument(fields(record_function = %...))` previously
@@ -29,6 +159,10 @@ impl core::fmt::Display for HexU16 {
         write!(f, "{:#06X}", self.0)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Field-read helpers shared by every record / object parser
+// ---------------------------------------------------------------------------
 
 /// Read a fixed-width little-endian integer field, advance the `tracker`
 /// by the number of bytes consumed, and return the value.
@@ -135,132 +269,6 @@ fn consume_remaining_bytes<R: crate::Read>(
     }
 
     Ok(())
-}
-
-/// A 32-bit unsigned integer that defines the number of 16-bit WORD structures,
-/// defined in [MS-DTYP] section 2.2.61, in the record.
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub struct RecordSize {
-    /// Total record length in 16-bit WORDs, taken verbatim from the
-    /// `RecordSize` field of the record header.
-    size_words: u32,
-    /// Number of bytes already consumed from the record payload, used to
-    /// detect overruns and to skip the trailing reserved area.
-    consumed_bytes: usize,
-}
-
-/// Maximum allowed record size in WORDs.
-/// 32 MW (64 MB) is far beyond any practical WMF record and guards
-/// against crafted inputs that would cause excessive resource usage.
-const MAX_RECORD_WORDS: u32 = 32 * 1024 * 1024;
-
-impl RecordSize {
-    #[cfg_attr(feature = "tracing", tracing::instrument(
-        level = tracing::Level::TRACE,
-        skip_all,
-        err(level = tracing::Level::ERROR, Display),
-    ))]
-    pub fn parse<R: crate::Read>(
-        buf: &mut R,
-    ) -> Result<Self, crate::parser::ParseError> {
-        let (v, c) = <u32 as crate::parser::ReadLeField>::read_le(buf)?;
-
-        // Minimum record is 3 WORDs (RecordSize: 2 + RecordFunction: 1).
-        if v < 3 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: alloc::format!(
-                    "record size {v:#010X} is smaller than minimum header \
-                     size (0x00000003)",
-                )
-                .into(),
-            });
-        }
-
-        crate::parser::ParseError::expect_le(
-            "record_size (words)",
-            v,
-            MAX_RECORD_WORDS,
-        )?;
-
-        Ok(Self { size_words: v, consumed_bytes: c })
-    }
-}
-
-impl RecordSize {
-    /// Constructs a `RecordSize` from a raw word count without going
-    /// through `parse`'s validation. Intended only for synthesizing
-    /// records in unit/integration tests; production code MUST go
-    /// through `parse` so `MAX_RECORD_WORDS` and minimum-size checks
-    /// stay in effect.
-    #[doc(hidden)]
-    pub fn from_raw(words: u32) -> Self {
-        Self { size_words: words, consumed_bytes: 0 }
-    }
-}
-
-impl From<RecordSize> for u32 {
-    fn from(v: RecordSize) -> Self {
-        v.size_words
-    }
-}
-
-impl core::fmt::Display for RecordSize {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:#010X}", self.size_words)
-    }
-}
-
-impl core::fmt::Debug for RecordSize {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "RecordSize(size: {:#010X}, consumed_bytes: {})",
-            self.size_words, self.consumed_bytes
-        )
-    }
-}
-
-impl RecordSize {
-    #[inline]
-    pub fn byte_count(&self) -> usize {
-        // `parse` already rejects `size_words` above
-        // `MAX_RECORD_WORDS` (32 MW), so the doubled value cannot
-        // overflow `usize` on any supported platform; a plain
-        // multiplication keeps this hot getter branch-free.
-        (self.size_words as usize) * 2
-    }
-
-    #[inline]
-    pub fn word_size(&self) -> usize {
-        self.size_words as usize
-    }
-
-    #[inline]
-    pub fn consume(&mut self, consumed_bytes: usize) {
-        self.consumed_bytes += consumed_bytes;
-    }
-
-    #[inline]
-    pub fn consumed_bytes(&self) -> usize {
-        self.consumed_bytes
-    }
-
-    /// Returns true if consumed_bytes has exceeded byte_count,
-    /// indicating a malformed record or a parser bug.
-    #[inline]
-    pub fn is_overrun(&self) -> bool {
-        self.consumed_bytes > self.byte_count()
-    }
-
-    #[inline]
-    pub fn remaining(&self) -> bool {
-        !self.is_overrun() && self.remaining_bytes() > 0
-    }
-
-    #[inline]
-    pub fn remaining_bytes(&self) -> usize {
-        self.byte_count().saturating_sub(self.consumed_bytes)
-    }
 }
 
 /// Test helpers for record parsing tests.

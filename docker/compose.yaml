@@ -1,13 +1,18 @@
 name: "mythrnr-wmf-rs"
 
 services:
-  app:
+  dev:
     build:
-      context: "../"
+      context: ".."
       dockerfile: "docker/Dockerfile"
+    image: "mythrnr-wmf-rs-dev:latest"
+    init: true
+    # `tty` + `stdin_open` make `docker compose run --rm dev` behave as
+    # a normal interactive shell.
+    tty: true
+    stdin_open: true
     environment:
-      CARGO_HOME: "/rust/cargo"
-      CARGO_BUILD_TARGET_DIR: "/rust/target"
+      CARGO_BUILD_TARGET_DIR: "/target"
     logging:
       driver: "json-file"
       options:
@@ -15,19 +20,24 @@ services:
         max-file: "10"
     volumes:
       - type: "volume"
-        source: "volume_cargo"
-        target: "/rust/cargo"
+        source: "cargo_registry"
+        target: "/usr/local/cargo/registry"
         read_only: false
       - type: "volume"
-        source: "volume_target"
-        target: "/rust/target"
+        source: "cargo_git"
+        target: "/usr/local/cargo/git"
+        read_only: false
+      - type: "volume"
+        source: "target"
+        target: "/target"
         read_only: false
       - type: "bind"
-        source: "../"
-        target: "/rust/src/github.com/mythrnr/wmf-rs"
+        source: ".."
+        target: "/work"
         read_only: false
-    working_dir: "/rust/src/github.com/mythrnr/wmf-rs"
+    working_dir: "/work"
 
 volumes:
-  volume_cargo:
-  volume_target:
+  cargo_registry:
+  cargo_git:
+  target:
