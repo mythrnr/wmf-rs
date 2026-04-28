@@ -231,6 +231,7 @@
     "setwindowext",
     "setwindoworg",
     "shiftjis",
+    "showpage",
     "sjis",
     "spcl",
     "spclpassthrough",
@@ -251,6 +252,7 @@
     "updatecp",
     "userstyle",
     "whiteonblack",
+    "wmfc",
     "workdir",
     "xorpen"
   ]

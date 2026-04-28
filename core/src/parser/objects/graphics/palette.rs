@@ -49,3 +49,48 @@ impl Palette {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_with_two_entries() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0300_u16.to_le_bytes()); // start
+        data.extend_from_slice(&2_u16.to_le_bytes()); // number_of_entries
+        // Entry 1
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x00]);
+        // Entry 2
+        data.extend_from_slice(&[0x40, 0x50, 0x60, 0x00]);
+        let mut reader = &data[..];
+        let (p, consumed) = Palette::parse(&mut reader).unwrap();
+        assert_eq!(p.start, 0x0300);
+        assert_eq!(p.number_of_entries, 2);
+        assert_eq!(p.a_palette_entries.len(), 2);
+        assert_eq!(p.a_palette_entries[0].red, 0x10);
+        assert_eq!(p.a_palette_entries[1].green, 0x50);
+        assert_eq!(consumed, 4 + 4 + 4);
+    }
+
+    #[test]
+    fn parse_with_zero_entries() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0300_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        let mut reader = &data[..];
+        let (p, _) = Palette::parse(&mut reader).unwrap();
+        assert!(p.a_palette_entries.is_empty());
+    }
+
+    #[test]
+    fn parse_truncated_entries() {
+        // Header claims 5 entries but only 1 follows.
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0300_u16.to_le_bytes());
+        data.extend_from_slice(&5_u16.to_le_bytes());
+        data.extend_from_slice(&[0x00; 4]);
+        let mut reader = &data[..];
+        assert!(Palette::parse(&mut reader).is_err());
+    }
+}

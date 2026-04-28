@@ -32,3 +32,34 @@ impl CIEXYZTriple {
         Ok((Self { red, green, blue }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        // 9 u32 values for red/green/blue CIEXYZ
+        for v in 1_u32..=9 {
+            data.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let (t, consumed) = CIEXYZTriple::parse(&mut reader).unwrap();
+        assert_eq!(t.red.x, 1);
+        assert_eq!(t.red.y, 2);
+        assert_eq!(t.red.z, 3);
+        assert_eq!(t.green.x, 4);
+        assert_eq!(t.blue.z, 9);
+        assert_eq!(consumed, 36);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        // Only 8 bytes -> red CIEXYZ parse fails on z field.
+        let data = [0u8; 8];
+        let mut reader = &data[..];
+        assert!(CIEXYZTriple::parse(&mut reader).is_err());
+    }
+}

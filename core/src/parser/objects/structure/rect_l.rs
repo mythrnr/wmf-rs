@@ -38,3 +38,31 @@ impl RectL {
         Ok((Self { left, top, right, bottom }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        for v in [10_i32, 20, 110, 220] {
+            data.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let (rect, consumed) = RectL::parse(&mut reader).unwrap();
+        assert_eq!(rect.left, 10);
+        assert_eq!(rect.top, 20);
+        assert_eq!(rect.right, 110);
+        assert_eq!(rect.bottom, 220);
+        assert_eq!(consumed, 16);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = 10_i32.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(RectL::parse(&mut reader).is_err());
+    }
+}

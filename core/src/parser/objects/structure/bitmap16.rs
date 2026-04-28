@@ -87,11 +87,7 @@ impl Bitmap16 {
         let planes: u8 = read_field(buf, &mut consumed_bytes)?;
         let bits_pixel: u8 = read_field(buf, &mut consumed_bytes)?;
 
-        if planes != 0x01 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The planes field must be 0x01".to_owned(),
-            });
-        }
+        crate::parser::ParseError::expect_eq("planes", planes, 0x01_u8)?;
 
         let (bits_pixel, _) = {
             let u16_bytes = u16::from(bits_pixel).to_le_bytes().to_vec();
@@ -143,5 +139,77 @@ impl From<Bitmap16> for crate::parser::DeviceIndependentBitmap {
             colors: crate::parser::Colors::Null,
             bitmap_buffer: crate::parser::BitmapBuffer { a_data: v.bits },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a minimal Bitmap16 header (no `bits`) with valid planes and
+    /// a bit_count that resolves to a known `BitCount` variant.
+    fn build_header(width: i16, height: i16, bits_pixel: u8) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0_i16.to_le_bytes()); // typ
+        data.extend_from_slice(&width.to_le_bytes());
+        data.extend_from_slice(&height.to_le_bytes());
+        data.extend_from_slice(&width.to_le_bytes()); // width_bytes (matches `width` for simplicity)
+        data.push(0x01); // planes (must be 0x01)
+        data.push(bits_pixel);
+        data
+    }
+
+    #[test]
+    fn parse_without_bits_ok() {
+        // bits_pixel = 0x01 -> BitCount::BI_BITCOUNT_1.
+        let data = build_header(8, 4, 0x01);
+        let mut reader = &data[..];
+        let (b, consumed) = Bitmap16::parse_without_bits(&mut reader).unwrap();
+        assert_eq!(b.width, 8);
+        assert_eq!(b.height, 4);
+        assert_eq!(b.planes, 0x01);
+        assert!(
+            matches!(b.bits_pixel, crate::parser::BitCount::BI_BITCOUNT_1,)
+        );
+        assert_eq!(consumed, 10);
+    }
+
+    #[test]
+    fn parse_rejects_planes_not_one() {
+        let mut data = build_header(1, 1, 0x01);
+        data[8] = 0x02; // planes byte is at offset 8
+        let mut reader = &data[..];
+        let err = Bitmap16::parse_without_bits(&mut reader).unwrap_err();
+        assert!(matches!(err, crate::parser::ParseError::MismatchedField {
+            field: "planes",
+            ..
+        },));
+    }
+
+    #[test]
+    fn parse_full_bitmap_includes_bits() {
+        // BI_BITCOUNT_3 = 8 bpp, 2x2 image: row stride padded to a 16-bit
+        // boundary makes 2 bytes/row, 4 bytes total.
+        let mut data = build_header(2, 2, 0x08);
+        data.extend_from_slice(&[0x01, 0x02, 0x03, 0x04]);
+        let mut reader = &data[..];
+        let (b, _) = Bitmap16::parse(&mut reader).unwrap();
+        assert_eq!(b.bits, vec![0x01, 0x02, 0x03, 0x04]);
+    }
+
+    #[test]
+    fn calc_length_matches_spec() {
+        // 4x2 image at 8 bpp: row stride = ((4*8+15) >> 4) << 1 = 4 bytes,
+        // total = 4 * 2 = 8.
+        let bm = Bitmap16 {
+            typ: 0,
+            width: 4,
+            height: 2,
+            width_bytes: 4,
+            planes: 1,
+            bits_pixel: crate::parser::BitCount::BI_BITCOUNT_3,
+            bits: vec![],
+        };
+        assert_eq!(bm.calc_length(), 8);
     }
 }

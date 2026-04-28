@@ -84,17 +84,16 @@ impl LogColorSpaceW {
         let gamma_green = read_field(buf, &mut consumed_bytes)?;
         let gamma_blue = read_field(buf, &mut consumed_bytes)?;
 
-        if signature != 0x50534F43 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The signature field must be 0x50534F43".to_owned(),
-            });
-        }
-
-        if version != 0x00000400 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The version field must be 0x00000400".to_owned(),
-            });
-        }
+        crate::parser::ParseError::expect_eq(
+            "signature",
+            signature,
+            0x5053_4F43_u32,
+        )?;
+        crate::parser::ParseError::expect_eq(
+            "version",
+            version,
+            0x0000_0400_u32,
+        )?;
 
         let filename = if (size as usize).saturating_sub(consumed_bytes) >= 520
         {
@@ -127,5 +126,62 @@ impl LogColorSpaceW {
             },
             consumed_bytes,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_payload(size: u32, with_filename: bool) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x5053_4F43_u32.to_le_bytes()); // signature
+        data.extend_from_slice(&0x0000_0400_u32.to_le_bytes()); // version
+        data.extend_from_slice(&size.to_le_bytes());
+        data.extend_from_slice(&0x0000_0000_u32.to_le_bytes()); // LCS_CALIBRATED_RGB
+        data.extend_from_slice(&0x0000_0001_u32.to_le_bytes()); // LCS_GM_BUSINESS
+        data.extend_from_slice(&[0u8; 36]); // CIEXYZTriple
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        if with_filename {
+            data.extend_from_slice(&[0u8; 520]);
+        }
+        data
+    }
+
+    /// Same fixed prefix as `LogColorSpace`; the wide filename buffer
+    /// is twice as long (UTF-16 LE, 260 chars * 2 bytes = 520).
+    const FIXED_PREFIX: u32 = 68;
+    const FILENAME_LEN: u32 = 520;
+
+    #[test]
+    fn parse_without_filename() {
+        let data = build_payload(FIXED_PREFIX, false);
+        let mut reader = &data[..];
+        let (lcs, _) = LogColorSpaceW::parse(&mut reader).unwrap();
+        assert!(lcs.filename.is_none());
+    }
+
+    #[test]
+    fn parse_with_empty_filename() {
+        // size = prefix + FILENAME_LEN ensures the filename block is read;
+        // the 520-byte buffer is all-zero so the UTF-16 string is empty.
+        let data = build_payload(FIXED_PREFIX + FILENAME_LEN, true);
+        let mut reader = &data[..];
+        let (lcs, _) = LogColorSpaceW::parse(&mut reader).unwrap();
+        assert_eq!(lcs.filename.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn parse_rejects_invalid_version() {
+        let mut data = build_payload(FIXED_PREFIX, false);
+        data[4..8].copy_from_slice(&0xDEAD_BEEF_u32.to_le_bytes());
+        let mut reader = &data[..];
+        let err = LogColorSpaceW::parse(&mut reader).unwrap_err();
+        assert!(matches!(err, crate::parser::ParseError::MismatchedField {
+            field: "version",
+            ..
+        },));
     }
 }

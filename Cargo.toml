@@ -19,8 +19,8 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 tracing-wasm = "0.2.1"
 unicode-segmentation = "1.13.2"
 unicode-width = "0.2.2"
-wasm-bindgen = "0.2.118"
-wasm-bindgen-test = "0.3.68"
+wasm-bindgen = "0.2.120"
+wasm-bindgen-test = "0.3.70"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -45,7 +45,7 @@ similar_names = "allow"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.87.0"
+rust-version = "1.88.0"
 version = "0.1.0"
 
 [profile.release]

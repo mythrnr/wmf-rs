@@ -222,3 +222,58 @@ impl Font {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a 50-byte Font payload (18 byte header + 32 byte facename).
+    fn build_font(facename: &[u8]) -> Vec<u8> {
+        let mut data = Vec::new();
+        // 18-byte header: 5 i16 fields + 3 u8 booleans + 5 u8 enums.
+        data.extend_from_slice(&12_i16.to_le_bytes()); // height
+        data.extend_from_slice(&0_i16.to_le_bytes()); // width
+        data.extend_from_slice(&0_i16.to_le_bytes()); // escapement
+        data.extend_from_slice(&0_i16.to_le_bytes()); // orientation
+        data.extend_from_slice(&400_i16.to_le_bytes()); // weight
+        data.push(0); // italic
+        data.push(0); // underline
+        data.push(0); // strike_out
+        data.push(0); // charset (ANSI_CHARSET)
+        data.push(0); // out_precision (OUT_DEFAULT_PRECIS)
+        data.push(0); // clip_precision (CLIP_DEFAULT_PRECIS)
+        data.push(0); // quality (DEFAULT_QUALITY)
+        data.push(0); // pitch_and_family (FF_DONTCARE | DEFAULT_PITCH)
+        // facename: up to 32 bytes, NUL-terminated.
+        let mut name = vec![0u8; 32];
+        let len = facename.len().min(31);
+        name[..len].copy_from_slice(&facename[..len]);
+        data.extend_from_slice(&name);
+        data
+    }
+
+    #[test]
+    fn parse_basic_font() {
+        let data = build_font(b"Arial");
+        let mut reader = &data[..];
+        let (font, consumed) = Font::parse(&mut reader).unwrap();
+        assert_eq!(font.height, 12);
+        assert_eq!(font.weight, 400);
+        assert!(!font.italic);
+        assert_eq!(font.facename, "Arial");
+        assert_eq!(consumed, 50);
+    }
+
+    /// When the facename starts with "Symbol", the charset is forced to
+    /// SYMBOL_CHARSET regardless of what the header byte said.
+    #[test]
+    fn parse_symbol_facename_forces_symbol_charset() {
+        let data = build_font(b"Symbol");
+        let mut reader = &data[..];
+        let (font, _) = Font::parse(&mut reader).unwrap();
+        assert!(matches!(
+            font.charset,
+            crate::parser::CharacterSet::SYMBOL_CHARSET,
+        ));
+    }
+}

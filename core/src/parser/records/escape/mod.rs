@@ -44,6 +44,8 @@ mod set_line_join;
 mod set_miter_limit;
 mod spcl_passthrough2;
 mod startdoc;
+#[cfg(test)]
+mod tests;
 
 use crate::imports::*;
 

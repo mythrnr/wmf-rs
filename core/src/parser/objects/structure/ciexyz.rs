@@ -31,3 +31,30 @@ impl CIEXYZ {
         Ok((Self { x, y, z }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        for v in [1_u32, 2, 3] {
+            data.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let (c, consumed) = CIEXYZ::parse(&mut reader).unwrap();
+        assert_eq!(c.x, 1);
+        assert_eq!(c.y, 2);
+        assert_eq!(c.z, 3);
+        assert_eq!(consumed, 12);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = 1_u32.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(CIEXYZ::parse(&mut reader).is_err());
+    }
+}

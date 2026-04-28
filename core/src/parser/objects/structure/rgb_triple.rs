@@ -32,3 +32,26 @@ impl RGBTriple {
         Ok((Self { red, green, blue }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ok() {
+        let data = [0x11, 0x22, 0x33];
+        let mut reader = &data[..];
+        let (t, consumed) = RGBTriple::parse(&mut reader).unwrap();
+        assert_eq!(t.red, 0x11);
+        assert_eq!(t.green, 0x22);
+        assert_eq!(t.blue, 0x33);
+        assert_eq!(consumed, 3);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = [0x11];
+        let mut reader = &data[..];
+        assert!(RGBTriple::parse(&mut reader).is_err());
+    }
+}

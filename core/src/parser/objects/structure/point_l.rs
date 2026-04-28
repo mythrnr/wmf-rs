@@ -27,3 +27,29 @@ impl PointL {
         Ok((Self { x, y }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&(-12345_i32).to_le_bytes());
+        data.extend_from_slice(&67890_i32.to_le_bytes());
+        let mut reader = &data[..];
+        let (point, consumed) = PointL::parse(&mut reader).unwrap();
+        assert_eq!(point.x, -12345);
+        assert_eq!(point.y, 67890);
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        // Only 4 bytes -> y read fails partway through.
+        let data = 1_i32.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(PointL::parse(&mut reader).is_err());
+    }
+}

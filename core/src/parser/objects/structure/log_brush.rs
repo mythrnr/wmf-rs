@@ -83,3 +83,49 @@ impl LogBrush {
         Ok((v, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_solid() {
+        // BrushStyle: BS_SOLID = 0x0000 (u16)
+        // ColorRef: 4 bytes (RGB + reserved)
+        // Plus 2 trailing bytes consumed by the BS_SOLID branch.
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0000_u16.to_le_bytes()); // BS_SOLID
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x00]); // ColorRef
+        data.extend_from_slice(&[0x00, 0x00]); // brush_hatch placeholder
+        let mut reader = &data[..];
+        let (b, consumed) = LogBrush::parse(&mut reader).unwrap();
+        let LogBrush::Solid { color_ref } = b else {
+            panic!("expected Solid variant, got {b:?}");
+        };
+        assert_eq!(color_ref.red, 0x10);
+        assert_eq!(color_ref.green, 0x20);
+        assert_eq!(color_ref.blue, 0x30);
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_null() {
+        // BS_NULL = 0x0001 + 6 bytes filler.
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0001_u16.to_le_bytes());
+        data.extend_from_slice(&[0u8; 6]);
+        let mut reader = &data[..];
+        let (b, consumed) = LogBrush::parse(&mut reader).unwrap();
+        assert!(matches!(b, LogBrush::Null));
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        // Style only, no payload bytes following.
+        let data = 0x0000_u16.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(LogBrush::parse(&mut reader).is_err());
+    }
+}

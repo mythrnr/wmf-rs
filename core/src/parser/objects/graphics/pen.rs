@@ -109,3 +109,51 @@ impl PenStyleSubsection {
         crate::parser::PenStyle::PS_SOLID
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    /// Builds a 10-byte Pen payload (2 bytes style + 4 bytes PointS +
+    /// 4 bytes ColorRef).
+    fn build_pen(style_u16: u16, width_x: i16, color: [u8; 4]) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&style_u16.to_le_bytes());
+        data.extend_from_slice(&width_x.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes()); // y is ignored per spec
+        data.extend_from_slice(&color);
+        data
+    }
+
+    #[test]
+    fn parse_solid_pen() {
+        // style 0x0000 -> PS_SOLID across all sub-fields.
+        let data = build_pen(0x0000, 5, [0xAA, 0xBB, 0xCC, 0x00]);
+        let mut reader = &data[..];
+        let (pen, consumed) = Pen::parse(&mut reader).unwrap();
+        assert_eq!(pen.width.x, 5);
+        assert_eq!(pen.color_ref.red, 0xAA);
+        assert_eq!(pen.color_ref.green, 0xBB);
+        assert_eq!(pen.color_ref.blue, 0xCC);
+        assert!(matches!(pen.style.style, crate::parser::PenStyle::PS_SOLID));
+        assert_eq!(consumed, 10);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = [0x00_u8, 0x00];
+        let mut reader = &data[..];
+        assert!(Pen::parse(&mut reader).is_err());
+    }
+
+    /// Verifies the bitmask routing for the dash style sub-field.
+    /// PS_DASH = 0x0001 lives in the low nibble.
+    #[test]
+    fn pen_style_subsection_decodes_dash() {
+        assert!(matches!(
+            PenStyleSubsection::style(0x0001),
+            crate::parser::PenStyle::PS_DASH,
+        ));
+    }
+}

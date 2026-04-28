@@ -50,3 +50,52 @@ impl PitchAndFamily {
         Ok((Self { family, pitch }, consumed_bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_default_family_default_pitch() {
+        // family bits = 0x0 (FF_DONTCARE), pitch bits = 0 (DEFAULT_PITCH).
+        let data = [0x00];
+        let mut reader = &data[..];
+        let (pf, consumed) = PitchAndFamily::parse(&mut reader).unwrap();
+        assert!(matches!(pf.family, crate::parser::FamilyFont::FF_DONTCARE));
+        assert!(matches!(pf.pitch, crate::parser::PitchFont::DEFAULT_PITCH));
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn parse_roman_fixed() {
+        // family bits = 0x1 (FF_ROMAN), pitch bits = 0x1 (FIXED_PITCH).
+        let data = [0x11];
+        let mut reader = &data[..];
+        let (pf, _) = PitchAndFamily::parse(&mut reader).unwrap();
+        assert!(matches!(pf.family, crate::parser::FamilyFont::FF_ROMAN));
+        assert!(matches!(pf.pitch, crate::parser::PitchFont::FIXED_PITCH));
+    }
+
+    #[test]
+    fn parse_unknown_pitch_falls_back() {
+        // family = 0x0 (FF_DONTCARE), pitch bits = 0x3 (out of range).
+        // The parser must fall back to DEFAULT_PITCH per the comment in
+        // the impl, instead of erroring.
+        let data = [0x03];
+        let mut reader = &data[..];
+        let (pf, _) = PitchAndFamily::parse(&mut reader).unwrap();
+        assert!(matches!(pf.pitch, crate::parser::PitchFont::DEFAULT_PITCH));
+    }
+
+    #[test]
+    fn parse_rejects_unknown_family() {
+        // Family bits = 0xF (no FamilyFont variant defined for that).
+        let data = [0xF0];
+        let mut reader = &data[..];
+        let err = PitchAndFamily::parse(&mut reader).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::parser::ParseError::UnexpectedEnumValue { .. },
+        ));
+    }
+}

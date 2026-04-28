@@ -251,6 +251,46 @@ pub(crate) mod test_helpers {
             super::read_field(&mut reader, &mut record_size).unwrap();
         (record_size, record_function, reader)
     }
+
+    /// Build a complete META_ESCAPE record from the escape sub-type,
+    /// byte_count, and payload bytes. Computes the enclosing
+    /// `record_size` automatically so callers only need to supply the
+    /// escape-specific bytes. Pads odd-length payloads with a single
+    /// zero byte so the resulting record stays word-aligned, mirroring
+    /// real-world WMF encoders.
+    pub fn build_escape_record(
+        escape_id: u16,
+        byte_count: u16,
+        payload: &[u8],
+    ) -> Vec<u8> {
+        let mut inner = Vec::new();
+        inner.extend_from_slice(&escape_id.to_le_bytes());
+        inner.extend_from_slice(&byte_count.to_le_bytes());
+        inner.extend_from_slice(payload);
+        // RecordSize (4 bytes) + record_function (2 bytes) + inner
+        // payload. Pad to an even length so the WORD-based size below
+        // can swallow the whole record.
+        let total_len = 4 + 2 + inner.len();
+        if total_len % 2 != 0 {
+            inner.push(0);
+        }
+        let word_count = ((4 + 2 + inner.len()) / 2) as u32;
+        build_record(
+            word_count,
+            crate::parser::RecordType::META_ESCAPE as u16,
+            &inner,
+        )
+    }
+
+    /// Drive `META_ESCAPE::parse` from a fully built record buffer.
+    /// Centralizes the header read / dispatch so test cases stay
+    /// focused on payload semantics.
+    pub fn parse_escape_record(
+        data: &[u8],
+    ) -> Result<crate::parser::META_ESCAPE, crate::parser::ParseError> {
+        let (rs, rf, mut reader) = parse_record_header(data);
+        crate::parser::META_ESCAPE::parse(&mut reader, rs, rf)
+    }
 }
 
 #[cfg(test)]
