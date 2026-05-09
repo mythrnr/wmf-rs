@@ -14,7 +14,7 @@ wmf-rs/
   cli/                # wmf-cli: CLI tool (example usage of wmf-core)
   wasm/               # wmf-wasm: WASM bindings (no_std, wasm-bindgen)
   docker/             # Development Docker environment
-  wasm/dist/          # wasm-pack build artifacts
+  wasm/dist/          # wasm-pack build outputs (gitignored; only index.html is tracked)
 ```
 
 ### wmf-core (Main Library)
@@ -62,7 +62,11 @@ Converts parsed records into an output format.
 - Functions exported via `#[wasm_bindgen]`:
   - `convertWmf2Svg(buf: &[u8]) -> Result<String, JsValue>`
   - `setLogLevel(level: &str)`
-- Pre-built artifacts in `wasm/dist/`
+- Build artifacts land in `wasm/dist/` (full build) and `wasm/dist-minimal/`
+  (no-tracing build); both directories are gitignored. Released versions are
+  published as `wmf-wasm-<tag>.tar.gz` and `wmf-wasm-minimal-<tag>.tar.gz`
+  assets on GitHub Releases via `.github/workflows/release.yaml` when a
+  SemVer tag is pushed.
 
 ## Development Environment
 
@@ -114,8 +118,9 @@ Inside the container, the same `make` targets work
 | `make lint` | `cargo clippy --workspace --all-targets --all-features -- --no-deps -D warnings` |
 | `make udeps` | `cargo machete` && `cargo +nightly udeps --all-targets` |
 | `make spell-check` | Run cSpell via Docker |
-| `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps wasm test` |
-| `make wasm` | `wasm-pack build --out-dir dist --target web` |
+| `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps wasm wasm-minimal test` |
+| `make wasm` | `wasm-pack build --out-dir dist --release --target web` (default features) |
+| `make wasm-minimal` | Same as `make wasm` but with `--no-default-features --features console_error_panic_hook`; output goes to `wasm/dist-minimal/`. Drops `tracing-wasm` for a smaller bundle. |
 | `make serve` | Start WASM demo at `localhost:8080` |
 | `make docker-build` | Build the dev container image |
 | `make docker-dev` | Open an interactive shell in the dev container |

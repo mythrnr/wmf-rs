@@ -1,0 +1,68 @@
+name: "Release"
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: false
+
+permissions:
+  contents: "write"
+
+jobs:
+  publish-wasm:
+    name: "Build and publish wasm artifacts"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 20
+    steps:
+      - uses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" # v6.0.2
+      - uses: "cargo-bins/cargo-binstall@aaa84a43aec4955a42c5ffc65d258961e39f276e" # v1.19.1
+
+      - name: "Install wasm tooling"
+        run: "cargo binstall -y wasm-bindgen-cli wasm-opt wasm-pack"
+
+      - name: "Build wasm (full)"
+        run: "make wasm"
+
+      - name: "Package wasm artifacts (full)"
+        run: |
+          tar -czf "wmf-wasm-${GITHUB_REF_NAME}.tar.gz" \
+            -C wasm/dist \
+            wmf_wasm_bg.wasm \
+            wmf_wasm_bg.wasm.d.ts \
+            wmf_wasm.js \
+            wmf_wasm.d.ts \
+            package.json
+
+      # Minimal build drops the `tracing` feature so the bundle ships
+      # without the `tracing-wasm` dependency. Output goes to a separate
+      # directory so it does not collide with the full build above.
+      - name: "Build wasm (minimal, no tracing)"
+        run: "make wasm-minimal"
+
+      - name: "Package wasm artifacts (minimal)"
+        run: |
+          tar -czf "wmf-wasm-minimal-${GITHUB_REF_NAME}.tar.gz" \
+            -C wasm/dist-minimal \
+            wmf_wasm_bg.wasm \
+            wmf_wasm_bg.wasm.d.ts \
+            wmf_wasm.js \
+            wmf_wasm.d.ts \
+            package.json
+
+      - name: "Publish to GitHub Releases"
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi
+          gh release upload "${GITHUB_REF_NAME}" \
+            "wmf-wasm-${GITHUB_REF_NAME}.tar.gz" \
+            "wmf-wasm-minimal-${GITHUB_REF_NAME}.tar.gz" \
+            --clobber

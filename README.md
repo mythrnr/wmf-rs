@@ -151,6 +151,17 @@ make serve
 # Open http://localhost:8080
 ```
 
+Pre-built artifacts (`wmf_wasm_bg.wasm`, `wmf_wasm.js`, `wmf_wasm.d.ts`) are
+attached to each release on the
+[GitHub Releases](https://github.com/mythrnr/wmf-rs/releases) page in two
+variants:
+
+- `wmf-wasm-<version>.tar.gz` — full build with `tracing` enabled; pair with
+  `setLogLevel` for browser-console logging.
+- `wmf-wasm-minimal-<version>.tar.gz` — built without the `tracing` feature.
+  `setLogLevel` becomes a no-op, but the bundle is noticeably smaller because
+  the `tracing-wasm` dependency is dropped entirely.
+
 #### WASM API
 
 - `convertWmf2Svg(buf: Uint8Array): string` - Converts WMF binary data to an SVG string.

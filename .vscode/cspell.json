@@ -10,7 +10,8 @@
     ".git",
     "*.lock",
     "target",
-    "wasm/dist"
+    "wasm/dist",
+    "wasm/dist-minimal"
   ],
   "language": "en",
   "minWordLength": 4,

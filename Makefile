@@ -3,7 +3,7 @@ MAKEFLAGS += --silent
 endif
 
 .PHONY: ci-suite
-ci-suite: spell-check fix fmt lint udeps wasm test
+ci-suite: spell-check fix fmt lint udeps wasm wasm-minimal test
 
 .PHONY: check
 check:
@@ -11,7 +11,7 @@ check:
 
 .PHONY: clean
 clean:
-	cargo clean
+	git clean -fdX
 
 .PHONY: doc
 doc:
@@ -84,4 +84,19 @@ udeps:
 
 .PHONY: wasm
 wasm:
-	cd wasm && wasm-pack build --out-dir dist --target web
+	cd wasm && wasm-pack build \
+		--out-dir dist \
+		--release \
+		--target web
+
+# Minimal build with the `tracing` feature stripped. Drops the
+# `tracing-wasm` dependency entirely, which yields a noticeably smaller
+# bundle for consumers that do not need log output. `console_error_panic_hook`
+# is kept so panics still surface in the browser console.
+.PHONY: wasm-minimal
+wasm-minimal:
+	cd wasm && wasm-pack build \
+		--out-dir dist-minimal \
+		--release \
+		--target web \
+		-- --no-default-features --features console_error_panic_hook
