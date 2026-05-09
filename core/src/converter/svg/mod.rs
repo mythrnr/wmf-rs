@@ -28,6 +28,10 @@ pub struct SVGPlayer {
     elements: Vec<Node>,
     object_selected: SelectedGraphicsObject,
     current_clip_id: Option<String>,
+    // Tracks how many elements have been emitted per WMF record so that
+    // `id` attributes stay unique when a single record produces multiple
+    // SVG elements (e.g. POLYPOLYGON emits one polygon per sub-polygon).
+    record_element_counts: BTreeMap<usize, usize>,
 }
 
 impl SVGPlayer {
@@ -43,7 +47,18 @@ impl SVGPlayer {
     #[inline]
     fn push_element(&mut self, record_number: usize, mut element: Node) {
         if record_number > 0 {
-            element = element.set("id", format!("elem{record_number}"));
+            // Append a suffix to second and later elements from the same
+            // record to satisfy the SVG `id` uniqueness constraint.
+            let count =
+                self.record_element_counts.entry(record_number).or_insert(0);
+            let id = if *count == 0 {
+                format!("elem{record_number}")
+            } else {
+                format!("elem{record_number}-{count}")
+            };
+
+            *count += 1;
+            element = element.set("id", id);
         }
 
         if let Some(ref clip_id) = self.current_clip_id {
