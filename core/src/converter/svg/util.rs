@@ -330,8 +330,52 @@ impl Font {
         elem = elem
             .set("font-family", format!("'{}'", font_family.join("','")))
             .set("font-size", self.height.abs())
-            .set("font-weight", self.weight);
+            .set("font-weight", Self::svg_font_weight(self.weight));
 
         (elem, styles)
+    }
+
+    /// Convert a WMF `Font.weight` (0..=1000, where 0 is FW_DONTCARE) into a
+    /// value accepted by SVG 1.1. SVG 1.1 only allows numeric weights at
+    /// multiples of 100 in 100..=900 or keywords such as `normal`, so map
+    /// FW_DONTCARE to `normal` and snap any other value to the nearest
+    /// hundred, clamped into 100..=900.
+    fn svg_font_weight(weight: i16) -> String {
+        if weight == 0 {
+            return "normal".to_owned();
+        }
+
+        let snapped = (i32::from(weight) + 50) / 100 * 100;
+        format!("{}", snapped.clamp(100, 900))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn svg_font_weight_maps_dontcare_to_normal() {
+        assert_eq!(Font::svg_font_weight(0), "normal");
+    }
+
+    #[test]
+    fn svg_font_weight_passes_through_canonical_values() {
+        assert_eq!(Font::svg_font_weight(400), "400");
+        assert_eq!(Font::svg_font_weight(700), "700");
+    }
+
+    #[test]
+    fn svg_font_weight_snaps_to_nearest_hundred() {
+        assert_eq!(Font::svg_font_weight(350), "400");
+        assert_eq!(Font::svg_font_weight(349), "300");
+    }
+
+    #[test]
+    fn svg_font_weight_clamps_out_of_range() {
+        assert_eq!(Font::svg_font_weight(50), "100");
+        assert_eq!(Font::svg_font_weight(950), "900");
+        assert_eq!(Font::svg_font_weight(1000), "900");
+        assert_eq!(Font::svg_font_weight(-1), "100");
     }
 }
