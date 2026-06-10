@@ -8,7 +8,7 @@ clap = { version = "4.6.1", features = ["derive", "env"] }
 codepage = "0.1.2"
 embedded-io = "0.7.1"
 encoding_rs = "0.8.35"
-snafu = "0.9.0"
+snafu = "0.9.1"
 strum = { version = "0.28.0", default-features = false, features = ["derive"] }
 tracing = { version = "0.1.44", default-features = false, features = [
   "attributes",
@@ -17,10 +17,10 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
   "time",
 ] }
 tracing-wasm = "0.2.1"
-unicode-segmentation = "1.13.2"
+unicode-segmentation = "1.13.3"
 unicode-width = "0.2.2"
-wasm-bindgen = "0.2.121"
-wasm-bindgen-test = "0.3.71"
+wasm-bindgen = "0.2.123"
+wasm-bindgen-test = "0.3.73"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
