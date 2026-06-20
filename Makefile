@@ -87,7 +87,8 @@ wasm:
 	cd wasm && wasm-pack build \
 		--out-dir dist \
 		--release \
-		--target web
+		--target web \
+		-- --locked
 
 # Minimal build with the `tracing` feature stripped. Drops the
 # `tracing-wasm` dependency entirely, which yields a noticeably smaller
@@ -99,4 +100,4 @@ wasm-minimal:
 		--out-dir dist-minimal \
 		--release \
 		--target web \
-		-- --no-default-features --features console_error_panic_hook
+		-- --locked --no-default-features --features console_error_panic_hook
