@@ -16,11 +16,8 @@ binaries and converting them to SVG.
 
 ## Installation
 
-Add `wmf-core` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-wmf-core = "0.1.0"
+```sh
+cargo add wmf-core
 ```
 
 ### Feature Flags
@@ -32,9 +29,8 @@ wmf-core = "0.1.0"
 
 To use with minimal dependencies:
 
-```toml
-[dependencies]
-wmf-core = { version = "0.1.0", default-features = false }
+```sh
+cargo add wmf-core --no-default-features
 ```
 
 ## Usage
