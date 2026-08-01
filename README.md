@@ -66,7 +66,10 @@ fn main() {
 ### Custom Player
 
 The conversion process is abstracted through the `Player` trait.
-You can implement your own `Player` to produce output formats other than SVG:
+You can implement your own `Player` to produce output formats other than SVG.
+Only `generate` and `header` are required; every other record handler has a
+default implementation that skips the record, so override only the records
+your output format supports:
 
 ```rust
 use wmf_core::converter::{Player, PlayError};
@@ -80,10 +83,24 @@ impl Player for MyPlayer {
         todo!()
     }
 
-    // Implement all required record handler methods...
+    fn header(
+        self,
+        record_number: usize,
+        header: MetafileHeader,
+    ) -> Result<Self, PlayError> {
+        // Set up the canvas from the metafile header
+        todo!()
+    }
+
+    // Override only the record handlers you support...
     // See `wmf_core::converter::Player` for the full list.
-    # fn bit_blt(self, _: usize, _: META_BITBLT) -> Result<Self, PlayError> { Ok(self) }
-    // ...
+    fn rectangle(
+        self,
+        record_number: usize,
+        record: META_RECTANGLE,
+    ) -> Result<Self, PlayError> {
+        todo!()
+    }
 }
 ```
 
@@ -95,7 +112,7 @@ The `wmf-cli` crate provides a command-line converter:
 cargo run --package wmf-cli -- --input sample.wmf --output out.svg
 ```
 
-```
+```sh
 Usage: wmf-cli [OPTIONS] --input <INPUT>
 
 Options:
