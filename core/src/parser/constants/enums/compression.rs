@@ -29,14 +29,15 @@ pub enum Compression {
     /// red, green, and blue components, respectively, of each pixel. This is
     /// valid when used with 16 and 32-bits per pixel bitmaps.
     BI_BITFIELDS = 0x0003,
-    /// The image is a JPEG image, as specified in [JFIF]. This value SHOULD
+    /// The image is a JPEG image, as specified in \[JFIF\]. This value SHOULD
     /// only be used in certain bitmap operations, such as JPEG pass-through.
     /// The application MUST query for the pass-through support, since not all
     /// devices support JPEG pass-through. Using non-RGB bitmaps MAY limit the
     /// portability of the metafile to other devices. For instance, display
     /// device contexts generally do not support this pass-through.
     BI_JPEG = 0x0004,
-    /// The image is a PNG image, as specified in [RFC2083]. This value SHOULD
+    /// The image is a PNG image, as specified in \[RFC2083\]. This value
+    /// SHOULD
     /// only be used certain bitmap operations, such as JPEG/PNG pass-through.
     /// The application MUST query for the pass-through support, because not
     /// all devices support JPEG/PNG pass-through. Using non-RGB bitmaps MAY
