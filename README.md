@@ -18,7 +18,7 @@ Add `wmf-core` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core" }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core" }
 ```
 
 ### Feature Flags
@@ -32,7 +32,7 @@ To use with minimal dependencies:
 
 ```toml
 [dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core", default-features = false }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core", default-features = false }
 ```
 
 ## Usage

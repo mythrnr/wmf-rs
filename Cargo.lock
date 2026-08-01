@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "wmf-cli"
-version = "0.1.0"
+version = "0.0.28"
 dependencies = [
  "clap",
  "tracing",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "wmf-core"
-version = "0.1.0"
+version = "0.0.28"
 dependencies = [
  "base64",
  "codepage",
@@ -842,7 +842,7 @@ dependencies = [
 
 [[package]]
 name = "wmf-wasm"
-version = "0.1.0"
+version = "0.0.28"
 dependencies = [
  "console_error_panic_hook",
  "tracing-wasm",
