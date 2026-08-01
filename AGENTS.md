@@ -57,10 +57,16 @@ Docker dev shell (`make docker-dev`).
 
 ## Releases
 
-- Main branch: `master`
-- `make release version=<tag>` creates and pushes a git tag. A SemVer tag
-  triggers `.github/workflows/release.yaml`, which publishes the WASM bundles
-  as GitHub Releases assets.
+- Main branch: `master` (direct pushes are forbidden; changes land via PR)
+- `make release version=<x.y.z>` bumps `[workspace.package].version` and
+  dependent version requirements via `cargo release version`, then
+  refreshes `Cargo.lock`. Commit the result through a normal PR.
+- When the bump lands on `master`, `.github/workflows/tag-release.yaml`
+  creates the matching bare `<version>` tag and invokes
+  `.github/workflows/release.yaml` in the same run (a tag pushed with
+  `GITHUB_TOKEN` cannot trigger workflows). The release workflow fails if
+  the version does not equal the workspace version, then publishes the
+  WASM bundles as GitHub Releases assets.
 - All crates share the single version in `[workspace.package]` and are
   released in lockstep: the release tag must equal that version, and
   `wmf-core` is published to crates.io with the same version. `wmf-cli` and

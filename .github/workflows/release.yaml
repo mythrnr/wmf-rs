@@ -1,20 +1,66 @@
 name: "Release"
 
+# Normally invoked via workflow_call from tag-release.yaml after it tags
+# the merge commit of a version-bump PR. The tag-push trigger stays as a
+# fallback for tags pushed by hand, and workflow_dispatch allows
+# re-running a release whose tag already exists.
 on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to release (must equal the workspace version)"
+        required: true
+        type: "string"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (must equal the workspace version)"
+        required: true
+        type: "string"
 
+# Keyed by version, not ref: when called from tag-release.yaml this must
+# not share a group with the caller run, and same-version releases still
+# serialize.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
+  group: "release-${{ inputs.version || github.ref_name }}"
   cancel-in-progress: false
 
 permissions:
   contents: "read"
 
+env:
+  # Tag-push runs take the version from the tag; workflow_call and
+  # workflow_dispatch runs take it from the input.
+  RELEASE_VERSION: "${{ inputs.version || github.ref_name }}"
+
 jobs:
+  # Nothing may ship under a version that disagrees with the crate
+  # version, so fail closed before any artifact is built. This also
+  # catches tags pushed by hand that skipped the version-bump PR.
+  check-version:
+    name: "Check release version matches workspace version"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Verify the release version equals the workspace version"
+        run: |
+          versions="$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '[.packages[].version] | unique | .[]')"
+          if [ "${versions}" != "${RELEASE_VERSION}" ]; then
+            echo "release version ${RELEASE_VERSION} does not match workspace version(s): ${versions}" >&2
+            exit 1
+          fi
+
   publish-wasm:
     name: "Build and publish wasm artifacts"
+    needs: "check-version"
     runs-on: "ubuntu-latest"
     timeout-minutes: 20
     permissions:
@@ -34,7 +80,7 @@ jobs:
 
       - name: "Package wasm artifacts (full)"
         run: |
-          tar -czf "wmf-wasm-${GITHUB_REF_NAME}.tar.gz" \
+          tar -czf "wmf-wasm-${RELEASE_VERSION}.tar.gz" \
             -C wasm/dist \
             wmf_wasm_bg.wasm \
             wmf_wasm_bg.wasm.d.ts \
@@ -50,7 +96,7 @@ jobs:
 
       - name: "Package wasm artifacts (minimal)"
         run: |
-          tar -czf "wmf-wasm-minimal-${GITHUB_REF_NAME}.tar.gz" \
+          tar -czf "wmf-wasm-minimal-${RELEASE_VERSION}.tar.gz" \
             -C wasm/dist-minimal \
             wmf_wasm_bg.wasm \
             wmf_wasm_bg.wasm.d.ts \
@@ -62,12 +108,12 @@ jobs:
         env:
           GH_TOKEN: "${{ github.token }}"
         run: |
-          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release create "${GITHUB_REF_NAME}" \
-              --title "${GITHUB_REF_NAME}" \
+          if ! gh release view "${RELEASE_VERSION}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_VERSION}" \
+              --title "${RELEASE_VERSION}" \
               --generate-notes
           fi
-          gh release upload "${GITHUB_REF_NAME}" \
-            "wmf-wasm-${GITHUB_REF_NAME}.tar.gz" \
-            "wmf-wasm-minimal-${GITHUB_REF_NAME}.tar.gz" \
+          gh release upload "${RELEASE_VERSION}" \
+            "wmf-wasm-${RELEASE_VERSION}.tar.gz" \
+            "wmf-wasm-minimal-${RELEASE_VERSION}.tar.gz" \
             --clobber

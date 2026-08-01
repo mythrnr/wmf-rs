@@ -208,6 +208,32 @@ Optional tools can be installed with:
 make install-tools
 ```
 
+## Releasing
+
+Direct pushes to `master` are forbidden, so a release is driven by a
+version-bump PR:
+
+1. Bump the version:
+
+   ```sh
+   make release version=<x.y.z>
+   ```
+
+   This updates `[workspace.package].version` and dependent version
+   requirements via `cargo release version`, then refreshes `Cargo.lock`.
+   Nothing is committed, tagged, or pushed.
+
+2. Commit the result and open a PR. Merging it to `master` is the release
+   trigger.
+
+3. On the merge, `tag-release.yaml` creates the matching `<version>` git
+   tag and invokes the release workflow, which verifies that the version
+   equals the workspace version and publishes the WASM bundles as GitHub
+   Releases assets.
+
+To re-run a release whose tag already exists, dispatch the "Release"
+workflow manually from the Actions tab with the version as input.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

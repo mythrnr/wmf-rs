@@ -43,6 +43,7 @@ install-tools:
 	curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 	cargo binstall -y \
 		cargo-machete \
+		cargo-release \
 		cargo-udeps \
 		wasm-bindgen-cli \
 		wasm-opt \
@@ -59,8 +60,10 @@ release:
 		echo "release version is required."; \
 		exit 1; \
 	fi \
-	&& git tag $(version) \
-	&& git push origin $(version)
+	&& cargo release version $(version) --execute \
+	&& cargo update --workspace \
+	&& echo "Version bumped." \
+	&& echo "Commit and open a PR; merging to master triggers the release."
 
 .PHONY: serve
 serve: wasm
