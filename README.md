@@ -211,3 +211,10 @@ make install-tools
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+Portions of the API documentation are adapted from the
+[MS-WMF Open Specifications documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2),
+© Microsoft Corporation, and are used under the Intellectual Property Rights
+Notice for Open Specifications Documentation. The MS-WMF specification is
+covered by the
+[Microsoft Open Specification Promise](https://go.microsoft.com/fwlink/?LinkId=214445).

@@ -61,3 +61,8 @@ Docker dev shell (`make docker-dev`).
 - `make release version=<tag>` creates and pushes a git tag. A SemVer tag
   triggers `.github/workflows/release.yaml`, which publishes the WASM bundles
   as GitHub Releases assets.
+- All crates share the single version in `[workspace.package]` and are
+  released in lockstep: the release tag must equal that version, and
+  `wmf-core` is published to crates.io with the same version. `wmf-cli` and
+  `wmf-wasm` keep `publish = false` until their first crates.io release is
+  prepared.

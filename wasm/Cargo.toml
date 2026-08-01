@@ -1,6 +1,15 @@
 [package]
 name = "wmf-wasm"
+categories = ["graphics", "multimedia::images", "no-std", "wasm"]
+description = "WASM bindings to convert WMF (Windows Metafile) binaries to SVG in the browser"
 edition = { workspace = true }
+keywords = ["metafile", "svg", "wasm", "wmf"]
+license = { workspace = true }
+# Not ready for crates.io yet. Remove this once the first release of
+# wmf-wasm is prepared; the rest of the metadata is already in place.
+publish = false
+readme = "README.md"
+repository = { workspace = true }
 rust-version = { workspace = true }
 version = { workspace = true }
 
