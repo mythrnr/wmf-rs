@@ -125,14 +125,7 @@ jobs:
   # undone (only yanked) while the GitHub Release side is repeatable: a
   # failure anywhere then leaves the tag with nothing half-released, and
   # re-dispatching the workflow is the whole recovery.
-  #
-  # DISABLED until the first publish: Trusted Publishing can only be
-  # configured for a crate that already exists on crates.io, so the
-  # first release must be published locally with an API token. After
-  # that, register this repository and workflow as a trusted publisher
-  # for wmf-core on crates.io, then remove the `if` below.
   publish-crate:
-    if: "false"
     name: "Publish wmf-core to crates.io"
     needs: "publish-wasm"
     runs-on: "ubuntu-latest"

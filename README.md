@@ -14,11 +14,8 @@ A Rust library for parsing [WMF (Windows Metafile)](https://learn.microsoft.com/
 
 ## Installation
 
-Add `wmf-core` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core" }
+```sh
+cargo add wmf-core
 ```
 
 ### Feature Flags
@@ -30,9 +27,8 @@ wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", pack
 
 To use with minimal dependencies:
 
-```toml
-[dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core", default-features = false }
+```sh
+cargo add wmf-core --no-default-features
 ```
 
 ## Usage
@@ -228,8 +224,9 @@ version-bump PR:
 
 3. On the merge, `tag-release.yaml` creates the matching `<version>` git
    tag and invokes the release workflow, which verifies that the version
-   equals the workspace version and publishes the WASM bundles as GitHub
-   Releases assets.
+   equals the workspace version, publishes the WASM bundles as GitHub
+   Releases assets, and then publishes `wmf-core` to crates.io through
+   Trusted Publishing.
 
 To re-run a release whose tag already exists, dispatch the "Release"
 workflow manually from the Actions tab with the version as input.
