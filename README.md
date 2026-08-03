@@ -215,9 +215,10 @@ version-bump PR:
    make release version=<x.y.z>
    ```
 
-   This updates `[workspace.package].version` and dependent version
-   requirements via `cargo release version`, then refreshes `Cargo.lock`.
-   Nothing is committed, tagged, or pushed.
+   This creates a `release/<x.y.z>` branch from `master`, updates
+   `[workspace.package].version` and dependent version requirements via
+   `cargo release version`, then refreshes `Cargo.lock`. Nothing is
+   committed, tagged, or pushed.
 
 2. Commit the result and open a PR. Merging it to `master` is the release
    trigger.

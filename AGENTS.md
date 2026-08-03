@@ -58,9 +58,10 @@ Docker dev shell (`make docker-dev`).
 ## Releases
 
 - Main branch: `master` (direct pushes are forbidden; changes land via PR)
-- `make release version=<x.y.z>` bumps `[workspace.package].version` and
-  dependent version requirements via `cargo release version`, then
-  refreshes `Cargo.lock`. Commit the result through a normal PR.
+- `make release version=<x.y.z>` creates a `release/<x.y.z>` branch from
+  `master`, bumps `[workspace.package].version` and dependent version
+  requirements via `cargo release version`, then refreshes `Cargo.lock`.
+  Commit the result through a normal PR.
 - When the bump lands on `master`, `.github/workflows/tag-release.yaml`
   creates the matching bare `<version>` tag and invokes
   `.github/workflows/release.yaml` in the same run (a tag pushed with

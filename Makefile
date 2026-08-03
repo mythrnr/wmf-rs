@@ -60,6 +60,11 @@ release:
 		echo "release version is required."; \
 		exit 1; \
 	fi \
+	&& if [ "$$(git branch --show-current)" != "master" ]; then \
+		echo "release branches must start from master."; \
+		exit 1; \
+	fi \
+	&& git switch -c "release/$(version)" \
 	&& cargo release version $(version) --execute \
 	&& cargo update --workspace \
 	&& echo "Version bumped." \

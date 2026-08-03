@@ -30,7 +30,7 @@ console_error_panic_hook = { version = "0.1.7" }
 
 # workspace
 wmf-cli = { path = "./cli" }
-wmf-core = { path = "./core", version = "0.0.29", default-features = false }
+wmf-core = { path = "./core", version = "0.1.0", default-features = false }
 wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]
@@ -48,7 +48,7 @@ edition = "2024"
 license = "MIT"
 repository = "https://github.com/mythrnr/wmf-rs"
 rust-version = "1.88.0"
-version = "0.0.29"
+version = "0.1.0"
 
 [profile.release]
 codegen-units = 1
