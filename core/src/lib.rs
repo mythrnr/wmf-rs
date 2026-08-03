@@ -1,3 +1,32 @@
+//! A parser for WMF (Windows Metafile) binaries and a converter to SVG,
+//! conforming to the [MS-WMF] specification.
+//!
+//! # Usage
+//!
+//! ```no_run
+//! let wmf_data = std::fs::read("input.wmf").expect("failed to read file");
+//!
+//! let player = wmf_core::converter::SVGPlayer::new();
+//! let converter =
+//!     wmf_core::converter::WMFConverter::new(wmf_data.as_slice(), player);
+//!
+//! let svg = converter.run().expect("failed to convert");
+//! ```
+//!
+//! Output formats other than SVG can be produced by implementing the
+//! [`Player`](converter::Player) trait.
+//!
+//! # Attribution
+//!
+//! Portions of the API documentation in this crate are adapted from the
+//! [MS-WMF] Open Specifications documentation, © Microsoft Corporation,
+//! and are used under the Intellectual Property Rights Notice for Open
+//! Specifications Documentation. The MS-WMF specification is covered by
+//! the [Microsoft Open Specification Promise][OSP].
+//!
+//! [MS-WMF]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2
+//! [OSP]: https://go.microsoft.com/fwlink/?LinkId=214445
+
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,

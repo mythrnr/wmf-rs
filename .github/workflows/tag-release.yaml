@@ -1,0 +1,71 @@
+name: "Tag release"
+
+on:
+  push:
+    branches:
+      - "master"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: false
+
+permissions:
+  contents: "read"
+
+jobs:
+  tag:
+    name: "Tag new version"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    permissions:
+      contents: "write"
+    outputs:
+      created: "${{ steps.tag.outputs.created }}"
+      version: "${{ steps.tag.outputs.version }}"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A release is triggered by merging a version-bump PR: when the
+      # workspace version has no matching tag yet, tag the merge commit.
+      # The tag is created through the API because a tag pushed with
+      # GITHUB_TOKEN cannot trigger other workflows; the release
+      # workflow is instead invoked below via workflow_call.
+      - name: "Create tag when the workspace version is untagged"
+        id: "tag"
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          version="$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '[.packages[].version] | unique | .[]')"
+          case "${version}" in
+            *[!0-9.]*|*" "*)
+              echo "workspace versions are not a single semver: ${version}" >&2
+              exit 1
+              ;;
+          esac
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${version}" \
+            >/dev/null 2>&1; then
+            echo "tag ${version} already exists; nothing to release"
+            echo "created=false" >> "${GITHUB_OUTPUT}"
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/tags/${version}" \
+              -f "sha=${GITHUB_SHA}"
+            echo "created=true" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+  release:
+    name: "Release"
+    needs: "tag"
+    if: "needs.tag.outputs.created == 'true'"
+    # id-token is required by the crates.io publish job (OIDC) in the
+    # called workflow; permissions granted here cap what its jobs get.
+    permissions:
+      contents: "write"
+      id-token: "write"
+    uses: "./.github/workflows/release.yaml"
+    with:
+      version: "${{ needs.tag.outputs.version }}"

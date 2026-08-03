@@ -45,7 +45,8 @@ pub struct META_EXTTEXTOUT {
     pub string: Vec<u8>,
     /// Dx (variable): An optional array of 16-bit signed integers that
     /// indicate the distance between origins of adjacent character cells. For
-    /// example, Dx[i] logical units separate the origins of character cell i
+    /// example, `Dx[i]` logical units separate the origins of character cell
+    /// i
     /// and character cell i + 1. If this field is present, there MUST be the
     /// same number of values as there are characters in the string.
     pub dx: Vec<i16>,

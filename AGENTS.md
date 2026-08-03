@@ -1,209 +1,74 @@
 # AGENTS.md
 
-A Rust library for parsing WMF (Windows Metafile) binaries and converting them to SVG.
-Conforms to the [MS-WMF specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2).
+A Rust library for parsing WMF (Windows Metafile) binaries and converting them
+to SVG. Conforms to the
+[MS-WMF specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2).
 
 ## Project Structure
 
-The project is managed as a Cargo workspace with 3 crates.
+Cargo workspace with 3 crates:
 
-```
-wmf-rs/
-  Cargo.toml          # Workspace root (resolver = "3")
-  core/               # wmf-core: WMF parsing & SVG conversion library (no_std)
-  cli/                # wmf-cli: CLI tool (example usage of wmf-core)
-  wasm/               # wmf-wasm: WASM bindings (no_std, wasm-bindgen)
-  docker/             # Development Docker environment
-  wasm/dist/          # wasm-pack build outputs (gitignored; only index.html is tracked)
-```
+- `core/` - wmf-core: parsing (`parser` module) and conversion (`converter`
+  module). Output formats are pluggable via the `Player` trait; `SVGPlayer`
+  is the built-in implementation.
+- `cli/` - wmf-cli: CLI tool (`cli/src/main.rs` only)
+- `wasm/` - wmf-wasm: WASM bindings (`wasm/src/lib.rs` only)
 
-### wmf-core (Main Library)
+See `README.md` for feature flags, CLI usage, and the WASM API. See the
+`Makefile` for all build targets, including the WASM builds and the optional
+Docker dev shell (`make docker-dev`).
 
-- `#![no_std]` compatible. Uses the `alloc` crate.
-- Re-exports the `embedded_io::Read` trait via `pub use` for I/O abstraction.
-- Feature flags:
-  - `svg` (enabled by default): SVG conversion (`SVGPlayer`)
-  - `tracing` (enabled by default): Log output
+## Constraints
 
-#### parser Module (`core/src/parser/`)
+- `wmf-core` and `wmf-wasm` are `#![no_std]`. Use the `alloc` crate (Vec,
+  String, BTreeMap); never introduce `std` dependencies. I/O is abstracted
+  via `embedded_io::Read`, re-exported at the crate root.
+- All WMF data is read in little-endian byte order.
+- Rust 1.88.0 is pinned via `rust-toolchain.toml`; nightly is required for
+  rustfmt and cargo-udeps.
 
-Handles binary parsing based on the MS-WMF specification.
+## Conventions
 
-- `constants/` - WMF constant definitions (enums, flags)
-- `objects/` - WMF object definitions (graphics, structure)
-- `records/` - WMF record type definitions and parsing (bitmap, control, drawing, escape, object, state)
-- Key types: `MetafileHeader`, `RecordType`, `RecordSize`, `ParseError`, `ReadError`
-- Parsing helpers (little-endian):
-  - `read_variable` - reads a variable-length byte slice
-  - `ReadLeField` trait - per-integer-width little-endian reader (implemented for `i8`/`i16`/`i32`/`u8`/`u16`/`u32`)
-  - `read_field` - generic helper that combines `ReadLeField` with the `ConsumeTracker` byte-count bookkeeping
-  - `read_with` / `read_bytes_field` - variants for composite parsers and variable-length payloads
+- All in-code text (comments, log messages, error messages) must be English.
+- Errors are defined with `snafu`. Logging uses `tracing` and can be disabled
+  via the `tracing` feature flag.
+- WMF record type names follow the specification in `UPPER_SNAKE_CASE`
+  (`non_camel_case_types` and `non_snake_case` are allowed for this reason).
+- clippy runs `all` + `pedantic` at `warn` level. Format with
+  `cargo +nightly fmt` (`make fmt`); line width is 80 including comments.
+- When adding new WMF terms, add them to the `words` list in
+  `.vscode/cspell.json` so cSpell accepts them.
 
-#### converter Module (`core/src/converter/`)
+## Build & Test
 
-Converts parsed records into an output format.
-
-- `Player` trait - Interface defining methods to process each WMF record
-- `SVGPlayer` - SVG implementation of the `Player` trait (when the `svg` feature is enabled)
-- `WMFConverter<B, P>` - Accepts a buffer (`embedded_io::Read`) and a `Player`, then executes conversion
-- `Bitmap` - Bitmap conversion helper
-- Error types: `ConvertError`, `PlayError`
-
-### wmf-cli
-
-- Single binary consisting of `cli/src/main.rs` only
-- Argument parsing with `clap`: `--input`, `--output`, `--quiet`, `--verbose`
-- Log control via `tracing-subscriber`
-
-### wmf-wasm
-
-- Consists of `wasm/src/lib.rs` only
-- `#![no_std]`, `crate-type = ["cdylib"]`
-- Functions exported via `#[wasm_bindgen]`:
-  - `convertWmf2Svg(buf: &[u8]) -> Result<String, JsValue>`
-  - `setLogLevel(level: &str)`
-- Build artifacts land in `wasm/dist/` (full build) and `wasm/dist-minimal/`
-  (no-tracing build); both directories are gitignored. Released versions are
-  published as `wmf-wasm-<tag>.tar.gz` and `wmf-wasm-minimal-<tag>.tar.gz`
-  assets on GitHub Releases via `.github/workflows/release.yaml` when a
-  SemVer tag is pushed.
-
-## Development Environment
-
-### Required Tools
-
-- Rust 1.88.0 (pinned via `rust-toolchain.toml`)
-- Rust nightly (for rustfmt and cargo-udeps)
-- Docker (for spell-check, and for the optional containerized dev shell)
-
-### Optional Tools
-
-- `cargo-machete`, `cargo-udeps` (unused dependency detection)
-- `wasm-pack`, `wasm-opt`, `wasm-bindgen-cli` (WASM build)
-- Yarn 1.22.22+ (running WASM demo)
-
-Bulk install of host tools:
-
-```sh
-make install-tools
-```
-
-### Containerized Dev Shell (alternative)
-
-`docker/` provides a self-contained image with the toolchain plus
-every helper used by the `make` targets (clippy, rustfmt,
-rust-analyzer, cargo-machete, cargo-udeps, wasm-pack, wasm-opt,
-wasm-bindgen-cli, cargo-bloat, twiggy). The workspace is bind-mounted
-at `/work` and `target/` is kept on a named volume so host editors and
-the container don't fight over `target/` ownership.
-
-```sh
-make docker-build   # build the image (one-time / on Dockerfile change)
-make docker-dev     # drop into bash inside the container
-make docker-clean   # tear down volumes (forces a clean cache)
-```
-
-Inside the container, the same `make` targets work
-(`make ci-suite`, `make test`, `make wasm`, ...).
-
-## Build, Test & Quality Checks
-
-### Key Make Targets
-
-| Command | Description |
-| --- | --- |
-| `make check` | `cargo check --workspace --all-targets --all-features` |
-| `make test` | `cargo test --workspace --all-targets` |
-| `make fmt` | `cargo +nightly fmt --all` |
-| `make lint` | `cargo clippy --workspace --all-targets --all-features -- --no-deps -D warnings` |
-| `make udeps` | `cargo machete` && `cargo +nightly udeps --all-targets` |
-| `make spell-check` | Run cSpell via Docker |
-| `make ci-suite` | Run all of the above: `spell-check fix fmt lint udeps wasm wasm-minimal test` |
-| `make wasm` | `wasm-pack build --out-dir dist --release --target web` (default features) |
-| `make wasm-minimal` | Same as `make wasm` but with `--no-default-features --features console_error_panic_hook`; output goes to `wasm/dist-minimal/`. Drops `tracing-wasm` for a smaller bundle. |
-| `make serve` | Start WASM demo at `localhost:8080` |
-| `make docker-build` | Build the dev container image |
-| `make docker-dev` | Open an interactive shell in the dev container |
-| `make docker-clean` | Tear down dev container volumes |
-
-### CI (GitHub Actions)
-
-`.github/workflows/ci.yaml` runs the following on PRs and pushes to master:
-
-1. `cargo +nightly fmt` (format check)
-2. `cargo clippy` (lint)
-3. cSpell (spell check)
-4. `cargo test` (unit tests)
-
-## Coding Conventions
-
-### Language in Source Code
-
-- All in-code text must be written in English. This includes:
-  - Comments (line comments, block comments, doc comments)
-  - Log messages (e.g. `tracing` macros)
-  - Error messages and `snafu` `display` strings
-  - Identifiers, string literals embedded in code paths, and any other text
-    appearing inside source files
-
-### Rust Style
-
-- Edition 2024, MSRV 1.88.0
-- Formatted according to `rustfmt.toml` (`cargo +nightly fmt`)
-  - Line width: 80 characters (including comments)
-  - Imports: grouped by `StdExternalCrate`, merged at `Crate` granularity
-  - Uses nightly features (`unstable_features = true`)
-- clippy: `all` + `pedantic` enabled at `warn` level
-  - Allowed lints: `doc_markdown`, `module_name_repetitions`, `must_use_candidate`, `similar_names`
-- Error definitions: uses the `snafu` crate
-- Logging: uses the `tracing` crate; can be disabled via feature flag
-- WMF record type names follow the specification in `UPPER_SNAKE_CASE` (`non_camel_case_types` and `non_snake_case` are allowed)
-
-### EditorConfig
-
-- UTF-8, LF line endings
-- Indentation: 4 spaces (Rust), 2 spaces (HTML, JSON, TOML, YAML, Markdown, Shell), tabs (Makefile)
-- Trailing whitespace trimmed (except Markdown)
-- Final newline inserted
-
-### Spell Check
-
-- Custom dictionary defined in `.vscode/cspell.json`
-- Contains many domain-specific terms from the WMF specification
-- When adding new WMF terms, add them to the `words` list in `cspell.json`
+- Day-to-day checks: `make test`, `make lint`, `make fmt`
+- Full suite before a PR: `make ci-suite`
+- CI on PRs and pushes to master runs `make fmt`, `make lint`,
+  `make spell-check`, and `make test`
+- `make install-tools` bulk-installs the host tooling
 
 ## Testing
 
-- Inline tests (`#[cfg(test)]`) live alongside the implementation across
-  `core/src/parser/` (records, objects, structure helpers, etc.) and a
-  shared `test_helpers` module in `core/src/parser/records/mod.rs`
-- Integration tests in `core/tests/`
-  - `core/tests/mod.rs` as the entry point
-  - `core/tests/drawing/` for drawing record tests
-- Run tests: `make test` or `cargo test --workspace --all-targets`
+- Inline tests (`#[cfg(test)]`) live alongside the implementation under
+  `core/src/`; shared helpers are in the `test_helpers` module in
+  `core/src/parser/records/mod.rs`.
+- Integration tests live in `core/tests/` with `core/tests/mod.rs` as the
+  entry point.
 
-## Architecture Notes
+## Releases
 
-### Player Pattern
-
-WMF record processing is abstracted via the `Player` trait.
-`WMFConverter` sequentially parses records from a binary stream and calls the corresponding `Player` methods.
-To add a new output format, implement the `Player` trait.
-
-### no_std Support
-
-Both `wmf-core` and `wmf-wasm` run under `#![no_std]`.
-They use the `alloc` crate (Vec, String, BTreeMap, etc.) instead of `std`.
-I/O is abstracted via `embedded_io::Read`.
-
-### Binary Parsing
-
-All data is read in little-endian byte order.
-The `read_*_from_le_bytes` function family and the `read_variable` function sequentially read data from a buffer.
-Each record type has a `::parse(buf, record_size, record_function)` static method.
-
-## Branching & Releases
-
-- Main branch: `master`
-- Dependabot: weekly updates for `cargo` and `github-actions` (targeting `master`)
-- Release: `make release version=<tag>` creates and pushes a git tag
+- Main branch: `master` (direct pushes are forbidden; changes land via PR)
+- `make release version=<x.y.z>` bumps `[workspace.package].version` and
+  dependent version requirements via `cargo release version`, then
+  refreshes `Cargo.lock`. Commit the result through a normal PR.
+- When the bump lands on `master`, `.github/workflows/tag-release.yaml`
+  creates the matching bare `<version>` tag and invokes
+  `.github/workflows/release.yaml` in the same run (a tag pushed with
+  `GITHUB_TOKEN` cannot trigger workflows). The release workflow fails if
+  the version does not equal the workspace version, then publishes the
+  WASM bundles as GitHub Releases assets.
+- All crates share the single version in `[workspace.package]` and are
+  released in lockstep: the release tag must equal that version, and
+  `wmf-core` is published to crates.io with the same version. `wmf-cli` and
+  `wmf-wasm` keep `publish = false` until their first crates.io release is
+  prepared.

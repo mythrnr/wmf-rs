@@ -130,7 +130,7 @@ impl Data {
         let _ = write!(self.0, "{param}");
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataClosePathCommand
+    /// <https://www.w3.org/TR/SVG/paths.html#PathDataClosePathCommand>
     pub fn close(mut self) -> Self {
         if !self.0.is_empty() {
             self.0.push(' ');
@@ -140,19 +140,19 @@ impl Data {
         self
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
+    /// <https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands>
     pub fn elliptical_arc_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("A", param);
         self
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataLinetoCommands
+    /// <https://www.w3.org/TR/SVG/paths.html#PathDataLinetoCommands>
     pub fn line_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("L", param);
         self
     }
 
-    /// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
+    /// <https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands>
     pub fn move_to(mut self, param: impl core::fmt::Display) -> Self {
         self.push_command("M", param);
         self

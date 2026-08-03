@@ -4,7 +4,7 @@ resolver = "3"
 
 [workspace.dependencies]
 base64 = { version = "0.23.0", default-features = false, features = ["alloc"] }
-clap = { version = "4.6.4", features = ["derive", "env"] }
+clap = { version = "4.6.5", features = ["derive", "env"] }
 codepage = "0.1.2"
 embedded-io = "0.7.1"
 encoding_rs = "0.8.35"
@@ -30,7 +30,7 @@ console_error_panic_hook = { version = "0.1.7" }
 
 # workspace
 wmf-cli = { path = "./cli" }
-wmf-core = { path = "./core", default-features = false }
+wmf-core = { path = "./core", version = "0.0.28", default-features = false }
 wmf-wasm = { path = "./wasm" }
 
 [workspace.lints.clippy]
@@ -45,8 +45,10 @@ similar_names = "allow"
 
 [workspace.package]
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/mythrnr/wmf-rs"
 rust-version = "1.88.0"
-version = "0.1.0"
+version = "0.0.28"
 
 [profile.release]
 codegen-units = 1

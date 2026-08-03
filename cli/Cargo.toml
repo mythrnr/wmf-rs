@@ -1,6 +1,15 @@
 [package]
 name = "wmf-cli"
+categories = ["command-line-utilities", "graphics", "multimedia::images"]
+description = "CLI tool to convert WMF (Windows Metafile) binaries to SVG"
 edition = { workspace = true }
+keywords = ["cli", "metafile", "svg", "wmf"]
+license = { workspace = true }
+# Not ready for crates.io yet. Remove this once the first release of
+# wmf-cli is prepared; the rest of the metadata is already in place.
+publish = false
+readme = "README.md"
+repository = { workspace = true }
 rust-version = { workspace = true }
 version = { workspace = true }
 

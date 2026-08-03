@@ -18,7 +18,7 @@ Add `wmf-core` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core" }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core" }
 ```
 
 ### Feature Flags
@@ -32,7 +32,7 @@ To use with minimal dependencies:
 
 ```toml
 [dependencies]
-wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.1.0", package = "wmf-core", default-features = false }
+wmf-core = { git = "https://github.com/mythrnr/wmf-rs.git", tag = "0.0.28", package = "wmf-core", default-features = false }
 ```
 
 ## Usage
@@ -66,7 +66,10 @@ fn main() {
 ### Custom Player
 
 The conversion process is abstracted through the `Player` trait.
-You can implement your own `Player` to produce output formats other than SVG:
+You can implement your own `Player` to produce output formats other than SVG.
+Only `generate` and `header` are required; every other record handler has a
+default implementation that skips the record, so override only the records
+your output format supports:
 
 ```rust
 use wmf_core::converter::{Player, PlayError};
@@ -80,10 +83,24 @@ impl Player for MyPlayer {
         todo!()
     }
 
-    // Implement all required record handler methods...
+    fn header(
+        self,
+        record_number: usize,
+        header: MetafileHeader,
+    ) -> Result<Self, PlayError> {
+        // Set up the canvas from the metafile header
+        todo!()
+    }
+
+    // Override only the record handlers you support...
     // See `wmf_core::converter::Player` for the full list.
-    # fn bit_blt(self, _: usize, _: META_BITBLT) -> Result<Self, PlayError> { Ok(self) }
-    // ...
+    fn rectangle(
+        self,
+        record_number: usize,
+        record: META_RECTANGLE,
+    ) -> Result<Self, PlayError> {
+        todo!()
+    }
 }
 ```
 
@@ -95,7 +112,7 @@ The `wmf-cli` crate provides a command-line converter:
 cargo run --package wmf-cli -- --input sample.wmf --output out.svg
 ```
 
-```
+```sh
 Usage: wmf-cli [OPTIONS] --input <INPUT>
 
 Options:
@@ -191,6 +208,39 @@ Optional tools can be installed with:
 make install-tools
 ```
 
+## Releasing
+
+Direct pushes to `master` are forbidden, so a release is driven by a
+version-bump PR:
+
+1. Bump the version:
+
+   ```sh
+   make release version=<x.y.z>
+   ```
+
+   This updates `[workspace.package].version` and dependent version
+   requirements via `cargo release version`, then refreshes `Cargo.lock`.
+   Nothing is committed, tagged, or pushed.
+
+2. Commit the result and open a PR. Merging it to `master` is the release
+   trigger.
+
+3. On the merge, `tag-release.yaml` creates the matching `<version>` git
+   tag and invokes the release workflow, which verifies that the version
+   equals the workspace version and publishes the WASM bundles as GitHub
+   Releases assets.
+
+To re-run a release whose tag already exists, dispatch the "Release"
+workflow manually from the Actions tab with the version as input.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+Portions of the API documentation are adapted from the
+[MS-WMF Open Specifications documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/4813e7fd-52d0-4f42-965f-228c8b7488d2),
+© Microsoft Corporation, and are used under the Intellectual Property Rights
+Notice for Open Specifications Documentation. The MS-WMF specification is
+covered by the
+[Microsoft Open Specification Promise](https://go.microsoft.com/fwlink/?LinkId=214445).

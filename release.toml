@@ -1,0 +1,13 @@
+# `make release version=<x.y.z>` uses `cargo release version` to bump
+# `[workspace.package].version` and dependent version requirements only.
+# The bump lands on master through a normal PR; tagging and publishing
+# are done by CI (.github/workflows/tag-release.yaml) because direct
+# pushes to master are forbidden.
+#
+# The keys below keep a stray full `cargo release --execute` harmless:
+# it would stop at a local commit without tagging, pushing, or
+# publishing anything.
+
+publish = false
+push = false
+tag = false

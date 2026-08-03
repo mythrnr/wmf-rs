@@ -17,8 +17,9 @@ pub enum BitCount {
     ///
     /// The image SHOULD be in either JPEG or PNG format.<4> Neither of these
     /// formats includes a color table, so this value specifies that no color
-    /// table is present in the Colors field of the DIB Object. See [JFIF] and
-    /// [RFC2083] for more information concerning JPEG and PNG compression
+    /// table is present in the Colors field of the DIB Object. See \[JFIF\]
+    /// and \[RFC2083\] for more information concerning JPEG and PNG
+    /// compression
     /// formats.
     BI_BITCOUNT_0 = 0x0000,
     /// The image is specified with two colors.

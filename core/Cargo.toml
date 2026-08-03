@@ -1,8 +1,24 @@
 [package]
 name = "wmf-core"
+categories = [
+  "graphics",
+  "multimedia::images",
+  "no-std",
+  "parser-implementations",
+]
+description = "Parser for WMF (Windows Metafile) binaries and converter to SVG, conforming to the MS-WMF specification"
 edition = { workspace = true }
+keywords = ["metafile", "no-std", "parser", "svg", "wmf"]
+license = { workspace = true }
+readme = "README.md"
+repository = { workspace = true }
 rust-version = { workspace = true }
 version = { workspace = true }
+
+# docs.rs builds with default features unless told otherwise; enabling
+# everything keeps the `svg` converter API visible in the docs.
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
 default = ["svg", "tracing"]

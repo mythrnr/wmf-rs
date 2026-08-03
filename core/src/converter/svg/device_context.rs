@@ -2,55 +2,49 @@ use crate::converter::{svg::util::css_color_from_color_ref, *};
 
 #[derive(Clone, Debug)]
 pub struct DeviceContext {
-    // graphics object
-    pub object_table: GraphicsObjects,
-
-    // structures
-    pub drawing_position: PointS,
-    pub text_bk_color: ColorRef,
-    pub text_color: ColorRef,
-    pub window: Window,
-
-    // graphics props
     pub bk_mode: MixMode,
     pub clipping_region: Option<Rect>,
-    pub poly_fill_mode: PolyFillMode,
-    pub text_align_horizontal: TextAlignmentMode,
-    pub text_align_vertical: VerticalTextAlignmentMode,
-    pub text_align_update_cp: bool,
-
     pub draw_mode: Option<BinaryRasterOperation>,
+    pub drawing_position: PointS,
     pub layout: Layout,
     pub map_mode: MapMode,
+    pub object_table: GraphicsObjects,
+    pub poly_fill_mode: PolyFillMode,
     pub stretch_mode: StretchMode,
-    /// Extra inter-character spacing in logical units
-    pub text_char_extra: u16,
+    pub text_align_horizontal: TextAlignmentMode,
+    pub text_align_update_cp: bool,
+    pub text_align_vertical: VerticalTextAlignmentMode,
+    pub text_bk_color: ColorRef,
     /// Number of break characters in the line
     pub text_break_count: u16,
     /// Total extra space in logical units to distribute
     /// across break characters
     pub text_break_extra: u16,
+    /// Extra inter-character spacing in logical units
+    pub text_char_extra: u16,
+    pub text_color: ColorRef,
+    pub window: Window,
 }
 
 impl Default for DeviceContext {
     fn default() -> Self {
         Self {
-            object_table: GraphicsObjects::new(0),
             bk_mode: MixMode::TRANSPARENT,
             clipping_region: None,
-            drawing_position: PointS { x: 0, y: 0 },
             draw_mode: None,
+            drawing_position: PointS { x: 0, y: 0 },
             layout: Layout::LAYOUT_LTR,
             map_mode: MapMode::MM_TEXT,
+            object_table: GraphicsObjects::new(0),
             poly_fill_mode: PolyFillMode::ALTERNATE,
             stretch_mode: StretchMode::BLACKONWHITE,
             text_align_horizontal: TextAlignmentMode::TA_LEFT,
+            text_align_update_cp: false,
             // Per MS-WMF 2.3.5.24, the default text alignment is
             // TA_TOP | TA_LEFT when META_SETTEXTALIGN has not been
             // emitted, so the reference y points to the top edge of
             // the bounding box.
             text_align_vertical: VerticalTextAlignmentMode::VTA_TOP,
-            text_align_update_cp: false,
             text_bk_color: ColorRef::white(),
             text_break_count: 0,
             text_break_extra: 0,
@@ -61,7 +55,6 @@ impl Default for DeviceContext {
     }
 }
 
-// mutations
 impl DeviceContext {
     pub fn bk_mode(&mut self, bk_mode: MixMode) {
         self.bk_mode = bk_mode;
