@@ -21,7 +21,7 @@ impl META_SETPALENTRIES {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -30,13 +30,15 @@ impl META_SETPALENTRIES {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETPALENTRIES,
         )?;
 
-        let (palette, consumed_bytes) = crate::parser::Palette::parse(buf)?;
-        record_size.consume(consumed_bytes);
+        let palette =
+            read_with(buf, &mut record_size, crate::parser::Palette::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

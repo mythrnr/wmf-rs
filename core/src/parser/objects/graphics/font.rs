@@ -110,66 +110,55 @@ impl Font {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (height, height_bytes),
-            (width, width_bytes),
-            (escapement, escapement_bytes),
-            (orientation, orientation_bytes),
-            (weight, weight_bytes),
-            (italic, italic_bytes),
-            (underline, underline_bytes),
-            (strike_out, strike_out_bytes),
-            (charset, charset_bytes),
-            (out_precision, out_precision_bytes),
-            (clip_precision, clip_precision_bytes),
-            (quality, quality_bytes),
-            (pitch_and_family, pitch_and_family_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            {
-                let (v, c) = crate::parser::read_u8_from_le_bytes(buf)?;
-                (v == 0x01, c)
-            },
-            crate::parser::CharacterSet::parse(buf)?,
-            crate::parser::OutPrecision::parse(buf)?,
-            crate::parser::ClipPrecision::parse(buf)?,
-            crate::parser::FontQuality::parse(buf)?,
-            crate::parser::PitchAndFamily::parse(buf)?,
-        );
-        let mut consumed_bytes = height_bytes
-            + width_bytes
-            + escapement_bytes
-            + orientation_bytes
-            + weight_bytes
-            + italic_bytes
-            + underline_bytes
-            + strike_out_bytes
-            + charset_bytes
-            + out_precision_bytes
-            + clip_precision_bytes
-            + quality_bytes
-            + pitch_and_family_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let escapement = read_field(buf, &mut consumed_bytes)?;
+        let orientation = read_field(buf, &mut consumed_bytes)?;
+        let weight = read_field(buf, &mut consumed_bytes)?;
+        let italic_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let italic = italic_byte == 0x01;
+        let underline_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let underline = underline_byte == 0x01;
+        let strike_out_byte: u8 = read_field(buf, &mut consumed_bytes)?;
+        let strike_out = strike_out_byte == 0x01;
+        let charset = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::CharacterSet::parse,
+        )?;
+        let out_precision = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::OutPrecision::parse,
+        )?;
+        let clip_precision = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::ClipPrecision::parse,
+        )?;
+        let quality = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::FontQuality::parse,
+        )?;
+        let pitch_and_family = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::PitchAndFamily::parse,
+        )?;
 
         let (facename, facename_as_charset) = {
             // The spec defines facename as a 32-byte field, but
             // real-world records may have fewer remaining bytes.
-            // Read up to 32 bytes from the buffer.
-            let mut bytes = vec![0; 32];
+            // Read up to 32 bytes from the buffer. The fixed size
+            // lets us keep this scratch on the stack.
+            let mut bytes = [0u8; 32];
             let c = buf.read(&mut bytes).map_err(|err| {
                 crate::parser::ParseError::UnexpectedPattern {
-                    cause: format!("{err:?}"),
+                    cause: format!("{err:?}").into(),
                 }
             })?;
             consumed_bytes += c;
@@ -196,15 +185,19 @@ impl Font {
             fallback_facename.push(facename_as_charset);
         }
 
-        // if facename is `Symbol`, set charset `SYMBOL_CHARSET`.
-        let charset = if facename.to_ascii_lowercase().contains("symbol")
-            || fallback_facename
-                .iter()
-                .any(|f| f.to_ascii_lowercase().contains("symbol"))
+        // If the facename refers to "Symbol" (case-insensitive),
+        // promote the charset to SYMBOL_CHARSET. `contains_symbol`
+        // walks the string once with ASCII case folding so we avoid
+        // the per-call `to_ascii_lowercase` allocation that would
+        // otherwise trigger for every CREATEFONTINDIRECT record.
+        let charset = if contains_symbol(&facename)
+            || fallback_facename.iter().any(|f| contains_symbol(f))
         {
-            let symbol = "Symbol".to_string();
-            if facename != symbol && !fallback_facename.contains(&symbol) {
-                fallback_facename.push(symbol);
+            const SYMBOL: &str = "Symbol";
+            if facename != SYMBOL
+                && !fallback_facename.iter().any(|f| f == SYMBOL)
+            {
+                fallback_facename.push(SYMBOL.into());
             }
 
             crate::parser::CharacterSet::SYMBOL_CHARSET
@@ -232,5 +225,72 @@ impl Font {
             },
             consumed_bytes,
         ))
+    }
+}
+
+/// Returns true when `s` contains the substring "symbol" under
+/// ASCII case folding, without allocating an intermediate
+/// lowercased copy.
+fn contains_symbol(s: &str) -> bool {
+    const NEEDLE: &[u8] = b"symbol";
+    let bytes = s.as_bytes();
+    if bytes.len() < NEEDLE.len() {
+        return false;
+    }
+    bytes.windows(NEEDLE.len()).any(|w| w.eq_ignore_ascii_case(NEEDLE))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a 50-byte Font payload (18 byte header + 32 byte facename).
+    fn build_font(facename: &[u8]) -> Vec<u8> {
+        let mut data = Vec::new();
+        // 18-byte header: 5 i16 fields + 3 u8 booleans + 5 u8 enums.
+        data.extend_from_slice(&12_i16.to_le_bytes()); // height
+        data.extend_from_slice(&0_i16.to_le_bytes()); // width
+        data.extend_from_slice(&0_i16.to_le_bytes()); // escapement
+        data.extend_from_slice(&0_i16.to_le_bytes()); // orientation
+        data.extend_from_slice(&400_i16.to_le_bytes()); // weight
+        data.push(0); // italic
+        data.push(0); // underline
+        data.push(0); // strike_out
+        data.push(0); // charset (ANSI_CHARSET)
+        data.push(0); // out_precision (OUT_DEFAULT_PRECIS)
+        data.push(0); // clip_precision (CLIP_DEFAULT_PRECIS)
+        data.push(0); // quality (DEFAULT_QUALITY)
+        data.push(0); // pitch_and_family (FF_DONTCARE | DEFAULT_PITCH)
+        // facename: up to 32 bytes, NUL-terminated.
+        let mut name = vec![0u8; 32];
+        let len = facename.len().min(31);
+        name[..len].copy_from_slice(&facename[..len]);
+        data.extend_from_slice(&name);
+        data
+    }
+
+    #[test]
+    fn parse_basic_font() {
+        let data = build_font(b"Arial");
+        let mut reader = &data[..];
+        let (font, consumed) = Font::parse(&mut reader).unwrap();
+        assert_eq!(font.height, 12);
+        assert_eq!(font.weight, 400);
+        assert!(!font.italic);
+        assert_eq!(font.facename, "Arial");
+        assert_eq!(consumed, 50);
+    }
+
+    /// When the facename starts with "Symbol", the charset is forced to
+    /// SYMBOL_CHARSET regardless of what the header byte said.
+    #[test]
+    fn parse_symbol_facename_forces_symbol_charset() {
+        let data = build_font(b"Symbol");
+        let mut reader = &data[..];
+        let (font, _) = Font::parse(&mut reader).unwrap();
+        assert!(matches!(
+            font.charset,
+            crate::parser::CharacterSet::SYMBOL_CHARSET,
+        ));
     }
 }

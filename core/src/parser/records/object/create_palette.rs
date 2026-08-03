@@ -20,7 +20,7 @@ impl META_CREATEPALETTE {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -29,23 +29,21 @@ impl META_CREATEPALETTE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEPALETTE,
         )?;
 
-        let (palette, palette_bytes) = crate::parser::Palette::parse(buf)?;
-        record_size.consume(palette_bytes);
+        let palette =
+            read_with(buf, &mut record_size, crate::parser::Palette::parse)?;
 
-        if palette.start != 0x0300 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The start field in the palette object must be `0x0300`, \
-                     but `{:#06X}`",
-                    palette.start
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq(
+            "palette.start",
+            palette.start,
+            0x0300,
+        )?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

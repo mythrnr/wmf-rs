@@ -45,7 +45,11 @@ impl Default for DeviceContext {
             poly_fill_mode: PolyFillMode::ALTERNATE,
             stretch_mode: StretchMode::BLACKONWHITE,
             text_align_horizontal: TextAlignmentMode::TA_LEFT,
-            text_align_vertical: VerticalTextAlignmentMode::VTA_BASELINE,
+            // Per MS-WMF 2.3.5.24, the default text alignment is
+            // TA_TOP | TA_LEFT when META_SETTEXTALIGN has not been
+            // emitted, so the reference y points to the top edge of
+            // the bounding box.
+            text_align_vertical: VerticalTextAlignmentMode::VTA_TOP,
             text_align_update_cp: false,
             text_bk_color: ColorRef::white(),
             text_break_count: 0,
@@ -197,19 +201,6 @@ impl DeviceContext {
 }
 
 impl DeviceContext {
-    pub fn text_y_offset(&self, font_height: i16) -> i16 {
-        if matches!(
-            self.text_align_vertical,
-            VerticalTextAlignmentMode::VTA_BASELINE
-                | VerticalTextAlignmentMode::VTA_BOTTOM
-        ) && font_height < 0
-        {
-            -font_height
-        } else {
-            0
-        }
-    }
-
     pub fn as_css_text_align(&self) -> String {
         match self.text_align_horizontal {
             TextAlignmentMode::TA_CENTER => "middle".to_owned(),
@@ -218,13 +209,50 @@ impl DeviceContext {
         }
     }
 
-    pub fn as_css_text_align_vertical(&self) -> String {
-        match self.text_align_vertical {
-            VerticalTextAlignmentMode::VTA_BOTTOM => "text-bottom".to_owned(),
-            VerticalTextAlignmentMode::VTA_TOP => "text-top".to_owned(),
-            VerticalTextAlignmentMode::VTA_CENTER => "central".to_owned(),
-            _ => "auto".to_owned(),
-        }
+    /// Compute the offset, in SVG units, to add to the WMF reference
+    /// y so the resulting SVG `y` lands on the alphabetic baseline.
+    ///
+    /// `dominant-baseline` is unreliable across SVG renderers; many
+    /// fall back to `auto` (alphabetic) regardless of the requested
+    /// value, which then offsets the text vertically. Pre-shifting
+    /// `y` to the baseline and emitting no `dominant-baseline`
+    /// attribute keeps placement consistent across renderers.
+    ///
+    /// Ascent and descent fractions of the em differ by script, so
+    /// the charset selects the ratio: Latin/European (ANSI etc.)
+    /// uses ascent ≈ 0.8em and descent ≈ 0.2em; CJK (Shift-JIS,
+    /// Big5, GB2312, Hangul, Johab) glyphs fill nearly the whole em
+    /// above the baseline, so ascent ≈ 1.0em and descent ≈ 0em.
+    ///
+    /// Real metrics depend on the font, which the WMF stream does
+    /// not embed; these averages are accurate enough to keep text
+    /// inside its WMF bounding rectangle for both scripts.
+    pub fn text_baseline_y_offset(
+        &self,
+        font_height: i16,
+        charset: CharacterSet,
+    ) -> i16 {
+        let em = f32::from(font_height.abs());
+        let (ascent_ratio, descent_ratio) = match charset {
+            CharacterSet::SHIFTJIS_CHARSET
+            | CharacterSet::HANGUL_CHARSET
+            | CharacterSet::JOHAB_CHARSET
+            | CharacterSet::GB2312_CHARSET
+            | CharacterSet::CHINESEBIG5_CHARSET => (1.0_f32, 0.0_f32),
+            _ => (0.8_f32, 0.2_f32),
+        };
+        let offset = match self.text_align_vertical {
+            // y points to the top edge → shift down by ascent.
+            VerticalTextAlignmentMode::VTA_TOP => em * ascent_ratio,
+            // y points to the bottom edge → shift up by descent.
+            VerticalTextAlignmentMode::VTA_BOTTOM => -em * descent_ratio,
+            // y points to the middle of the em box → shift down to
+            // reach the baseline (em/2 - descent).
+            VerticalTextAlignmentMode::VTA_CENTER => em * (0.5 - descent_ratio),
+            // VTA_BASELINE: y already references the baseline.
+            _ => 0.0,
+        };
+        offset.round() as i16
     }
 
     pub fn point_s_to_absolute_point(&self, point: &PointS) -> PointS {

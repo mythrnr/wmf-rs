@@ -26,7 +26,7 @@ impl META_SETPIXEL {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -35,17 +35,17 @@ impl META_SETPIXEL {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETPIXEL,
         )?;
 
-        let ((color_ref, color_ref_bytes), (y, y_bytes), (x, x_bytes)) = (
-            crate::parser::ColorRef::parse(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(color_ref_bytes + y_bytes + x_bytes);
+        let color_ref =
+            read_with(buf, &mut record_size, crate::parser::ColorRef::parse)?;
+        let y = read_field(buf, &mut record_size)?;
+        let x = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

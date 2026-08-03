@@ -23,7 +23,7 @@ impl META_CREATEBRUSHINDIRECT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -32,13 +32,15 @@ impl META_CREATEBRUSHINDIRECT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::read_with;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_CREATEBRUSHINDIRECT,
         )?;
 
-        let (log_brush, log_brush_bytes) = crate::parser::LogBrush::parse(buf)?;
-        record_size.consume(log_brush_bytes);
+        let log_brush =
+            read_with(buf, &mut record_size, crate::parser::LogBrush::parse)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

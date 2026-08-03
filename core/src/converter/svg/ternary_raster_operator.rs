@@ -326,10 +326,3 @@ impl TernaryRasterOperator {
         format!("rop_pat{}", definitions.len())
     }
 }
-
-impl From<ColorRef> for RGBQuad {
-    fn from(v: ColorRef) -> Self {
-        let ColorRef { red, green, blue, reserved } = v;
-        Self { red, green, blue, reserved }
-    }
-}

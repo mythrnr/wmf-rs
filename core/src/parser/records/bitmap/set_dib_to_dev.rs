@@ -53,7 +53,7 @@ impl META_SETDIBTODEV {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -62,50 +62,30 @@ impl META_SETDIBTODEV {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SETDIBTODEV,
         )?;
 
-        let (
-            (color_usage, color_usage_bytes),
-            (scan_count, scan_count_bytes),
-            (start_scan, start_scan_bytes),
-            (y_dib, y_dib_bytes),
-            (x_dib, x_dib_bytes),
-            (height, height_bytes),
-            (width, width_bytes),
-            (y_dest, y_dest_bytes),
-            (x_dest, x_dest_bytes),
-        ) = (
-            crate::parser::ColorUsage::parse(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            color_usage_bytes
-                + scan_count_bytes
-                + start_scan_bytes
-                + y_dib_bytes
-                + x_dib_bytes
-                + height_bytes
-                + width_bytes
-                + y_dest_bytes
-                + x_dest_bytes,
-        );
+        let color_usage =
+            read_with(buf, &mut record_size, crate::parser::ColorUsage::parse)?;
+        let scan_count = read_field(buf, &mut record_size)?;
+        let start_scan = read_field(buf, &mut record_size)?;
+        let y_dib = read_field(buf, &mut record_size)?;
+        let x_dib = read_field(buf, &mut record_size)?;
+        let height = read_field(buf, &mut record_size)?;
+        let width = read_field(buf, &mut record_size)?;
+        let y_dest = read_field(buf, &mut record_size)?;
+        let x_dest = read_field(buf, &mut record_size)?;
 
-        let (dib, c) =
+        let dib = read_with(buf, &mut record_size, |b| {
             crate::parser::DeviceIndependentBitmap::parse_with_color_usage(
-                buf,
+                b,
                 color_usage,
-            )?;
-        record_size.consume(c);
+            )
+        })?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

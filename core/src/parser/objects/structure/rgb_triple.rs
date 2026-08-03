@@ -22,12 +22,36 @@ impl RGBTriple {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((red, red_bytes), (green, green_bytes), (blue, blue_bytes)) = (
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-            crate::parser::read_u8_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { red, green, blue }, red_bytes + green_bytes + blue_bytes))
+        let mut consumed_bytes: usize = 0;
+        let red = read_field(buf, &mut consumed_bytes)?;
+        let green = read_field(buf, &mut consumed_bytes)?;
+        let blue = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { red, green, blue }, consumed_bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ok() {
+        let data = [0x11, 0x22, 0x33];
+        let mut reader = &data[..];
+        let (t, consumed) = RGBTriple::parse(&mut reader).unwrap();
+        assert_eq!(t.red, 0x11);
+        assert_eq!(t.green, 0x22);
+        assert_eq!(t.blue, 0x33);
+        assert_eq!(consumed, 3);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = [0x11];
+        let mut reader = &data[..];
+        assert!(RGBTriple::parse(&mut reader).is_err());
     }
 }

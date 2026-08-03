@@ -18,11 +18,38 @@ impl PointL {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((x, x_bytes), (y, y_bytes)) = (
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { x, y }, x_bytes + y_bytes))
+        let mut consumed_bytes: usize = 0;
+        let x = read_field(buf, &mut consumed_bytes)?;
+        let y = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { x, y }, consumed_bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&(-12345_i32).to_le_bytes());
+        data.extend_from_slice(&67890_i32.to_le_bytes());
+        let mut reader = &data[..];
+        let (point, consumed) = PointL::parse(&mut reader).unwrap();
+        assert_eq!(point.x, -12345);
+        assert_eq!(point.y, 67890);
+        assert_eq!(consumed, 8);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        // Only 4 bytes -> y read fails partway through.
+        let data = 1_i32.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(PointL::parse(&mut reader).is_err());
     }
 }

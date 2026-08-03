@@ -22,20 +22,20 @@ impl Pen {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (style, style_bytes),
-            (width, width_bytes),
-            (color_ref, color_ref_bytes),
-        ) = (
-            PenStyleSubsection::parse(buf)?,
-            crate::parser::PointS::parse(buf)?,
-            crate::parser::ColorRef::parse(buf)?,
-        );
+        use crate::parser::records::read_with;
 
-        Ok((
-            Self { style, width, color_ref },
-            style_bytes + width_bytes + color_ref_bytes,
-        ))
+        let mut consumed_bytes: usize = 0;
+        let style =
+            read_with(buf, &mut consumed_bytes, PenStyleSubsection::parse)?;
+        let width =
+            read_with(buf, &mut consumed_bytes, crate::parser::PointS::parse)?;
+        let color_ref = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::ColorRef::parse,
+        )?;
+
+        Ok((Self { style, width, color_ref }, consumed_bytes))
     }
 }
 
@@ -56,8 +56,10 @@ impl PenStyleSubsection {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (style_u16, style_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
+        use crate::parser::records::read_field;
+
+        let mut consumed_bytes: usize = 0;
+        let style_u16: u16 = read_field(buf, &mut consumed_bytes)?;
 
         Ok((
             Self {
@@ -67,7 +69,7 @@ impl PenStyleSubsection {
                 style: Self::style(style_u16),
                 typ: crate::parser::PenStyle::PS_SOLID,
             },
-            style_bytes,
+            consumed_bytes,
         ))
     }
 
@@ -105,5 +107,53 @@ impl PenStyleSubsection {
         }
 
         crate::parser::PenStyle::PS_SOLID
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    /// Builds a 10-byte Pen payload (2 bytes style + 4 bytes PointS +
+    /// 4 bytes ColorRef).
+    fn build_pen(style_u16: u16, width_x: i16, color: [u8; 4]) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&style_u16.to_le_bytes());
+        data.extend_from_slice(&width_x.to_le_bytes());
+        data.extend_from_slice(&0_i16.to_le_bytes()); // y is ignored per spec
+        data.extend_from_slice(&color);
+        data
+    }
+
+    #[test]
+    fn parse_solid_pen() {
+        // style 0x0000 -> PS_SOLID across all sub-fields.
+        let data = build_pen(0x0000, 5, [0xAA, 0xBB, 0xCC, 0x00]);
+        let mut reader = &data[..];
+        let (pen, consumed) = Pen::parse(&mut reader).unwrap();
+        assert_eq!(pen.width.x, 5);
+        assert_eq!(pen.color_ref.red, 0xAA);
+        assert_eq!(pen.color_ref.green, 0xBB);
+        assert_eq!(pen.color_ref.blue, 0xCC);
+        assert!(matches!(pen.style.style, crate::parser::PenStyle::PS_SOLID));
+        assert_eq!(consumed, 10);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = [0x00_u8, 0x00];
+        let mut reader = &data[..];
+        assert!(Pen::parse(&mut reader).is_err());
+    }
+
+    /// Verifies the bitmask routing for the dash style sub-field.
+    /// PS_DASH = 0x0001 lives in the low nibble.
+    #[test]
+    fn pen_style_subsection_decodes_dash() {
+        assert!(matches!(
+            PenStyleSubsection::style(0x0001),
+            crate::parser::PenStyle::PS_DASH,
+        ));
     }
 }

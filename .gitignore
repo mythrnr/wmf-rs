@@ -1,2 +1,9 @@
 node_modules
 target
+
+# wasm-pack generated artifacts (built via `make wasm` / `make wasm-minimal`,
+# published via the release workflow). `wasm/dist/` is fully ignored except
+# for the hand-written demo entry point.
+wasm/dist/*
+!wasm/dist/index.html
+wasm/dist-minimal/

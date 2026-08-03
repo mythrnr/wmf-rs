@@ -98,3 +98,11 @@ pub enum BitCount {
 }
 
 crate::parser::constants::impl_parser!(BitCount, u16);
+
+impl From<BitCount> for u16 {
+    fn from(v: BitCount) -> Self {
+        // Backed by the `#[repr(u16)]` discriminant; using `From` keeps
+        // call sites away from the implicit-repr `as u16` cast.
+        v as Self
+    }
+}

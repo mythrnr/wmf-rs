@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The META_HEADER Record is the first record in a standard (nonplaceable) WMF
 /// metafile.
 #[derive(Clone, Debug)]
@@ -46,39 +44,40 @@ impl META_HEADER {
         buf: &mut R,
         key: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
+        // The 4-byte `key` value passed in by the caller already accounts
+        // for the bytes read upstream; only the typ portion contributes to
+        // `consumed_bytes` (matching the previous behavior where the
+        // header_size byte count was discarded as it is not external).
         let bytes: [u8; 4] = key.to_le_bytes();
         let mut b = &bytes[..];
-        let ((typ, mut consumed_bytes), (header_size, _)) = (
-            crate::parser::MetafileType::parse(&mut b)?,
-            crate::parser::read_u16_from_le_bytes(&mut b)?,
-        );
+        let mut consumed_bytes: usize = 0;
+        let typ = read_with(
+            &mut b,
+            &mut consumed_bytes,
+            crate::parser::MetafileType::parse,
+        )?;
+        // `header_size` is read from the in-memory `key` buffer, so its
+        // byte count must not be added to the externally reported
+        // `consumed_bytes`.
+        let mut throwaway: usize = 0;
+        let header_size = read_field(&mut b, &mut throwaway)?;
 
-        let (
-            (version, version_bytes),
-            (size_low, size_low_bytes),
-            (size_high, size_high_bytes),
-            (number_of_objects, number_of_objects_bytes),
-            (max_record, max_record_bytes),
-            (number_of_members, number_of_members_bytes),
-        ) = (
-            crate::parser::MetafileVersion::parse(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        consumed_bytes += version_bytes
-            + size_low_bytes
-            + size_high_bytes
-            + number_of_objects_bytes
-            + max_record_bytes
-            + number_of_members_bytes;
+        let version = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::MetafileVersion::parse,
+        )?;
+        let size_low = read_field(buf, &mut consumed_bytes)?;
+        let size_high = read_field(buf, &mut consumed_bytes)?;
+        let number_of_objects = read_field(buf, &mut consumed_bytes)?;
+        let max_record = read_field(buf, &mut consumed_bytes)?;
+        let number_of_members = read_field(buf, &mut consumed_bytes)?;
 
         if number_of_members != 0x0000 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The number_of_members field should be `0x0000`"
-                    .to_owned(),
+                cause: "The number_of_members field should be `0x0000`".into(),
             });
         }
 

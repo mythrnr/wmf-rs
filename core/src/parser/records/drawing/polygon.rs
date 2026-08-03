@@ -29,7 +29,7 @@ impl META_POLYGON {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -38,33 +38,31 @@ impl META_POLYGON {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_POLYGON,
         )?;
 
-        let (number_of_points, number_of_points_bytes) =
-            crate::parser::read_i16_from_le_bytes(buf)?;
-        record_size.consume(number_of_points_bytes);
+        let number_of_points = read_field(buf, &mut record_size)?;
 
         // The spec requires number_of_points >= 2, but real-world
         // WMF files may contain degenerate polygons (0 or 1 points).
         // Treat these as a no-op; only reject negative values.
-        if number_of_points < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "number_of_points must be >= 0, got {number_of_points}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "number_of_points",
+            number_of_points,
+        )?;
 
         let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
-            let (v, c) = crate::parser::PointS::parse(buf)?;
-
-            record_size.consume(c);
-            a_points.push(v);
+            a_points.push(read_with(
+                buf,
+                &mut record_size,
+                crate::parser::PointS::parse,
+            )?);
         }
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;

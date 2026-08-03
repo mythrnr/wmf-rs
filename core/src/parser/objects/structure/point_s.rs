@@ -18,12 +18,13 @@ impl PointS {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((x, x_bytes), (y, y_bytes)) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { x, y }, x_bytes + y_bytes))
+        let mut consumed_bytes: usize = 0;
+        let x = read_field(buf, &mut consumed_bytes)?;
+        let y = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { x, y }, consumed_bytes))
     }
 }
 

@@ -6,38 +6,30 @@ impl crate::parser::META_ESCAPE {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
-        let (
-            (byte_count, byte_count_bytes),
-            (size, size_bytes),
-            (version, version_bytes),
-            (points, points_bytes),
-        ) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::PointL::parse(buf)?,
-        );
-        record_size.consume(
-            byte_count_bytes + size_bytes + version_bytes + points_bytes,
-        );
+        use crate::parser::records::{read_bytes_field, read_field, read_with};
 
-        if u32::from(byte_count) < size {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The byte_count field `{byte_count:#06X}` field must be \
-                     greater than or equal to size field `{size:#06X}`",
-                ),
-            });
-        }
+        let byte_count: u16 = read_field(buf, &mut record_size)?;
+        let size: u32 = read_field(buf, &mut record_size)?;
+        let version: u32 = read_field(buf, &mut record_size)?;
+        let points =
+            read_with(buf, &mut record_size, crate::parser::PointL::parse)?;
+
+        // byte_count is u16 in the wire format but `size` is u32.
+        // Widen byte_count for the bound check so both operands share
+        // the same width (and `width_bits` stays 32 for the diagnostic).
+        crate::parser::ParseError::expect_le(
+            "size (vs byte_count)",
+            size,
+            u32::from(byte_count),
+        )?;
 
         let data_length = size
             - (u32::try_from(size_of::<crate::parser::PointL>())
                 .expect("should be convert u32")
                 + 4
                 + 4);
-        let (data, c) =
-            crate::parser::read_variable(buf, data_length as usize)?;
-        record_size.consume(c);
+        let data =
+            read_bytes_field(buf, &mut record_size, data_length as usize)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

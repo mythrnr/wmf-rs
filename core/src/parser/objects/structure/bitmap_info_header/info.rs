@@ -1,5 +1,3 @@
-use crate::imports::*;
-
 /// The BitmapInfoHeader Object contains information about the dimensions
 /// and color format of a device-independent bitmap (DIB).
 #[derive(Clone, Debug)]
@@ -94,57 +92,41 @@ impl BitmapInfoHeaderInfo {
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (width, width_bytes),
-            (height, height_bytes),
-            (planes, planes_bytes),
-            (bit_count, bit_count_bytes),
-            (compression, compression_bytes),
-            (image_size, image_size_bytes),
-            (x_pels_per_meter, x_pels_per_meter_bytes),
-            (y_pels_per_meter, y_pels_per_meter_bytes),
-            (color_used, color_used_bytes),
-            (color_important, color_important_bytes),
-        ) = (
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::BitCount::parse(buf)?,
-            crate::parser::Compression::parse(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
-        let consumed_bytes = width_bytes
-            + height_bytes
-            + planes_bytes
-            + image_size_bytes
-            + x_pels_per_meter_bytes
-            + y_pels_per_meter_bytes
-            + color_used_bytes
-            + color_important_bytes
-            + bit_count_bytes
-            + compression_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let width = read_field(buf, &mut consumed_bytes)?;
+        let height = read_field(buf, &mut consumed_bytes)?;
+        let planes = read_field(buf, &mut consumed_bytes)?;
+        let bit_count = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::BitCount::parse,
+        )?;
+        let compression = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::Compression::parse,
+        )?;
+        let image_size = read_field(buf, &mut consumed_bytes)?;
+        let x_pels_per_meter = read_field(buf, &mut consumed_bytes)?;
+        let y_pels_per_meter = read_field(buf, &mut consumed_bytes)?;
+        let color_used = read_field(buf, &mut consumed_bytes)?;
+        let color_important = read_field(buf, &mut consumed_bytes)?;
 
         if width <= 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The width field must be positive".to_owned(),
+                cause: "The width field must be positive".into(),
             });
         }
 
         if height == 0 {
             return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The height field must not be zero".to_owned(),
+                cause: "The height field must not be zero".into(),
             });
         }
 
-        if planes != 0x0001 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: "The planes field must be 0x01".to_owned(),
-            });
-        }
+        crate::parser::ParseError::expect_eq("planes", planes, 0x0001)?;
 
         Ok((
             Self {

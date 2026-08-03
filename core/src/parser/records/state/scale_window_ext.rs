@@ -33,7 +33,7 @@ impl META_SCALEWINDOWEXT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -42,24 +42,17 @@ impl META_SCALEWINDOWEXT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_SCALEWINDOWEXT,
         )?;
 
-        let (
-            (y_denom, y_denom_bytes),
-            (y_num, y_num_bytes),
-            (x_denom, x_denom_bytes),
-            (x_num, x_num_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size
-            .consume(y_denom_bytes + y_num_bytes + x_denom_bytes + x_num_bytes);
+        let y_denom = read_field(buf, &mut record_size)?;
+        let y_num = read_field(buf, &mut record_size)?;
+        let x_denom = read_field(buf, &mut record_size)?;
+        let x_num = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

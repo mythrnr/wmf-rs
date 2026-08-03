@@ -27,21 +27,42 @@ impl RectL {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (left, left_bytes),
-            (top, top_bytes),
-            (right, right_bytes),
-            (bottom, bottom_bytes),
-        ) = (
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-            crate::parser::read_i32_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((
-            Self { left, top, right, bottom },
-            left_bytes + top_bytes + right_bytes + bottom_bytes,
-        ))
+        let mut consumed_bytes: usize = 0;
+        let left = read_field(buf, &mut consumed_bytes)?;
+        let top = read_field(buf, &mut consumed_bytes)?;
+        let right = read_field(buf, &mut consumed_bytes)?;
+        let bottom = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { left, top, right, bottom }, consumed_bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imports::*;
+
+    #[test]
+    fn parse_ok() {
+        let mut data = Vec::new();
+        for v in [10_i32, 20, 110, 220] {
+            data.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let (rect, consumed) = RectL::parse(&mut reader).unwrap();
+        assert_eq!(rect.left, 10);
+        assert_eq!(rect.top, 20);
+        assert_eq!(rect.right, 110);
+        assert_eq!(rect.bottom, 220);
+        assert_eq!(consumed, 16);
+    }
+
+    #[test]
+    fn parse_truncated() {
+        let data = 10_i32.to_le_bytes();
+        let mut reader = &data[..];
+        assert!(RectL::parse(&mut reader).is_err());
     }
 }

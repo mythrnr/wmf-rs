@@ -17,6 +17,13 @@ pub struct PolyPolygon {
 }
 
 impl PolyPolygon {
+    /// Upper bound for the total number of points a single PolyPolygon may
+    /// contain. Derived from the parser-wide record size limit (64 MiB)
+    /// divided by the size of `PointS` (4 bytes), so that a crafted input
+    /// cannot trigger an oversized `Vec::with_capacity` allocation that
+    /// ignores the actual payload size.
+    const MAX_TOTAL_POINTS: u32 = 16 * 1024 * 1024;
+
     #[cfg_attr(feature = "tracing", tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
@@ -25,26 +32,42 @@ impl PolyPolygon {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (number_of_polygons, mut consumed_bytes) =
-            crate::parser::read_u16_from_le_bytes(buf)?;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let number_of_polygons = read_field(buf, &mut consumed_bytes)?;
         let mut number_of_points: u32 = 0;
         let mut a_points_per_polygon =
             Vec::with_capacity(number_of_polygons as usize);
 
         for _ in 0..number_of_polygons {
-            let (v, c) = crate::parser::read_u16_from_le_bytes(buf)?;
+            let v = read_field(buf, &mut consumed_bytes)?;
 
-            consumed_bytes += c;
-            number_of_points += u32::from(v);
+            // Use checked_add to keep the safety invariant explicit even
+            // though u16::MAX * u16::MAX fits in u32; the bound check below
+            // is the real guard against memory exhaustion.
+            number_of_points = number_of_points
+                .checked_add(u32::from(v))
+                .ok_or(crate::parser::ParseError::UnexpectedPattern {
+                    cause: "sum of points per polygon overflowed u32".into(),
+                })?;
             a_points_per_polygon.push(v);
         }
 
-        let mut a_points = Vec::new();
+        crate::parser::ParseError::expect_le(
+            "number_of_points",
+            number_of_points,
+            Self::MAX_TOTAL_POINTS,
+        )?;
+
+        let mut a_points = Vec::with_capacity(number_of_points as usize);
 
         for _ in 0..number_of_points {
-            let (v, c) = crate::parser::PointS::parse(buf)?;
-
-            consumed_bytes += c;
+            let v = read_with(
+                buf,
+                &mut consumed_bytes,
+                crate::parser::PointS::parse,
+            )?;
             a_points.push(v);
         }
 
@@ -85,6 +108,51 @@ mod tests {
         data.extend_from_slice(&30000_u16.to_le_bytes());
         let mut reader = &data[..];
         // Should fail with read error (not panic from overflow).
+        assert!(PolyPolygon::parse(&mut reader).is_err());
+    }
+
+    #[test]
+    fn parse_total_point_count_exceeds_max_is_rejected_before_alloc() {
+        // Construct a polygon set whose total point count exceeds
+        // PolyPolygon::MAX_TOTAL_POINTS, and verify the parser rejects it
+        // on the bound check rather than attempting the `a_points` alloc.
+        let polygon_count: u16 =
+            (PolyPolygon::MAX_TOTAL_POINTS / u32::from(u16::MAX) + 1) as u16;
+        let mut data = Vec::new();
+        data.extend_from_slice(&polygon_count.to_le_bytes());
+        for _ in 0..polygon_count {
+            data.extend_from_slice(&u16::MAX.to_le_bytes());
+        }
+        let mut reader = &data[..];
+        let err = PolyPolygon::parse(&mut reader).expect_err(
+            "total point count above MAX_TOTAL_POINTS must be rejected",
+        );
+        assert!(matches!(err, crate::parser::ParseError::FieldOutOfRange {
+            field: "number_of_points",
+            ..
+        }));
+    }
+
+    #[test]
+    fn parse_truncated_polygons_array_fails() {
+        // NumberOfPolygons = 3 but only 1 entry follows.
+        let mut data = Vec::new();
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        let mut reader = &data[..];
+        assert!(PolyPolygon::parse(&mut reader).is_err());
+    }
+
+    #[test]
+    fn parse_truncated_points_array_fails() {
+        // 1 polygon with 5 points, but only 2 PointS structures follow.
+        let mut data = Vec::new();
+        data.extend_from_slice(&1_u16.to_le_bytes());
+        data.extend_from_slice(&5_u16.to_le_bytes());
+        for v in [0_i16, 0, 10, 10] {
+            data.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut reader = &data[..];
         assert!(PolyPolygon::parse(&mut reader).is_err());
     }
 }

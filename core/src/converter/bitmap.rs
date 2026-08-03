@@ -15,10 +15,6 @@ impl Bitmap {
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
-
-    pub fn to_vec(self) -> Vec<u8> {
-        self.0
-    }
 }
 
 impl From<DeviceIndependentBitmap> for Bitmap {
@@ -40,7 +36,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
-                info_header.extend((bit_count as u16).to_le_bytes());
+                info_header.extend(u16::from(bit_count).to_le_bytes());
             }
             BitmapInfoHeader::Info(BitmapInfoHeaderInfo {
                 header_size,
@@ -59,7 +55,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
-                info_header.extend((bit_count as u16).to_le_bytes());
+                info_header.extend(u16::from(bit_count).to_le_bytes());
                 info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
@@ -93,7 +89,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
-                info_header.extend((bit_count as u16).to_le_bytes());
+                info_header.extend(u16::from(bit_count).to_le_bytes());
                 info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
@@ -148,7 +144,7 @@ impl From<DeviceIndependentBitmap> for Bitmap {
                 info_header.extend(width.to_le_bytes());
                 info_header.extend(height.to_le_bytes());
                 info_header.extend(planes.to_le_bytes());
-                info_header.extend((bit_count as u16).to_le_bytes());
+                info_header.extend(u16::from(bit_count).to_le_bytes());
                 info_header.extend((compression as u32).to_le_bytes());
                 info_header.extend(image_size.to_le_bytes());
                 info_header.extend(x_pels_per_meter.to_le_bytes());
@@ -293,7 +289,7 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
                     blue: color_ref.blue,
                 },
             ]),
-            bitmap_buffer: BitmapBuffer { undefined_space: vec![], a_data },
+            bitmap_buffer: BitmapBuffer { a_data },
         }
         .into()
     }
@@ -324,12 +320,12 @@ impl DeviceIndependentBitmap {
 
         let new_bit_count = crate::parser::BitCount::BI_BITCOUNT_5;
         let new_line_bits = dib_header_info.width() * (new_bit_count as usize);
-        let new_line_bytes = ((new_line_bits + 31) / 32) * 4;
+        let new_line_bytes = new_line_bits.div_ceil(32) * 4;
         let new_line_padding = new_line_bytes
             - dib_header_info.width() * (new_bit_count as usize / 8);
 
         let line_bits = dib_header_info.width() * (bit_count as usize);
-        let line_bytes = ((line_bits + 31) / 32) * 4;
+        let line_bytes = line_bits.div_ceil(32) * 4;
         let mut position = 0;
         let mut new_data = vec![];
 
@@ -391,10 +387,7 @@ impl DeviceIndependentBitmap {
                 }
             },
             colors: crate::parser::Colors::Null,
-            bitmap_buffer: crate::parser::BitmapBuffer {
-                undefined_space: vec![],
-                a_data: new_data,
-            },
+            bitmap_buffer: crate::parser::BitmapBuffer { a_data: new_data },
         }
     }
 }

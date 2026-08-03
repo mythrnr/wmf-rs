@@ -33,40 +33,26 @@ impl Scan {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((count, count_bytes), (top, top_bytes), (bottom, bottom_bytes)) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
-        let mut consumed_bytes = count_bytes + top_bytes + bottom_bytes;
+        use crate::parser::records::{read_field, read_with};
 
-        if count % 2 != 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!("The count field `{count}` must be even value"),
-            });
-        }
+        let mut consumed_bytes: usize = 0;
+        let count = read_field(buf, &mut consumed_bytes)?;
+        let top = read_field(buf, &mut consumed_bytes)?;
+        let bottom = read_field(buf, &mut consumed_bytes)?;
+
+        crate::parser::ParseError::expect_eq("count (parity)", count % 2, 0)?;
 
         let line_count = count as usize / 2;
         let mut scan_lines = Vec::with_capacity(line_count);
 
         for _ in 0..line_count {
-            let (v, c) = ScanLine::parse(buf)?;
-
-            consumed_bytes += c;
+            let v = read_with(buf, &mut consumed_bytes, ScanLine::parse)?;
             scan_lines.push(v);
         }
 
-        let (count2, c) = crate::parser::read_u16_from_le_bytes(buf)?;
-        consumed_bytes += c;
+        let count2: u16 = read_field(buf, &mut consumed_bytes)?;
 
-        if count != count2 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "The count field `{count}` and count2 field `{count2}` \
-                     must have same value"
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_eq("count2", count2, count)?;
 
         Ok((Self { count, top, bottom, scan_lines, count2 }, consumed_bytes))
     }
@@ -93,11 +79,12 @@ impl ScanLine {
     pub fn parse<R: crate::Read>(
         buf: &mut R,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let ((left, left_bytes), (right, right_bytes)) = (
-            crate::parser::read_u16_from_le_bytes(buf)?,
-            crate::parser::read_u16_from_le_bytes(buf)?,
-        );
+        use crate::parser::records::read_field;
 
-        Ok((Self { left, right }, left_bytes + right_bytes))
+        let mut consumed_bytes: usize = 0;
+        let left = read_field(buf, &mut consumed_bytes)?;
+        let right = read_field(buf, &mut consumed_bytes)?;
+
+        Ok((Self { left, right }, consumed_bytes))
     }
 }

@@ -49,7 +49,7 @@ impl META_ARC {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -58,40 +58,21 @@ impl META_ARC {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::read_field;
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_ARC,
         )?;
 
-        let (
-            (y_end_arc, y_end_arc_bytes),
-            (x_end_arc, x_end_arc_bytes),
-            (y_start_arc, y_start_arc_bytes),
-            (x_start_arc, x_start_arc_bytes),
-            (bottom_rect, bottom_rect_bytes),
-            (right_rect, right_rect_bytes),
-            (top_rect, top_rect_bytes),
-            (left_rect, left_rect_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(
-            y_end_arc_bytes
-                + x_end_arc_bytes
-                + y_start_arc_bytes
-                + x_start_arc_bytes
-                + bottom_rect_bytes
-                + right_rect_bytes
-                + top_rect_bytes
-                + left_rect_bytes,
-        );
+        let y_end_arc = read_field(buf, &mut record_size)?;
+        let x_end_arc = read_field(buf, &mut record_size)?;
+        let y_start_arc = read_field(buf, &mut record_size)?;
+        let x_start_arc = read_field(buf, &mut record_size)?;
+        let bottom_rect = read_field(buf, &mut record_size)?;
+        let right_rect = read_field(buf, &mut record_size)?;
+        let top_rect = read_field(buf, &mut record_size)?;
+        let left_rect = read_field(buf, &mut record_size)?;
 
         crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 

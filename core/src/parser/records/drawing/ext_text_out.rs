@@ -57,7 +57,7 @@ impl META_EXTTEXTOUT {
         skip_all,
         fields(
             %record_size,
-            record_function = %format!("{record_function:#06X}"),
+            record_function = %crate::parser::HexU16(record_function),
         ),
         err(level = tracing::Level::ERROR, Display),
     ))]
@@ -66,27 +66,19 @@ impl META_EXTTEXTOUT {
         mut record_size: crate::parser::RecordSize,
         record_function: u16,
     ) -> Result<Self, crate::parser::ParseError> {
+        use crate::parser::records::{read_bytes_field, read_field, read_with};
+
         crate::parser::records::check_lower_byte_matches(
             record_function,
             crate::parser::RecordType::META_EXTTEXTOUT,
         )?;
 
-        #[rustfmt::skip]
-        let (
-            (y, y_bytes),
-            (x, x_bytes),
-            (string_length, string_length_bytes),
-        ) = (
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-            crate::parser::read_i16_from_le_bytes(buf)?,
-        );
-        record_size.consume(y_bytes + x_bytes + string_length_bytes);
+        let y = read_field(buf, &mut record_size)?;
+        let x = read_field(buf, &mut record_size)?;
+        let string_length = read_field(buf, &mut record_size)?;
 
         let fw_opts = {
-            let (value, c) = crate::parser::read_u16_from_le_bytes(buf)?;
-            record_size.consume(c);
-
+            let value: u16 = read_field(buf, &mut record_size)?;
             let mut fw_opts = BTreeSet::new();
 
             for v in [
@@ -110,25 +102,18 @@ impl META_EXTTEXTOUT {
             .contains(&crate::parser::ExtTextOutOptions::ETO_OPAQUE)
             || fw_opts.contains(&crate::parser::ExtTextOutOptions::ETO_CLIPPED)
         {
-            let (v, c) = crate::parser::Rect::parse(buf)?;
-            record_size.consume(c);
-
-            Some(v)
+            Some(read_with(buf, &mut record_size, crate::parser::Rect::parse)?)
         } else {
             None
         };
 
-        if string_length < 0 {
-            return Err(crate::parser::ParseError::UnexpectedPattern {
-                cause: format!(
-                    "string_length must be non-negative, got {string_length}",
-                ),
-            });
-        }
+        crate::parser::ParseError::expect_non_negative(
+            "string_length",
+            string_length,
+        )?;
 
-        let (string, string_bytes) =
-            crate::parser::read_variable(buf, string_length as usize)?;
-        record_size.consume(string_bytes);
+        let string =
+            read_bytes_field(buf, &mut record_size, string_length as usize)?;
 
         // ignore odd bytes
         if string_length % 2 != 0 {
@@ -151,16 +136,12 @@ impl META_EXTTEXTOUT {
             dx.reserve_exact(dx_count);
 
             for _ in 0..dx_count {
-                let (v, c) = crate::parser::read_i16_from_le_bytes(buf)?;
-
-                record_size.consume(c);
+                let v = read_field(buf, &mut record_size)?;
                 dx.push(v);
             }
         }
 
-        let (_, c) =
-            crate::parser::records::consume_remaining_bytes(buf, record_size)?;
-        record_size.consume(c);
+        crate::parser::records::consume_remaining_bytes(buf, record_size)?;
 
         Ok(Self {
             record_size,

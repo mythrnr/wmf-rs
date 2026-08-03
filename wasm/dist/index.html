@@ -38,6 +38,35 @@
       top: 0;
       width: 100%;
     }
+
+    .result {
+      border: solid black;
+      margin-top: 10px;
+      padding: 10px;
+    }
+
+    .result h3 {
+      margin: 0 0 10px;
+    }
+
+    .scroll-top {
+      background: #333333;
+      border: none;
+      border-radius: 50%;
+      bottom: 24px;
+      color: #ffffff;
+      cursor: pointer;
+      display: none;
+      font-size: 18px;
+      height: 72px;
+      position: fixed;
+      right: 24px;
+      width: 72px;
+    }
+
+    .scroll-top.visible {
+      display: block;
+    }
   </style>
 </head>
 
@@ -46,34 +75,61 @@
 
   <h2>WMF File:</h2>
   <div class="uploader">
-    <input id="input" type="file" accept=".wmf" />
+    <input id="input" type="file" accept=".wmf" multiple />
   </div>
 
-  <h2>SVG Output: <span id="time"></span></h2>
-  <div id="output" style="border: solid black; padding: 10px;"></div>
+  <h2>SVG Output: <span id="summary"></span></h2>
+  <div id="output"></div>
+
+  <button id="scroll-top" class="scroll-top" type="button">Top</button>
 
   <script type="module">
     import init, { convertWmf2Svg, setLogLevel } from "./wmf_wasm.js";
 
-    function handleFile(file) {
-      const fileReader = new FileReader();
-      const filename = file.name;
+    function readFile(file) {
+      return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => resolve(new Uint8Array(e.target.result));
+        fileReader.onerror = () => reject(fileReader.error);
+        fileReader.readAsArrayBuffer(file);
+      });
+    }
 
-      fileReader.onload = (e) => {
-        const start = Date.now();
-        const bytes = new Uint8Array(e.target.result);
+    async function handleFile(file) {
+      const section = document.createElement("section");
+      section.className = "result";
 
-        try {
-          const output = convertWmf2Svg(bytes);
-          document.getElementById("output").innerHTML = output;
-        } catch (e) {
-          document.getElementById("output").innerText = `${e}`;
-        }
+      const heading = document.createElement("h3");
+      const body = document.createElement("div");
+      section.append(heading, body);
+      document.getElementById("output").append(section);
 
-        document.getElementById("time").innerText = `${filename} / ${Date.now() - start}ms`;
-      };
+      const start = Date.now();
+      try {
+        const bytes = await readFile(file);
+        body.innerHTML = convertWmf2Svg(bytes);
+      } catch (e) {
+        body.innerText = `${e}`;
+      }
+      heading.innerText = `${file.name} / ${Date.now() - start}ms`;
+    }
 
-      fileReader.readAsArrayBuffer(file);
+    async function handleFiles(fileList) {
+      const files = Array.from(fileList ?? []);
+      if (files.length === 0) {
+        return;
+      }
+
+      const output = document.getElementById("output");
+      const summary = document.getElementById("summary");
+      output.innerHTML = "";
+      summary.innerText = "";
+
+      const start = Date.now();
+      for (const file of files) {
+        await handleFile(file);
+      }
+      summary.innerText = `${files.length} file(s) / ${Date.now() - start}ms`;
     }
 
     async function run() {
@@ -84,13 +140,7 @@
       const uploader = document.querySelector(".uploader");
 
       input.addEventListener("change", () => {
-        const files = input.files;
-
-        if (files === null || files.length === 0) {
-          return;
-        }
-
-        handleFile(files[0]);
+        handleFiles(input.files);
       });
 
       uploader.addEventListener("dragover", (e) => {
@@ -99,14 +149,19 @@
 
       uploader.addEventListener("drop", (e) => {
         e.preventDefault();
-        const files = e.dataTransfer.files;
-
-        if (files.length === 0) {
-          return;
-        }
-
-        handleFile(files[0]);
+        handleFiles(e.dataTransfer.files);
       });
+
+      const scrollTop = document.getElementById("scroll-top");
+      scrollTop.addEventListener("click", () => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      });
+      const updateScrollTop = () => {
+        const visible = uploader.getBoundingClientRect().bottom < 0;
+        scrollTop.classList.toggle("visible", visible);
+      };
+      window.addEventListener("scroll", updateScrollTop, { passive: true });
+      updateScrollTop();
     }
 
     run();

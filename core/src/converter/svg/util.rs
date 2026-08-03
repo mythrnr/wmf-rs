@@ -23,61 +23,6 @@ impl crate::converter::Bitmap {
     }
 }
 
-impl Brush {
-    pub fn as_filter(&self) -> Node {
-        match self {
-            Brush::DIBPatternPT { brush_hatch, .. } => {
-                let data = crate::converter::Bitmap::from(brush_hatch.clone())
-                    .as_data_url();
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Hatched { color_ref, brush_hatch } => {
-                let data = crate::converter::Bitmap::from((
-                    color_ref.clone(),
-                    *brush_hatch,
-                ))
-                .as_data_url();
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Pattern { brush_hatch } => {
-                let bitmap = crate::parser::DeviceIndependentBitmap::from(
-                    brush_hatch.clone(),
-                );
-                let data = crate::converter::Bitmap::from(bitmap).as_data_url();
-
-                Node::new("filter").add(Node::new("feImage").set("href", data))
-            }
-            Brush::Solid { color_ref } => Node::new("filter")
-                .set("x", "0")
-                .set("y", "0")
-                .set("width", "1")
-                .set("height", "1")
-                .add(
-                    Node::new("feFlood")
-                        .set("flood-color", css_color_from_color_ref(color_ref))
-                        .set("result", "bg"),
-                )
-                .add(
-                    Node::new("feMerge")
-                        .add(Node::new("feMergeNode").set("in", "bg"))
-                        .add(
-                            Node::new("feMergeNode").set("in", "SourceGraphic"),
-                        ),
-                ),
-            Brush::Null => Node::new("filter")
-                .set("x", "0")
-                .set("y", "0")
-                .set("width", "0")
-                .set("height", "0")
-                .add(
-                    Node::new("feFlood")
-                        .set("flood-color", "#000")
-                        .set("flood-opacity", "0"),
-                ),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum Fill {
     Pattern { pattern: Node },
@@ -385,8 +330,52 @@ impl Font {
         elem = elem
             .set("font-family", format!("'{}'", font_family.join("','")))
             .set("font-size", self.height.abs())
-            .set("font-weight", self.weight);
+            .set("font-weight", Self::svg_font_weight(self.weight));
 
         (elem, styles)
+    }
+
+    /// Convert a WMF `Font.weight` (0..=1000, where 0 is FW_DONTCARE) into a
+    /// value accepted by SVG 1.1. SVG 1.1 only allows numeric weights at
+    /// multiples of 100 in 100..=900 or keywords such as `normal`, so map
+    /// FW_DONTCARE to `normal` and snap any other value to the nearest
+    /// hundred, clamped into 100..=900.
+    fn svg_font_weight(weight: i16) -> String {
+        if weight == 0 {
+            return "normal".to_owned();
+        }
+
+        let snapped = (i32::from(weight) + 50) / 100 * 100;
+        format!("{}", snapped.clamp(100, 900))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn svg_font_weight_maps_dontcare_to_normal() {
+        assert_eq!(Font::svg_font_weight(0), "normal");
+    }
+
+    #[test]
+    fn svg_font_weight_passes_through_canonical_values() {
+        assert_eq!(Font::svg_font_weight(400), "400");
+        assert_eq!(Font::svg_font_weight(700), "700");
+    }
+
+    #[test]
+    fn svg_font_weight_snaps_to_nearest_hundred() {
+        assert_eq!(Font::svg_font_weight(350), "400");
+        assert_eq!(Font::svg_font_weight(349), "300");
+    }
+
+    #[test]
+    fn svg_font_weight_clamps_out_of_range() {
+        assert_eq!(Font::svg_font_weight(50), "100");
+        assert_eq!(Font::svg_font_weight(950), "900");
+        assert_eq!(Font::svg_font_weight(1000), "900");
+        assert_eq!(Font::svg_font_weight(-1), "100");
     }
 }

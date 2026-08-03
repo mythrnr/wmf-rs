@@ -172,24 +172,20 @@ impl BitmapInfoHeaderV5 {
         buf: &mut R,
         header_size: u32,
     ) -> Result<(Self, usize), crate::parser::ParseError> {
-        let (
-            (header, header_bytes),
-            (intent, intent_bytes),
-            (profile_data, profile_data_bytes),
-            (profile_size, profile_size_bytes),
-            (reserved, reserved_bytes),
-        ) = (
-            crate::parser::BitmapInfoHeaderV4::parse(buf, header_size)?,
-            crate::parser::GamutMappingIntent::parse(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-            crate::parser::read_u32_from_le_bytes(buf)?,
-        );
-        let consumed_bytes = profile_data_bytes
-            + profile_size_bytes
-            + reserved_bytes
-            + header_bytes
-            + intent_bytes;
+        use crate::parser::records::{read_field, read_with};
+
+        let mut consumed_bytes: usize = 0;
+        let header = read_with(buf, &mut consumed_bytes, |b| {
+            crate::parser::BitmapInfoHeaderV4::parse(b, header_size)
+        })?;
+        let intent = read_with(
+            buf,
+            &mut consumed_bytes,
+            crate::parser::GamutMappingIntent::parse,
+        )?;
+        let profile_data = read_field(buf, &mut consumed_bytes)?;
+        let profile_size = read_field(buf, &mut consumed_bytes)?;
+        let reserved = read_field(buf, &mut consumed_bytes)?;
 
         let crate::parser::BitmapInfoHeaderV4 {
             header_size,

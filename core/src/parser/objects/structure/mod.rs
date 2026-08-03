@@ -37,7 +37,7 @@ fn utf16le_bytes_to_string(
 ) -> Result<String, crate::parser::ParseError> {
     if bytes.len() % 2 != 0 {
         return Err(crate::parser::ParseError::UnexpectedPattern {
-            cause: "Byte array length must be even".to_owned(),
+            cause: "Byte array length must be even".into(),
         });
     }
 
@@ -49,6 +49,8 @@ fn utf16le_bytes_to_string(
         .collect::<Vec<_>>();
 
     String::from_utf16(&u16_vec).map_err(|err| {
-        crate::parser::ParseError::UnexpectedPattern { cause: err.to_string() }
+        crate::parser::ParseError::UnexpectedPattern {
+            cause: err.to_string().into(),
+        }
     })
 }
