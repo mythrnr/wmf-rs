@@ -117,3 +117,54 @@ jobs:
             "wmf-wasm-${RELEASE_VERSION}.tar.gz" \
             "wmf-wasm-minimal-${RELEASE_VERSION}.tar.gz" \
             --clobber
+
+  # Publishes wmf-core to crates.io through Trusted Publishing (OIDC),
+  # so no long-lived token is stored in the repository.
+  #
+  # Runs after publish-wasm because publishing to crates.io cannot be
+  # undone (only yanked) while the GitHub Release side is repeatable: a
+  # failure anywhere then leaves the tag with nothing half-released, and
+  # re-dispatching the workflow is the whole recovery.
+  #
+  # DISABLED until the first publish: Trusted Publishing can only be
+  # configured for a crate that already exists on crates.io, so the
+  # first release must be published locally with an API token. After
+  # that, register this repository and workflow as a trusted publisher
+  # for wmf-core on crates.io, then remove the `if` below.
+  publish-crate:
+    if: "false"
+    name: "Publish wmf-core to crates.io"
+    needs: "publish-wasm"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 15
+    permissions:
+      id-token: "write"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Publishing is not idempotent, so a re-run of a release whose
+      # crate version already exists (e.g. to rebuild the WASM bundles)
+      # must skip this job instead of failing it.
+      - name: "Check whether the version is already published"
+        id: "existing"
+        run: |
+          if curl -fsS \
+            "https://crates.io/api/v1/crates/wmf-core/${RELEASE_VERSION}" \
+            >/dev/null 2>&1; then
+            echo "wmf-core ${RELEASE_VERSION} is already on crates.io"
+            echo "published=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "published=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - uses: "rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18" # v1.0.5
+        if: "steps.existing.outputs.published == 'false'"
+        id: "auth"
+
+      - name: "Publish to crates.io"
+        if: "steps.existing.outputs.published == 'false'"
+        env:
+          CARGO_REGISTRY_TOKEN: "${{ steps.auth.outputs.token }}"
+        run: "cargo publish -p wmf-core"

@@ -61,8 +61,11 @@ jobs:
     name: "Release"
     needs: "tag"
     if: "needs.tag.outputs.created == 'true'"
+    # id-token is required by the crates.io publish job (OIDC) in the
+    # called workflow; permissions granted here cap what its jobs get.
     permissions:
       contents: "write"
+      id-token: "write"
     uses: "./.github/workflows/release.yaml"
     with:
       version: "${{ needs.tag.outputs.version }}"
