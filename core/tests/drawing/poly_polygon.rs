@@ -20,7 +20,7 @@ fn meta_poly_polygon_svg_table_test() {
     // be emitted as one <path> with two subpaths so fill-rule can subtract
     // the inner ring from the outer.
     let donut = || META_POLYPOLYGON {
-        record_size: 0.into(),
+        record_size: wmf_core::parser::RecordSize::from_raw(0),
         record_function: 0,
         poly_polygon: PolyPolygon {
             number_of_polygons: 2,
@@ -47,8 +47,7 @@ fn meta_poly_polygon_svg_table_test() {
             expected_svg: r##"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M 10,10 L 90,10 L 90,90 L 10,90 Z M 30,30 L 70,30 L 70,70 L 30,70 Z" fill="none" fill-rule="evenodd" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1"></path></svg>"##,
         },
         TestCase {
-            desc: "Outer + inner ring (nonzero) carries the winding \
-                   fill-rule",
+            desc: "Outer + inner ring (nonzero) carries the winding fill-rule",
             fill_mode: PolyFillMode::WINDING,
             record: donut(),
             expected_svg: r##"<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M 10,10 L 90,10 L 90,90 L 10,90 Z M 30,30 L 70,30 L 70,70 L 30,70 Z" fill="none" fill-rule="nonzero" id="elem1" stroke="#000000" stroke-dasharray="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-opacity="1.00" stroke-width="1"></path></svg>"##,
@@ -57,7 +56,7 @@ fn meta_poly_polygon_svg_table_test() {
             desc: "Single sub-polygon still produces a single path",
             fill_mode: PolyFillMode::ALTERNATE,
             record: META_POLYPOLYGON {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 poly_polygon: PolyPolygon {
                     number_of_polygons: 1,
@@ -76,7 +75,7 @@ fn meta_poly_polygon_svg_table_test() {
                    subsequent points",
             fill_mode: PolyFillMode::ALTERNATE,
             record: META_POLYPOLYGON {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 poly_polygon: PolyPolygon {
                     number_of_polygons: 2,
@@ -96,7 +95,7 @@ fn meta_poly_polygon_svg_table_test() {
         let player = SVGPlayer::new();
         let player = player
             .set_window_ext(0, META_SETWINDOWEXT {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 y: 1024,
                 x: 1024,
@@ -104,7 +103,7 @@ fn meta_poly_polygon_svg_table_test() {
             .expect("set_window_ext failed");
         let player = player
             .set_polyfill_mode(0, META_SETPOLYFILLMODE {
-                record_size: 0.into(),
+                record_size: wmf_core::parser::RecordSize::from_raw(0),
                 record_function: 0,
                 poly_fill_mode: case.fill_mode,
                 reserved: None,
