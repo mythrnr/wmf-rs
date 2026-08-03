@@ -5,7 +5,8 @@ mod util;
 
 use crate::{
     converter::{
-        GraphicsObject, GraphicsObjects, PlayError, SelectedGraphicsObject,
+        ConvertError, GraphicsObject, GraphicsObjects, PlayError,
+        SelectedGraphicsObject,
         svg::{
             device_context::DeviceContext,
             node::{Data, Node},
@@ -19,6 +20,28 @@ use crate::{
     imports::*,
     parser::*,
 };
+
+/// Parses the WMF records in `buffer` and renders them into an SVG
+/// document with the built-in [`SVGPlayer`].
+///
+/// This is a shorthand for [`convert`](crate::converter::convert) for
+/// callers that do not need a custom
+/// [`Player`](crate::converter::Player).
+///
+/// # Example
+///
+/// ```no_run
+/// let wmf_data = std::fs::read("input.wmf").expect("failed to read file");
+///
+/// let svg = wmf_core::converter::convert_to_svg(wmf_data.as_slice())
+///     .expect("failed to convert");
+/// ```
+pub fn convert_to_svg<B>(buffer: B) -> Result<Vec<u8>, ConvertError>
+where
+    B: crate::Read,
+{
+    crate::converter::convert(buffer, SVGPlayer::new())
+}
 
 #[derive(Default)]
 pub struct SVGPlayer {

@@ -39,10 +39,8 @@ pub fn convert_wmf_to_svg(buf: &[u8]) -> Result<String, JsValue> {
 
     set_log_level("info");
 
-    let player = wmf_core::converter::SVGPlayer::new();
-    let converter = wmf_core::converter::WMFConverter::new(buf, player);
-    let output =
-        converter.run().map_err(|err| JsValue::from(err.to_string()))?;
+    let output = wmf_core::converter::convert_to_svg(buf)
+        .map_err(|err| JsValue::from(err.to_string()))?;
 
     Ok(String::from_utf8_lossy(&output).to_string())
 }
