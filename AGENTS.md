@@ -44,7 +44,9 @@ Docker dev shell (`make docker-dev`).
 - Day-to-day checks: `make test`, `make lint`, `make fmt`
 - Full suite before a PR: `make ci-suite`
 - CI on PRs and pushes to master runs `make fmt`, `make lint`,
-  `make spell-check`, and `make test`
+  `make doc-check`, `make spell-check`, and `make test`
+- `make doc-check` builds the docs with `RUSTDOCFLAGS="-D warnings"`, so a
+  broken intra-doc link or invalid HTML in a doc comment fails the build
 - `make install-tools` bulk-installs the host tooling
 
 ## Testing
