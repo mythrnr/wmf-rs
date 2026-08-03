@@ -41,13 +41,7 @@ use std::fs;
 fn main() {
     let wmf_data = fs::read("input.wmf").expect("failed to read file");
 
-    let player = wmf_core::converter::SVGPlayer::new();
-    let converter = wmf_core::converter::WMFConverter::new(
-        wmf_data.as_slice(),
-        player,
-    );
-
-    match converter.run() {
+    match wmf_core::converter::convert_to_svg(wmf_data.as_slice()) {
         Ok(svg_bytes) => {
             let svg = String::from_utf8_lossy(&svg_bytes);
             println!("{svg}");
@@ -98,6 +92,16 @@ impl Player for MyPlayer {
         todo!()
     }
 }
+```
+
+Pass the implementation to `wmf_core::converter::convert`:
+
+```rust
+let output = wmf_core::converter::convert(
+    wmf_data.as_slice(),
+    MyPlayer { /* ... */ },
+)
+.expect("failed to convert");
 ```
 
 ### As a CLI Tool

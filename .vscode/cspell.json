@@ -66,6 +66,7 @@
     "dibpatternpt",
     "dibstretchblt",
     "diskmetafile",
+    "doctests",
     "dontcare",
     "downloadface",
     "downloadheader",

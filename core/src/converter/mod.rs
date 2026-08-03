@@ -32,6 +32,25 @@ impl From<crate::converter::PlayError> for ConvertError {
     }
 }
 
+/// Parses the WMF records in `buffer` and renders them with `player`,
+/// returning the bytes produced by [`Player::generate`].
+///
+/// This is the primary entry point of the crate. A conversion consumes
+/// both the buffer and the player, so there is no state worth holding
+/// between calls; this function replaces the
+/// [`WMFConverter::new`] + [`WMFConverter::run`] two-step dance for the
+/// common one-shot case.
+///
+/// When the `svg` feature is enabled, [`convert_to_svg`] is a
+/// shorthand that renders with the built-in SVG player.
+pub fn convert<B, P>(buffer: B, player: P) -> Result<Vec<u8>, ConvertError>
+where
+    B: crate::Read,
+    P: crate::converter::Player,
+{
+    WMFConverter::new(buffer, player).run()
+}
+
 pub struct WMFConverter<B, P> {
     buffer: B,
     player: P,

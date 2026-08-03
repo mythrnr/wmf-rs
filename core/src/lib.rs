@@ -6,15 +6,13 @@
 //! ```no_run
 //! let wmf_data = std::fs::read("input.wmf").expect("failed to read file");
 //!
-//! let player = wmf_core::converter::SVGPlayer::new();
-//! let converter =
-//!     wmf_core::converter::WMFConverter::new(wmf_data.as_slice(), player);
-//!
-//! let svg = converter.run().expect("failed to convert");
+//! let svg = wmf_core::converter::convert_to_svg(wmf_data.as_slice())
+//!     .expect("failed to convert");
 //! ```
 //!
 //! Output formats other than SVG can be produced by implementing the
-//! [`Player`](converter::Player) trait.
+//! [`Player`](converter::Player) trait and passing the implementation
+//! to [`convert`](converter::convert).
 //!
 //! # Attribution
 //!

@@ -105,11 +105,7 @@ fn main() {
     //     .join("\n");
     // println!("{bytes}");
 
-    let player = wmf_core::converter::SVGPlayer::new();
-    let converter =
-        wmf_core::converter::WMFConverter::new(buffer.as_slice(), player);
-
-    match converter.run() {
+    match wmf_core::converter::convert_to_svg(buffer.as_slice()) {
         Ok(bytes) => {
             if let Err(err) = output.write_all(&bytes) {
                 tracing::error!(%err);
