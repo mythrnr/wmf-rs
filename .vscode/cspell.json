@@ -188,6 +188,7 @@
     "restoredc",
     "roundrect",
     "rtlreading",
+    "RUSTDOCFLAGS",
     "savedc",
     "scaleviewportext",
     "scalewindowext",
