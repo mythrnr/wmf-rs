@@ -693,7 +693,6 @@ impl crate::converter::Player for SVGPlayer {
         record_number: usize,
         record: META_CHORD,
     ) -> Result<Self, PlayError> {
-        // Calculate ellipse center and radii from bounding rectangle.
         // Use f32 to avoid precision loss from integer division.
         let rx = (f32::from(record.right_rect - record.left_rect) / 2.0).abs();
         let ry = (f32::from(record.bottom_rect - record.top_rect) / 2.0).abs();
@@ -714,8 +713,6 @@ impl crate::converter::Player for SVGPlayer {
             y: center_y.round() as i16,
         });
 
-        // Convert radial endpoints from WMF coordinates to SVG absolute
-        // coordinates
         let p1 = self.context_current.point_s_to_absolute_point(&PointS {
             x: record.x_radial1,
             y: record.y_radial1,
@@ -725,8 +722,6 @@ impl crate::converter::Player for SVGPlayer {
             y: record.y_radial2,
         });
 
-        // Build SVG path for chord: move to first radial, draw arc, line to
-        // center, close path
         let fill = self.resolve_fill();
         let fill_rule = self.context_current.poly_fill_rule();
         let stroke = Stroke::from(self.selected_pen());
@@ -864,13 +859,8 @@ impl crate::converter::Player for SVGPlayer {
                 self.context_current.point_s_to_absolute_point(&point)
             };
 
-            // Translate the WMF reference y into the SVG alphabetic
-            // baseline using script-aware ascent/descent ratios.
-            // Emitting baseline-aligned coordinates (and omitting
-            // `dominant-baseline`) avoids the unreliable cross-
-            // renderer support of the SVG/CSS baseline keywords,
-            // which otherwise let the text escape its WMF bounding
-            // rectangle.
+            // Pre-place y on the alphabetic baseline; see
+            // DeviceContext::text_baseline_y_offset for the rationale.
             let baseline_y_offset = self
                 .context_current
                 .text_baseline_y_offset(font_height, font_charset);
@@ -1593,9 +1583,8 @@ impl crate::converter::Player for SVGPlayer {
             PlayError::InvalidRecord { cause: err.to_string() }
         })?;
         let point = self.convert_point_for_text(record.x_start, record.y_start);
-        // Same baseline shift as ext_text_out: pre-place y on the
-        // alphabetic baseline so the text stays inside the WMF
-        // bounding rectangle regardless of renderer baseline support.
+        // Pre-place y on the alphabetic baseline; see
+        // DeviceContext::text_baseline_y_offset for the rationale.
         let baseline_y_offset = self
             .context_current
             .text_baseline_y_offset(font_height, font_charset);

@@ -23,7 +23,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
 
         let mut info_header = vec![];
 
-        // write info header
         match dib.dib_header_info {
             BitmapInfoHeader::Core(BitmapInfoHeaderCore {
                 header_size,
@@ -175,7 +174,6 @@ impl From<DeviceIndependentBitmap> for Bitmap {
             }
         }
 
-        // write pixel data
         let data = dib.bitmap_buffer.a_data;
 
         // BMP file header (14 bytes) + info header + pixel data
@@ -297,7 +295,6 @@ impl From<(ColorRef, HatchStyle)> for Bitmap {
 
 impl DeviceIndependentBitmap {
     fn expand_color_palette(self) -> Self {
-        // nothing to do.
         if matches!(
             self.colors,
             crate::parser::Colors::Null
