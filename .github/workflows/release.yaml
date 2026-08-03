@@ -139,18 +139,30 @@ jobs:
 
       # Publishing is not idempotent, so a re-run of a release whose
       # crate version already exists (e.g. to rebuild the WASM bundles)
-      # must skip this job instead of failing it.
+      # must skip this job instead of failing it. crates.io rejects
+      # requests without a descriptive User-Agent (data access policy),
+      # so one is sent explicitly, and only 404 counts as "not
+      # published": any other status (and, via `-e`, any curl failure)
+      # fails the job instead of risking a duplicate publish attempt.
       - name: "Check whether the version is already published"
         id: "existing"
         run: |
-          if curl -fsS \
-            "https://crates.io/api/v1/crates/wmf-core/${RELEASE_VERSION}" \
-            >/dev/null 2>&1; then
-            echo "wmf-core ${RELEASE_VERSION} is already on crates.io"
-            echo "published=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "published=false" >> "${GITHUB_OUTPUT}"
-          fi
+          status="$(curl -sS -o /dev/null -w "%{http_code}" \
+            -A "wmf-rs release workflow (https://github.com/mythrnr/wmf-rs)" \
+            "https://crates.io/api/v1/crates/wmf-core/${RELEASE_VERSION}")"
+          case "${status}" in
+            200)
+              echo "wmf-core ${RELEASE_VERSION} is already on crates.io"
+              echo "published=true" >> "${GITHUB_OUTPUT}"
+              ;;
+            404)
+              echo "published=false" >> "${GITHUB_OUTPUT}"
+              ;;
+            *)
+              echo "unexpected status ${status} from crates.io" >&2
+              exit 1
+              ;;
+          esac
 
       - uses: "rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18" # v1.0.5
         if: "steps.existing.outputs.published == 'false'"
