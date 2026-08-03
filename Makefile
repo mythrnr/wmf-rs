@@ -3,7 +3,7 @@ MAKEFLAGS += --silent
 endif
 
 .PHONY: ci-suite
-ci-suite: spell-check fix fmt lint udeps wasm wasm-minimal test
+ci-suite: spell-check fix fmt lint doc-check udeps wasm wasm-minimal test
 
 .PHONY: check
 check:
@@ -16,6 +16,11 @@ clean:
 .PHONY: doc
 doc:
 	cargo doc --open --workspace --no-deps
+
+.PHONY: doc-check
+doc-check:
+	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps \
+		--all-features
 
 .PHONY: docker-build
 docker-build:
