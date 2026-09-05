@@ -94,17 +94,6 @@ fn main() {
         std::process::exit(1);
     }
 
-    // let bytes = buffer
-    //     .iter()
-    //     .map(|v| format!("{v:02X}"))
-    //     .collect::<Vec<_>>()
-    //     .chunks(4)
-    //     .into_iter()
-    //     .map(|v| v.join(" "))
-    //     .collect::<Vec<_>>()
-    //     .join("\n");
-    // println!("{bytes}");
-
     match wmf_core::converter::convert_to_svg(buffer.as_slice()) {
         Ok(bytes) => {
             if let Err(err) = output.write_all(&bytes) {
