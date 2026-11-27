@@ -2,6 +2,8 @@ ifndef VERBOSE
 MAKEFLAGS += --silent
 endif
 
+docker_compose := docker compose -f docker/compose.yaml --progress plain
+
 .PHONY: ci-suite
 ci-suite: spell-check fix fmt lint doc-check udeps wasm wasm-minimal test
 
@@ -24,16 +26,15 @@ doc-check:
 
 .PHONY: docker-build
 docker-build:
-	docker compose -f docker/compose.yaml --progress plain build
+	$(docker_compose) build
 
 .PHONY: docker-clean
 docker-clean:
-	docker compose -f docker/compose.yaml --progress plain down \
-		--volumes --remove-orphans
+	$(docker_compose) down --volumes --remove-orphans
 
 .PHONY: docker-dev
 docker-dev:
-	docker compose -f docker/compose.yaml --progress plain run --rm dev
+	$(docker_compose) run --rm dev
 
 .PHONY: fix
 fix:
@@ -77,8 +78,8 @@ release:
 
 .PHONY: serve
 serve: wasm
-	yarn
-	yarn run serve -p 8080 wasm/dist/
+	pnpm install
+	pnpm run serve -p 8080 wasm/dist/
 
 .PHONY: spell-check
 spell-check:

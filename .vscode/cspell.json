@@ -9,6 +9,7 @@
     ".claude/*.local.*",
     ".git",
     "*.lock",
+    "pnpm-lock.yaml",
     "target",
     "wasm/dist",
     "wasm/dist-minimal"

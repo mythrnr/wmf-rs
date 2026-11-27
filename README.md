@@ -200,7 +200,7 @@ variants:
 - Rust nightly toolchain (for `rustfmt` and `cargo-udeps`)
 - Docker (for spell-check)
 - [wasm-pack](https://github.com/rustwasm/wasm-pack) (for WASM builds)
-- Yarn 1.22.22+ (to run the WASM demo)
+- pnpm 12.23.0+ (to run the WASM demo)
 
 Optional tools can be installed with:
 
