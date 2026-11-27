@@ -1,7 +1,8 @@
 {
   "devDependencies": {
-    "serve": "^14.2.6"
+    "serve": "^14.2.8"
   },
+  "packageManager": "pnpm@12.23.0",
   "scripts": {
     "serve": "serve"
   }
