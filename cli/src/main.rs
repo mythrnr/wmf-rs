@@ -69,9 +69,7 @@ fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .with_target(true)
         .with_timer(UtcTime::rfc_3339())
-        .with_env_filter(
-            env_filter
-        )
+        .with_env_filter(env_filter)
         .init();
 
     let _span = tracing::info_span!("main", input = %cli.input).entered();
